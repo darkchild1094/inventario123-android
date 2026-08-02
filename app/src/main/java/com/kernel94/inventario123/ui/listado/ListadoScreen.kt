@@ -1,5 +1,6 @@
 package com.kernel94.inventario123.ui.listado
 
+import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,7 +10,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
+import com.kernel94.inventario123.data.repository.Resultado
 import com.kernel94.inventario123.ui.listado.components.ActivoCard
 import com.kernel94.inventario123.ui.listado.components.FiltroDropdown
 import com.kernel94.inventario123.ui.theme.BsPrimary
@@ -26,13 +30,46 @@ fun ListadoScreen(
     LaunchedEffect(Unit) { viewModel.iniciar() }
     var mostrarFiltros by remember { mutableStateOf(false) }
     val vistasDisponibles = viewModel.perfil?.vistasDisponibles ?: listOf("todos")
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    fun exportarYCompartir() {
+        viewModel.exportar(context) { resultado ->
+            when (resultado) {
+                is Resultado.Exito -> {
+                    val archivo = resultado.datos
+                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", archivo)
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Compartir inventario"))
+                }
+                is Resultado.Error -> {
+                    scope.launch { snackbarHostState.showSnackbar(resultado.mensaje) }
+                }
+            }
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Inventario123") },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BsPrimary, titleContentColor = androidx.compose.ui.graphics.Color.White),
                 actions = {
+                    if (viewModel.perfil?.permisos?.puedeExportar == true) {
+                        IconButton(onClick = { exportarYCompartir() }, enabled = !viewModel.exportando) {
+                            if (viewModel.exportando) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = androidx.compose.ui.graphics.Color.White, strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Filled.FileDownload, contentDescription = "Exportar a Excel", tint = androidx.compose.ui.graphics.Color.White)
+                            }
+                        }
+                    }
                     IconButton(onClick = { mostrarFiltros = !mostrarFiltros }) {
                         Icon(Icons.Filled.FilterList, contentDescription = "Filtros", tint = androidx.compose.ui.graphics.Color.White)
                     }

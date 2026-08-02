@@ -28,6 +28,17 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
     val factory = remember { ViewModelFactory(app) }
     var codigoEscaneado by remember { mutableStateOf<String?>(null) }
 
+    // Si cualquier llamada al API responde 401 (sesión expirada/invalida en el
+    // servidor), SessionInterceptor lo notifica aquí y regresamos a Login sin
+    // importar en qué pantalla estaba el usuario, limpiando todo el historial.
+    LaunchedEffect(Unit) {
+        com.kernel94.inventario123.data.remote.SessionExpiredNotifier.eventos.collect {
+            navController.navigate(Screen.Login.route) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = if (sesionActivaInicial) Screen.Listado.route else Screen.Login.route

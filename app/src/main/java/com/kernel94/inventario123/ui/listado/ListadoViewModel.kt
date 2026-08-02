@@ -1,5 +1,6 @@
 package com.kernel94.inventario123.ui.listado
 
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -11,8 +12,10 @@ import com.kernel94.inventario123.data.model.Perfil
 import com.kernel94.inventario123.data.repository.ActivoRepository
 import com.kernel94.inventario123.data.repository.AuthRepository
 import com.kernel94.inventario123.data.repository.CatalogoRepository
+import com.kernel94.inventario123.data.repository.ExportRepository
 import com.kernel94.inventario123.data.repository.Resultado
 import kotlinx.coroutines.Job
+import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -20,6 +23,7 @@ class ListadoViewModel(
     private val activoRepository: ActivoRepository,
     private val catalogoRepository: CatalogoRepository,
     private val authRepository: AuthRepository,
+    private val exportRepository: ExportRepository,
 ) : ViewModel() {
 
     var perfil by mutableStateOf<Perfil?>(null); private set
@@ -91,6 +95,17 @@ class ListadoViewModel(
                     cargando = false
                 }
             }
+        }
+    }
+
+    var exportando by mutableStateOf(false); private set
+
+    fun exportar(context: Context, onListo: (Resultado<File>) -> Unit) {
+        exportando = true
+        viewModelScope.launch {
+            val r = exportRepository.exportarInventario(context)
+            exportando = false
+            onListo(r)
         }
     }
 

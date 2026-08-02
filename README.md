@@ -23,7 +23,7 @@ y de un método nuevo `Activo::ultimoId()`, que ya deberías tener si aplicaste
 los últimos archivos que te pasé en el chat para el repo PHP. Si no, la app
 no podrá loguearse ni cargar nada. Confírmalo antes de probar.
 
-## Qué SÍ incluye esta primera versión
+## Qué SÍ incluye esta versión (fase 1 + fase 2)
 
 - **Login** contra el mismo sistema de usuarios de la web (sesión vía header
   `X-Session-Id`, pensado para clientes móviles — ya estaba soportado en
@@ -43,17 +43,28 @@ no podrá loguearse ni cargar nada. Confírmalo antes de probar.
   la web — es una funcionalidad nueva, exclusiva de la app.
 - **Gestión de usuarios** (admin/coordinador): listar, crear, editar con
   checkboxes de plazas (igual que ya corregimos en la web), eliminar.
+- **Exportar a Excel** (botón en la barra superior, solo si tu rol puede
+  exportar): descarga el mismo archivo que genera la web y abre el menú de
+  compartir de Android (WhatsApp, correo, Drive, guardar, etc.). De paso se
+  corrigió un bug de seguridad real en el backend: `ExportController` no
+  aplicaba ningún filtro por rol, así que un coordinador o ati podía
+  descargar el inventario completo de la empresa en vez de solo el de sus
+  plazas asignadas — ya corregido en el repo del backend.
+- **Ícono propio** de la app (caja de inventario sobre fondo azul, el mismo
+  azul primario de Bootstrap que usa la web).
+- **Sesión expirada**: si el servidor responde que la sesión ya no es válida
+  (por ejemplo llevas mucho tiempo sin usar la app), te regresa sola a la
+  pantalla de Login, sin importar en qué parte de la app estabas.
 
-## Qué falta para la fase 2 (te lo puedo seguir armando)
+## Qué falta para una fase 3 (te lo puedo seguir armando)
 
-- Exportar a Excel desde la app (la web sí lo tiene).
-- Ícono/branding propio de la app (ahora mismo usa el ícono por defecto de Android).
-- Manejo más fino de "sesión expirada" (reintento automático / redirigir a login).
 - Pruebas de extremo a extremo reales en Android Studio — este proyecto se
   escribió fuera de un entorno con SDK de Android, así que aunque el código
   es sintácticamente correcto y sigue el patrón estándar de Compose/Retrofit,
   la primera sincronización de Gradle puede sacar algún detalle menor que
   ajustar (versión de alguna librería, etc.).
+- Modo sin conexión / caché local (ahora mismo todo requiere internet).
+- Notificaciones push, si algún día las necesitas.
 
 ## Arquitectura
 

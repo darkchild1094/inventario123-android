@@ -1,9 +1,16 @@
 package com.kernel94.inventario123.data.remote
 
 import com.kernel94.inventario123.data.model.*
+import okhttp3.ResponseBody
+import retrofit2.Response
 import retrofit2.http.*
 
 interface ApiService {
+
+    // ── Exportar ─────────────────────────────────────────────────────────
+    @Streaming
+    @GET("index.php?controller=export&action=inventario")
+    suspend fun exportarInventario(): Response<ResponseBody>
 
     @Headers("Content-Type: application/json")
     @POST("index.php?controller=api&action=login")
