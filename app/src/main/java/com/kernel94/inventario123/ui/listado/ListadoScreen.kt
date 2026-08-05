@@ -17,6 +17,7 @@ import com.kernel94.inventario123.data.repository.Resultado
 import com.kernel94.inventario123.ui.listado.components.ActivoCard
 import com.kernel94.inventario123.ui.listado.components.FiltroDropdown
 import com.kernel94.inventario123.ui.theme.BsPrimary
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
