@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 
 /** Dropdown genérico reutilizado por los 5 filtros (Negocio/Región/Plaza/Usuario/Status) */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T> FiltroDropdown(
     etiqueta: String,
