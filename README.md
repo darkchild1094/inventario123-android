@@ -10,9 +10,11 @@ JSON nuevo en `ApiController.php` (ver sección Backend abajo).
 2. Deja que Gradle sincronice (necesita internet la primera vez, para bajar
    Kotlin, Compose, Retrofit, CameraX, ML Kit, etc.).
 3. Antes de correrla, edita `app/build.gradle.kts` → `buildConfigField("String", "BASE_URL", ...)`
-   y pon la URL real de tu backend, terminando en `/public/` (con `/` al final):
+   y pon la URL real de tu backend. **Importante:** no lleva `/public/` al final —
+   tu sitio en alwaysdata ya apunta internamente a esa carpeta, así que la URL
+   externa correcta es:
    ```
-   "https://fieldserviceplus.alwaysdata.net/inventario123/public/"
+   "https://fieldserviceplus.alwaysdata.net/inventario123/"
    ```
 4. Corre en un emulador o dispositivo físico (mínimo Android 8.0 / API 26).
 

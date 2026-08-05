@@ -15,7 +15,7 @@ android {
         versionName = "1.0.0"
 
         // Cambia esto por la URL real de tu backend
-        buildConfigField("String", "BASE_URL", "\"https://fieldserviceplus.alwaysdata.net/inventario123/public/\"")
+        buildConfigField("String", "BASE_URL", "\"https://fieldserviceplus.alwaysdata.net/inventario123/\"")
     }
 
     buildTypes {
