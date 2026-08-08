@@ -48,7 +48,8 @@ class ListadoViewModel(
     fun iniciar() {
         viewModelScope.launch {
             perfil = authRepository.obtenerPerfil()
-            vistaActual = perfil?.vistasDisponibles?.firstOrNull() ?: "todos"
+            val vistas = perfil?.vistasDisponibles ?: emptyList()
+            vistaActual = if ("todos" in vistas) "todos" else vistas.firstOrNull() ?: "todos"
             when (val r = catalogoRepository.obtenerCatalogos()) {
                 is Resultado.Exito -> catalogos = r.datos
                 is Resultado.Error -> {}
@@ -113,5 +114,17 @@ class ListadoViewModel(
         negocioId = null; regionId = null; plazaId = null; usuarioId = null
         status = null; busqueda = ""
         cargar()
+    }
+
+    fun eliminar(id: Int, onListo: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            when (val r = activoRepository.eliminar(id)) {
+                is Resultado.Exito -> {
+                    cargar(paginaActual)
+                    onListo(true, r.datos.message ?: "Activo eliminado")
+                }
+                is Resultado.Error -> onListo(false, r.mensaje)
+            }
+        }
     }
 }

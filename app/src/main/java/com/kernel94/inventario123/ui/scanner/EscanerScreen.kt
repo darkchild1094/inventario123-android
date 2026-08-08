@@ -2,14 +2,19 @@ package com.kernel94.inventario123.ui.scanner
 
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FlashOff
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +31,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import android.util.Size
 
 /**
  * Escáner de cámara para leer la serie de un activo: primero intenta leer
@@ -35,7 +41,11 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
  * código de barras.
  */
 @Composable
-fun EscanerScreen(onCodigoDetectado: (String) -> Unit, onCerrar: () -> Unit) {
+fun EscanerScreen(
+    onCodigoDetectado: (String) -> Unit,
+    onCerrar: () -> Unit,
+    instruccion: String = "Apunta al código de barras o a la etiqueta"
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -50,6 +60,8 @@ fun EscanerScreen(onCodigoDetectado: (String) -> Unit, onCerrar: () -> Unit) {
 
     var textosDetectados by remember { mutableStateOf<List<String>>(emptyList()) }
     var yaSeleccionado by remember { mutableStateOf(false) }
+    var linternaEncendida by remember { mutableStateOf(false) }
+    var controlCamara by remember { mutableStateOf<androidx.camera.core.CameraControl?>(null) }
 
     Box(Modifier.fillMaxSize()) {
         if (tienePermiso) {
@@ -60,16 +72,27 @@ fun EscanerScreen(onCodigoDetectado: (String) -> Unit, onCerrar: () -> Unit) {
                     val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                     cameraProviderFuture.addListener({
                         val cameraProvider = cameraProviderFuture.get()
-                        val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
+                        
+                        // Configuración de resolución para mayor precisión
+                        val resolutionSelector = ResolutionSelector.Builder()
+                            .setResolutionStrategy(ResolutionStrategy(Size(1280, 720), ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER))
+                            .build()
+
+                        val preview = Preview.Builder()
+                            .setResolutionSelector(resolutionSelector)
+                            .build()
+                            .also { it.setSurfaceProvider(previewView.surfaceProvider) }
 
                         val barcodeScanner = BarcodeScanning.getClient(
                             BarcodeScannerOptions.Builder()
                                 .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
+                                .enableAllPotentialBarcodes() // Ayuda con códigos difíciles
                                 .build()
                         )
                         val textRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
                         val analysis = ImageAnalysis.Builder()
+                            .setResolutionSelector(resolutionSelector)
                             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                             .build()
 
@@ -107,12 +130,28 @@ fun EscanerScreen(onCodigoDetectado: (String) -> Unit, onCerrar: () -> Unit) {
 
                         try {
                             cameraProvider.unbindAll()
-                            cameraProvider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
+                            val camera = cameraProvider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
+                            controlCamara = camera.cameraControl
                         } catch (_: Exception) { }
                     }, ContextCompat.getMainExecutor(ctx))
                     previewView
                 }
             )
+
+            // Botón de linterna
+            IconButton(
+                onClick = { 
+                    linternaEncendida = !linternaEncendida
+                    controlCamara?.enableTorch(linternaEncendida)
+                },
+                modifier = Modifier.align(Alignment.TopStart).padding(12.dp)
+            ) {
+                Icon(
+                    if (linternaEncendida) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                    contentDescription = "Linterna",
+                    tint = Color.White
+                )
+            }
 
             // Marco guía visual
             Box(
@@ -129,7 +168,7 @@ fun EscanerScreen(onCodigoDetectado: (String) -> Unit, onCerrar: () -> Unit) {
             }
 
             Text(
-                "Apunta al código de barras o a la etiqueta de serie",
+                instruccion,
                 color = Color.White,
                 modifier = Modifier.align(Alignment.TopCenter).padding(top = 90.dp)
             )

@@ -25,16 +25,26 @@ fun CrearEditarActivoScreen(
     viewModel: CrearEditarActivoViewModel,
     idActivoAEditar: Int?,
     onVolver: () -> Unit,
-    onAbrirEscaner: () -> Unit,
-    codigoEscaneado: String?,
-    onCodigoConsumido: () -> Unit,
+    onAbrirEscanerSerie: () -> Unit,
+    onAbrirEscanerPlaca: () -> Unit,
+    serieEscaneada: String?,
+    placaEscaneada: String?,
+    onSerieConsumida: () -> Unit,
+    onPlacaConsumida: () -> Unit,
 ) {
     LaunchedEffect(idActivoAEditar) { viewModel.iniciar(idActivoAEditar) }
 
-    LaunchedEffect(codigoEscaneado) {
-        if (!codigoEscaneado.isNullOrBlank()) {
-            viewModel.serie = codigoEscaneado
-            onCodigoConsumido()
+    LaunchedEffect(serieEscaneada) {
+        if (!serieEscaneada.isNullOrBlank()) {
+            viewModel.serie = serieEscaneada
+            onSerieConsumida()
+        }
+    }
+
+    LaunchedEffect(placaEscaneada) {
+        if (!placaEscaneada.isNullOrBlank()) {
+            viewModel.placa = placaEscaneada
+            onPlacaConsumida()
         }
     }
 
@@ -102,8 +112,8 @@ fun CrearEditarActivoScreen(
                 onValueChange = { viewModel.serie = it },
                 label = { Text("Serie *") },
                 trailingIcon = {
-                    IconButton(onClick = onAbrirEscaner) {
-                        Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear código")
+                    IconButton(onClick = onAbrirEscanerSerie) {
+                        Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear serie")
                     }
                 },
                 singleLine = true,
@@ -113,6 +123,11 @@ fun CrearEditarActivoScreen(
                 value = viewModel.placa,
                 onValueChange = { viewModel.placa = it },
                 label = { Text("Placa / Activo Fijo") },
+                trailingIcon = {
+                    IconButton(onClick = onAbrirEscanerPlaca) {
+                        Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear placa")
+                    }
+                },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             )

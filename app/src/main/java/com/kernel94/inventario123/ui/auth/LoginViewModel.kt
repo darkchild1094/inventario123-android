@@ -17,6 +17,8 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
     var error by mutableStateOf<String?>(null)
         private set
 
+    val cuentasGuardadas = authRepository.cuentasGuardadas
+
     fun login(onExito: () -> Unit) {
         if (email.isBlank() || password.isBlank()) {
             error = "Ingresa tu correo y contraseña."
@@ -30,5 +32,9 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
                 is ResultadoLogin.Error -> { cargando = false; error = r.mensaje }
             }
         }
+    }
+
+    fun eliminarCuenta(email: String) {
+        viewModelScope.launch { authRepository.eliminarCuentaGuardada(email) }
     }
 }

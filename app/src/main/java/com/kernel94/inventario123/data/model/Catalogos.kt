@@ -6,6 +6,14 @@ data class Usuario(
     val tipo: String = "fs",
 )
 
+data class CuentaGuardada(
+    val id: Int,
+    val nombre: String,
+    val email: String,
+    val foto: String?,
+    val ultimoLogin: Long = System.currentTimeMillis()
+)
+
 data class Negocio(val id: Int = 0, val nombre: String = "")
 data class Region(val id: Int = 0, val nombre: String = "", val negocio_id: Int? = null, val negocio_nombre: String? = null)
 data class Plaza(

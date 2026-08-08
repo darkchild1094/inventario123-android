@@ -60,9 +60,6 @@ class CrearEditarActivoViewModel(
                 is Resultado.Exito -> catalogos = r.datos
                 is Resultado.Error -> {}
             }
-            aplicarCascadaNegocio()
-            aplicarCascadaDispositivo()
-            actualizarUsuariosAsignables()
 
             if (idActivoAEditar != null) {
                 idEdicion = idActivoAEditar
@@ -74,17 +71,31 @@ class CrearEditarActivoViewModel(
                         placa = a.placa ?: ""
                         procedenciaTiendaId = a.procedencia_tienda_id
                         plazaId = a.plaza_id
+                        // Buscar el negocio_id a través de la plaza
+                        negocioId = catalogos.plazas.find { it.id == a.plaza_id }?.negocio_id
                         dispositivoId = a.dispositivo_id
                         modeloId = a.modelo_id
                         status = a.status
                         tiendaUsoId = a.tienda_uso_id
                         asignadoUsuarioId = if (a.stock_tipo == "usuario") a.usuario_stock_id else null
-                        aplicarCascadaDispositivo()
-                        cargando = false
                     }
-                    is Resultado.Error -> { mensaje = r.mensaje; esError = true; cargando = false }
+                    is Resultado.Error -> { mensaje = r.mensaje; esError = true }
+                }
+                cargando = false
+            } else {
+                // Pre-cargar desde el perfil del usuario para nuevos activos
+                perfil?.usuario?.plaza_id?.let { userPlazaId ->
+                    val plaza = catalogos.plazas.find { it.id == userPlazaId }
+                    if (plaza != null) {
+                        negocioId = plaza.negocio_id
+                        plazaId = plaza.id
+                    }
                 }
             }
+
+            aplicarCascadaNegocio()
+            aplicarCascadaDispositivo()
+            actualizarUsuariosAsignables()
         }
     }
 

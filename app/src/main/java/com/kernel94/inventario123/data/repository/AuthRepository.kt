@@ -14,7 +14,10 @@ class AuthRepository(private val api: ApiService, private val sessionManager: Se
     suspend fun login(email: String, password: String): ResultadoLogin = try {
         val resp = api.login(LoginRequest(email, password))
         if (resp.success && !resp.session_id.isNullOrBlank() && resp.usuario != null) {
-            sessionManager.guardarSesion(resp.session_id, resp.usuario.id, resp.usuario.nombre, resp.usuario.tipo)
+            sessionManager.guardarSesion(
+                resp.session_id, resp.usuario.id, resp.usuario.nombre, 
+                resp.usuario.tipo, email, resp.usuario.foto
+            )
             ResultadoLogin.Exito(resp.usuario.nombre, resp.usuario.tipo)
         } else {
             ResultadoLogin.Error(resp.message ?: "Credenciales incorrectas.")
@@ -30,4 +33,7 @@ class AuthRepository(private val api: ApiService, private val sessionManager: Se
 
     suspend fun haySesionActiva(): Boolean = sessionManager.haySesionActiva()
     suspend fun obtenerPerfil(): Perfil? = try { api.obtenerPerfil() } catch (e: Exception) { null }
+
+    val cuentasGuardadas = sessionManager.cuentasGuardadasFlow
+    suspend fun eliminarCuentaGuardada(email: String) = sessionManager.eliminarCuentaGuardada(email)
 }

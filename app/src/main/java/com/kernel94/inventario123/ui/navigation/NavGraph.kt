@@ -26,7 +26,8 @@ import kotlinx.coroutines.launch
 fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
     val navController = rememberNavController()
     val factory = remember { ViewModelFactory(app) }
-    var codigoEscaneado by remember { mutableStateOf<String?>(null) }
+    var serieEscaneada by remember { mutableStateOf<String?>(null) }
+    var placaEscaneada by remember { mutableStateOf<String?>(null) }
 
     // Si cualquier llamada al API responde 401 (sesión expirada/invalida en el
     // servidor), SessionInterceptor lo notifica aquí y regresamos a Login sin
@@ -86,9 +87,12 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             CrearEditarActivoScreen(
                 viewModel = vm, idActivoAEditar = null,
                 onVolver = { navController.popBackStack() },
-                onAbrirEscaner = { navController.navigate(Screen.Escaner.route) },
-                codigoEscaneado = codigoEscaneado,
-                onCodigoConsumido = { codigoEscaneado = null },
+                onAbrirEscanerSerie = { navController.navigate(Screen.Escaner.crear("serie")) },
+                onAbrirEscanerPlaca = { navController.navigate(Screen.Escaner.crear("placa")) },
+                serieEscaneada = serieEscaneada,
+                placaEscaneada = placaEscaneada,
+                onSerieConsumida = { serieEscaneada = null },
+                onPlacaConsumida = { placaEscaneada = null },
             )
         }
 
@@ -101,15 +105,32 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             CrearEditarActivoScreen(
                 viewModel = vm, idActivoAEditar = id,
                 onVolver = { navController.popBackStack() },
-                onAbrirEscaner = { navController.navigate(Screen.Escaner.route) },
-                codigoEscaneado = codigoEscaneado,
-                onCodigoConsumido = { codigoEscaneado = null },
+                onAbrirEscanerSerie = { navController.navigate(Screen.Escaner.crear("serie")) },
+                onAbrirEscanerPlaca = { navController.navigate(Screen.Escaner.crear("placa")) },
+                serieEscaneada = serieEscaneada,
+                placaEscaneada = placaEscaneada,
+                onSerieConsumida = { serieEscaneada = null },
+                onPlacaConsumida = { placaEscaneada = null },
             )
         }
 
-        composable(Screen.Escaner.route) {
+        composable(
+            Screen.Escaner.route,
+            arguments = listOf(navArgument("target") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val target = backStackEntry.arguments?.getString("target") ?: "serie"
+            val instruccion = if (target == "serie") {
+                "Apunta al código de barras o a la etiqueta de SERIE"
+            } else {
+                "Apunta al código de barras de la PLACA / ACTIVO FIJO"
+            }
             EscanerScreen(
-                onCodigoDetectado = { codigo -> codigoEscaneado = codigo; navController.popBackStack() },
+                instruccion = instruccion,
+                onCodigoDetectado = { codigo ->
+                    if (target == "serie") serieEscaneada = codigo
+                    else placaEscaneada = codigo
+                    navController.popBackStack()
+                },
                 onCerrar = { navController.popBackStack() },
             )
         }
