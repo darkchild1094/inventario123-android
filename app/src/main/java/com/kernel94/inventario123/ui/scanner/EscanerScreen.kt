@@ -115,8 +115,10 @@ fun EscanerScreen(
                                         if (match != null && !yaSeleccionado) {
                                             yaSeleccionado = true
                                             onCodigoDetectado(match.rawValue!!.trim())
-                                        } else if (codigos.isEmpty()) {
-                                            // Solo si no hay ningún código de barras, intentamos OCR como respaldo
+                                        } else if (filtroPrefijo == null) {
+                                            // Solo intentamos OCR si NO hay un filtro de prefijo (que es el caso de UPS)
+                                            // o si explícitamente permitimos OCR.
+                                            // En el caso de Regulador, modoRegulador es true pero filtroPrefijo es null.
                                             textRecognizer.process(inputImage)
                                                 .addOnSuccessListener { texto ->
                                                     var lineas = texto.textBlocks.flatMap { it.lines }
@@ -124,29 +126,31 @@ fun EscanerScreen(
 
                                                     if (modoRegulador) {
                                                         // Lógica especial para Reguladores: buscar "Serie", "SERIE" o "serie"
-                                                        // y extraer lo que viene después.
-                                                        val regex = Regex("(?i)serie[:\\s]*(.*)")
+                                                        val regex = Regex("(?i)^serie[:\\s]*(.+)", RegexOption.MULTILINE)
                                                         lineas = lineas.mapNotNull { linea ->
                                                             val matchResult = regex.find(linea)
                                                             val extraido = matchResult?.groupValues?.get(1)?.trim()
                                                             if (!extraido.isNullOrBlank()) extraido else null
                                                         }
+                                                        
+                                                        // Si encontramos una coincidencia exacta de regulador, la detectamos auto
+                                                        if (lineas.isNotEmpty() && !yaSeleccionado) {
+                                                            yaSeleccionado = true
+                                                            onCodigoDetectado(lineas.first())
+                                                        }
                                                     } else {
-                                                        // Comportamiento normal
+                                                        // Comportamiento normal OCR
                                                         lineas = lineas.filter { it.length in 4..40 }
-                                                            .filter { filtroPrefijo == null || it.startsWith(filtroPrefijo) }
                                                     }
 
-                                                    if (lineas.isNotEmpty()) {
-                                                        // Mantener las sugerencias previas y añadir las nuevas sin duplicados
+                                                    if (lineas.isNotEmpty() && !yaSeleccionado) {
                                                         val nuevas = (textosDetectados + lineas).distinct().take(6)
                                                         textosDetectados = nuevas
                                                     }
                                                 }
                                                 .addOnCompleteListener { imageProxy.close() }
                                         } else {
-                                            // Hay códigos de barras pero ninguno coincide con el prefijo, 
-                                            // cerramos el proxy para procesar el siguiente cuadro
+                                            // Es UPS (filtroPrefijo != null) y no se encontró barcode válido
                                             imageProxy.close()
                                         }
                                     }
