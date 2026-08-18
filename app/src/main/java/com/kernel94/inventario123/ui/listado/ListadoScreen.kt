@@ -217,6 +217,20 @@ fun ListadoScreen(
                                 )
                             }
                         }
+                        
+                        if (viewModel.vistaActual == "todos") {
+                            Spacer(Modifier.height(8.dp))
+                            FiltroDropdown(
+                                etiqueta = "Técnico / Usuario", 
+                                opciones = viewModel.catalogos.usuarios,
+                                seleccionId = viewModel.usuarioId, 
+                                idDe = { it.id }, 
+                                nombreDe = { it.nombre },
+                                onSeleccion = { viewModel.usuarioId = it; viewModel.onFiltroChange() },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
                         TextButton(
                             onClick = { viewModel.limpiarFiltros() },
                             modifier = Modifier.align(Alignment.End)
