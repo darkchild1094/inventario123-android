@@ -10,7 +10,7 @@ class ActivoRepository(private val api: ApiService) {
     suspend fun listar(
         vista: String? = null, negocioId: Int? = null, regionId: Int? = null,
         plazaId: Int? = null, usuarioId: Int? = null, status: String? = null,
-        busqueda: String? = null, pagina: Int = 1, porPagina: Int = 20,
+        busqueda: String? = null, pagina: Int = 1, porPagina: Int = 5000,
     ): Resultado<ListadoActivosResponse> = try {
         Resultado.Exito(api.listarActivos(vista, negocioId, regionId, plazaId, usuarioId, status, busqueda, pagina, porPagina))
     } catch (e: Exception) {

@@ -97,6 +97,7 @@ class ListadoViewModel(
                 vista = vistaActual, negocioId = negocioId, regionId = regionId,
                 plazaId = plazaId, usuarioId = usuarioId, status = status,
                 busqueda = busqueda.ifBlank { null }, pagina = pagina,
+                porPagina = 5000 // Aumentamos el límite para mostrar prácticamente todo sin paginación manual
             )) {
                 is Resultado.Exito -> {
                     activos = r.datos.activos
