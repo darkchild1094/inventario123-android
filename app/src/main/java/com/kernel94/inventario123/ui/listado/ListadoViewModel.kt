@@ -38,6 +38,7 @@ class ListadoViewModel(
     var busqueda by mutableStateOf("")
 
     var activos by mutableStateOf<List<Activo>>(emptyList()); private set
+    var conteosVistas by mutableStateOf<Map<String, Int>>(emptyMap()); private set
     var paginaActual by mutableStateOf(1); private set
     var totalPaginas by mutableStateOf(1); private set
     var cargando by mutableStateOf(false); private set
@@ -55,6 +56,18 @@ class ListadoViewModel(
                 is Resultado.Error -> {}
             }
             cargar()
+
+            // Cargar conteos de las demás vistas disponibles en segundo plano
+            vistas.forEach { vista ->
+                if (vista != vistaActual) {
+                    launch {
+                        val res = activoRepository.listar(vista = vista, porPagina = 1)
+                        if (res is Resultado.Exito) {
+                            conteosVistas = conteosVistas + (vista to res.datos.paginacion.total_resultados)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -89,6 +102,10 @@ class ListadoViewModel(
                     activos = r.datos.activos
                     paginaActual = r.datos.paginacion.pagina_actual
                     totalPaginas = r.datos.paginacion.total_paginas
+                    
+                    // Actualizar el conteo de la vista actual
+                    conteosVistas = conteosVistas + (vistaActual to r.datos.paginacion.total_resultados)
+
                     cargando = false
                 }
                 is Resultado.Error -> {

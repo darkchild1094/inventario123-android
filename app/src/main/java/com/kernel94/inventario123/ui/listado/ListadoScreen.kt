@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.kernel94.inventario123.data.repository.Resultado
 import com.kernel94.inventario123.ui.listado.components.ActivoCard
@@ -140,10 +141,33 @@ fun ListadoScreen(
                     }
                 ) {
                     vistasDisponibles.forEach { vista ->
+                        val conteo = viewModel.conteosVistas[vista]
                         Tab(
                             selected = viewModel.vistaActual == vista,
                             onClick = { viewModel.cambiarVista(vista) },
-                            text = { Text(etiquetaVista(vista), color = Color.White) }
+                            text = { 
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(etiquetaVista(vista), color = Color.White)
+                                    if (conteo != null) {
+                                        Spacer(Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .size(20.dp)
+                                                .clip(RoundedCornerShape(50))
+                                                .background(if (viewModel.vistaActual == vista) BsPrimary else Color.White.copy(alpha = 0.2f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = conteo.toString(),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White,
+                                                fontSize = 10.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         )
                     }
                 }

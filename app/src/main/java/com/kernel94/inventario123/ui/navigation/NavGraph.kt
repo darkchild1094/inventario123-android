@@ -87,7 +87,15 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             CrearEditarActivoScreen(
                 viewModel = vm, idActivoAEditar = null,
                 onVolver = { navController.popBackStack() },
-                onAbrirEscanerSerie = { navController.navigate(Screen.Escaner.crear("serie")) },
+                onAbrirEscanerSerie = {
+                    // Lógica especial para UPS y Regulador
+                    val prefijo = when (vm.dispositivoId) {
+                        1 -> "3S" // UPS
+                        else -> null
+                    }
+                    val modoRegulador = (vm.dispositivoId == 2)
+                    navController.navigate(Screen.Escaner.crear("serie", prefijo, modoRegulador))
+                },
                 onAbrirEscanerPlaca = { navController.navigate(Screen.Escaner.crear("placa")) },
                 serieEscaneada = serieEscaneada,
                 placaEscaneada = placaEscaneada,
@@ -105,7 +113,14 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             CrearEditarActivoScreen(
                 viewModel = vm, idActivoAEditar = id,
                 onVolver = { navController.popBackStack() },
-                onAbrirEscanerSerie = { navController.navigate(Screen.Escaner.crear("serie")) },
+                onAbrirEscanerSerie = {
+                    val prefijo = when (vm.dispositivoId) {
+                        1 -> "3S"
+                        else -> null
+                    }
+                    val modoRegulador = (vm.dispositivoId == 2)
+                    navController.navigate(Screen.Escaner.crear("serie", prefijo, modoRegulador))
+                },
                 onAbrirEscanerPlaca = { navController.navigate(Screen.Escaner.crear("placa")) },
                 serieEscaneada = serieEscaneada,
                 placaEscaneada = placaEscaneada,
@@ -116,9 +131,16 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
 
         composable(
             Screen.Escaner.route,
-            arguments = listOf(navArgument("target") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("target") { type = NavType.StringType },
+                navArgument("prefijo") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("modoRegulador") { type = NavType.BoolType; defaultValue = false }
+            )
         ) { backStackEntry ->
             val target = backStackEntry.arguments?.getString("target") ?: "serie"
+            val prefijo = backStackEntry.arguments?.getString("prefijo")
+            val modoRegulador = backStackEntry.arguments?.getBoolean("modoRegulador") ?: false
+            
             val instruccion = if (target == "serie") {
                 "Apunta al código de barras o a la etiqueta de SERIE"
             } else {
@@ -126,6 +148,8 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             }
             EscanerScreen(
                 instruccion = instruccion,
+                filtroPrefijo = prefijo,
+                modoRegulador = modoRegulador,
                 onCodigoDetectado = { codigo ->
                     if (target == "serie") serieEscaneada = codigo
                     else placaEscaneada = codigo

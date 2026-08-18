@@ -6,6 +6,9 @@ sealed class Screen(val route: String) {
     object Detalle : Screen("detalle/{id}") { fun crear(id: Int) = "detalle/$id" }
     object Crear : Screen("crear_activo")
     object Editar : Screen("editar_activo/{id}") { fun crear(id: Int) = "editar_activo/$id" }
-    object Escaner : Screen("escaner/{target}") { fun crear(target: String) = "escaner/$target" }
+    object Escaner : Screen("escaner/{target}?prefijo={prefijo}&modoRegulador={modoRegulador}") { 
+        fun crear(target: String, prefijo: String? = null, modoRegulador: Boolean = false) = 
+            "escaner/$target?prefijo=$prefijo&modoRegulador=$modoRegulador" 
+    }
     object Usuarios : Screen("usuarios")
 }

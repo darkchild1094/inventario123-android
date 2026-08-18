@@ -44,7 +44,9 @@ import android.util.Size
 fun EscanerScreen(
     onCodigoDetectado: (String) -> Unit,
     onCerrar: () -> Unit,
-    instruccion: String = "Apunta al código de barras o a la etiqueta"
+    instruccion: String = "Apunta al código de barras o a la etiqueta",
+    filtroPrefijo: String? = null,
+    modoRegulador: Boolean = false
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -61,6 +63,7 @@ fun EscanerScreen(
     var textosDetectados by remember { mutableStateOf<List<String>>(emptyList()) }
     var yaSeleccionado by remember { mutableStateOf(false) }
     var linternaEncendida by remember { mutableStateOf(false) }
+    var zoomActual by remember { mutableStateOf(0f) }
     var controlCamara by remember { mutableStateOf<androidx.camera.core.CameraControl?>(null) }
 
     Box(Modifier.fillMaxSize()) {
@@ -73,9 +76,9 @@ fun EscanerScreen(
                     cameraProviderFuture.addListener({
                         val cameraProvider = cameraProviderFuture.get()
                         
-                        // Configuración de resolución para mayor precisión
+                        // Configuración de resolución para mayor precisión (1080p para códigos pequeños)
                         val resolutionSelector = ResolutionSelector.Builder()
-                            .setResolutionStrategy(ResolutionStrategy(Size(1280, 720), ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER))
+                            .setResolutionStrategy(ResolutionStrategy(Size(1920, 1080), ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER))
                             .build()
 
                         val preview = Preview.Builder()
@@ -103,20 +106,48 @@ fun EscanerScreen(
 
                                 barcodeScanner.process(inputImage)
                                     .addOnSuccessListener { codigos ->
-                                        val valor = codigos.firstOrNull { !it.rawValue.isNullOrBlank() }?.rawValue
-                                        if (!valor.isNullOrBlank() && !yaSeleccionado) {
+                                        // Buscar el primer código que coincida con el filtro entre TODOS los detectados
+                                        val match = codigos.firstOrNull { barcode ->
+                                            val raw = barcode.rawValue
+                                            !raw.isNullOrBlank() && (filtroPrefijo == null || raw.trim().startsWith(filtroPrefijo))
+                                        }
+
+                                        if (match != null && !yaSeleccionado) {
                                             yaSeleccionado = true
-                                            onCodigoDetectado(valor.trim())
-                                        } else {
-                                            // Sin código de barras: intenta OCR como respaldo
+                                            onCodigoDetectado(match.rawValue!!.trim())
+                                        } else if (codigos.isEmpty()) {
+                                            // Solo si no hay ningún código de barras, intentamos OCR como respaldo
                                             textRecognizer.process(inputImage)
                                                 .addOnSuccessListener { texto ->
-                                                    val lineas = texto.textBlocks.flatMap { it.lines }
+                                                    var lineas = texto.textBlocks.flatMap { it.lines }
                                                         .map { it.text.trim() }
-                                                        .filter { it.length in 4..40 }
-                                                    if (lineas.isNotEmpty()) textosDetectados = lineas.distinct().take(6)
+
+                                                    if (modoRegulador) {
+                                                        // Lógica especial para Reguladores: buscar "Serie", "SERIE" o "serie"
+                                                        // y extraer lo que viene después.
+                                                        val regex = Regex("(?i)serie[:\\s]*(.*)")
+                                                        lineas = lineas.mapNotNull { linea ->
+                                                            val matchResult = regex.find(linea)
+                                                            val extraido = matchResult?.groupValues?.get(1)?.trim()
+                                                            if (!extraido.isNullOrBlank()) extraido else null
+                                                        }
+                                                    } else {
+                                                        // Comportamiento normal
+                                                        lineas = lineas.filter { it.length in 4..40 }
+                                                            .filter { filtroPrefijo == null || it.startsWith(filtroPrefijo) }
+                                                    }
+
+                                                    if (lineas.isNotEmpty()) {
+                                                        // Mantener las sugerencias previas y añadir las nuevas sin duplicados
+                                                        val nuevas = (textosDetectados + lineas).distinct().take(6)
+                                                        textosDetectados = nuevas
+                                                    }
                                                 }
                                                 .addOnCompleteListener { imageProxy.close() }
+                                        } else {
+                                            // Hay códigos de barras pero ninguno coincide con el prefijo, 
+                                            // cerramos el proxy para procesar el siguiente cuadro
+                                            imageProxy.close()
                                         }
                                     }
                                     .addOnFailureListener { imageProxy.close() }
@@ -132,25 +163,55 @@ fun EscanerScreen(
                             cameraProvider.unbindAll()
                             val camera = cameraProvider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
                             controlCamara = camera.cameraControl
+                            
+                            // Si estamos buscando un UPS (con prefijo), aplicamos un zoom inicial del 20%
+                            if (filtroPrefijo != null) {
+                                zoomActual = 0.2f
+                                controlCamara?.setLinearZoom(zoomActual)
+                            }
                         } catch (_: Exception) { }
                     }, ContextCompat.getMainExecutor(ctx))
                     previewView
                 }
             )
 
-            // Botón de linterna
-            IconButton(
-                onClick = { 
-                    linternaEncendida = !linternaEncendida
-                    controlCamara?.enableTorch(linternaEncendida)
-                },
-                modifier = Modifier.align(Alignment.TopStart).padding(12.dp)
+            // Controles superiores
+            Row(
+                Modifier.fillMaxWidth().padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    if (linternaEncendida) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
-                    contentDescription = "Linterna",
-                    tint = Color.White
-                )
+                IconButton(
+                    onClick = { 
+                        linternaEncendida = !linternaEncendida
+                        controlCamara?.enableTorch(linternaEncendida)
+                    }
+                ) {
+                    Icon(
+                        if (linternaEncendida) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                        contentDescription = "Linterna",
+                        tint = Color.White
+                    )
+                }
+                
+                // Selector de Zoom manual
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { 
+                        zoomActual = (zoomActual - 0.1f).coerceAtLeast(0f)
+                        controlCamara?.setLinearZoom(zoomActual)
+                    }) { Text("-", color = Color.White, style = MaterialTheme.typography.headlineMedium) }
+                    
+                    Text("Zoom", color = Color.White)
+                    
+                    TextButton(onClick = { 
+                        zoomActual = (zoomActual + 0.1f).coerceAtMost(1f)
+                        controlCamara?.setLinearZoom(zoomActual)
+                    }) { Text("+", color = Color.White, style = MaterialTheme.typography.headlineMedium) }
+                }
+
+                IconButton(onClick = onCerrar) {
+                    Icon(Icons.Filled.Close, contentDescription = "Cerrar", tint = Color.White)
+                }
             }
 
             // Marco guía visual
@@ -193,10 +254,6 @@ fun EscanerScreen(
                 Spacer(Modifier.height(12.dp))
                 Button(onClick = { lanzadorPermiso.launch(Manifest.permission.CAMERA) }) { Text("Conceder permiso") }
             }
-        }
-
-        IconButton(onClick = onCerrar, modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)) {
-            Icon(Icons.Filled.Close, contentDescription = "Cerrar", tint = Color.White)
         }
     }
 }
