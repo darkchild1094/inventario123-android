@@ -88,12 +88,11 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 viewModel = vm, idActivoAEditar = null,
                 onVolver = { navController.popBackStack() },
                 onAbrirEscanerSerie = {
-                    // Lógica especial para UPS y Regulador
-                    val prefijo = when (vm.dispositivoId) {
-                        1 -> "3S" // UPS
-                        else -> null
-                    }
-                    val modoRegulador = (vm.dispositivoId == 2)
+                    // Detecta UPS/Regulador por NOMBRE del dispositivo (no por id
+                    // hardcodeado, que podría no coincidir entre entornos).
+                    val nombreDispositivo = vm.nombreDispositivoSeleccionado()?.uppercase() ?: ""
+                    val prefijo = if (nombreDispositivo.contains("UPS")) "3S" else null
+                    val modoRegulador = nombreDispositivo.contains("REGULADOR")
                     navController.navigate(Screen.Escaner.crear("serie", prefijo, modoRegulador))
                 },
                 onAbrirEscanerPlaca = { navController.navigate(Screen.Escaner.crear("placa")) },
@@ -114,11 +113,9 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 viewModel = vm, idActivoAEditar = id,
                 onVolver = { navController.popBackStack() },
                 onAbrirEscanerSerie = {
-                    val prefijo = when (vm.dispositivoId) {
-                        1 -> "3S"
-                        else -> null
-                    }
-                    val modoRegulador = (vm.dispositivoId == 2)
+                    val nombreDispositivo = vm.nombreDispositivoSeleccionado()?.uppercase() ?: ""
+                    val prefijo = if (nombreDispositivo.contains("UPS")) "3S" else null
+                    val modoRegulador = nombreDispositivo.contains("REGULADOR")
                     navController.navigate(Screen.Escaner.crear("serie", prefijo, modoRegulador))
                 },
                 onAbrirEscanerPlaca = { navController.navigate(Screen.Escaner.crear("placa")) },
@@ -141,10 +138,11 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             val prefijo = backStackEntry.arguments?.getString("prefijo")
             val modoRegulador = backStackEntry.arguments?.getBoolean("modoRegulador") ?: false
             
-            val instruccion = if (target == "serie") {
-                "Apunta al código de barras o a la etiqueta de SERIE"
-            } else {
-                "Apunta al código de barras de la PLACA / ACTIVO FIJO"
+            val instruccion = when {
+                target != "serie" -> "Apunta al código de barras de la PLACA / ACTIVO FIJO"
+                prefijo != null -> "Código de barras pequeño (empieza con \"$prefijo\"). Acércate bien; usa zoom o linterna si hace falta."
+                modoRegulador -> "Apunta a la etiqueta: se captura el texto después de SERIE: o S/N:"
+                else -> "Apunta al código de barras o a la etiqueta de SERIE"
             }
             EscanerScreen(
                 instruccion = instruccion,

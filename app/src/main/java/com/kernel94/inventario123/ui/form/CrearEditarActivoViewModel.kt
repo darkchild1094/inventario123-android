@@ -190,4 +190,10 @@ class CrearEditarActivoViewModel(
     }
 
     fun limpiarMensaje() { mensaje = null }
+
+    /** Nombre del dispositivo actualmente seleccionado (ej. "UPS", "REGULADOR"),
+     *  usado para decidir el modo del escáner de serie sin depender de IDs
+     *  hardcodeados que podrían cambiar entre entornos/plazas. */
+    fun nombreDispositivoSeleccionado(): String? =
+        catalogos.dispositivos.find { it.id == dispositivoId }?.nombre
 }
