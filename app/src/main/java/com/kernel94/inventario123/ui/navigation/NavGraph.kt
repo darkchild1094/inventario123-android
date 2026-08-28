@@ -91,7 +91,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                     // Detecta UPS/Regulador por NOMBRE del dispositivo (no por id
                     // hardcodeado, que podría no coincidir entre entornos).
                     val nombreDispositivo = vm.nombreDispositivoSeleccionado()?.uppercase() ?: ""
-                    val prefijo = if (nombreDispositivo.contains("UPS")) "3S" else null
+                    val prefijo = if (nombreDispositivo.contains("UPS")) "3S,SM" else null
                     val modoRegulador = nombreDispositivo.contains("REGULADOR")
                     navController.navigate(Screen.Escaner.crear("serie", prefijo, modoRegulador))
                 },
@@ -114,7 +114,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onVolver = { navController.popBackStack() },
                 onAbrirEscanerSerie = {
                     val nombreDispositivo = vm.nombreDispositivoSeleccionado()?.uppercase() ?: ""
-                    val prefijo = if (nombreDispositivo.contains("UPS")) "3S" else null
+                    val prefijo = if (nombreDispositivo.contains("UPS")) "3S,SM" else null
                     val modoRegulador = nombreDispositivo.contains("REGULADOR")
                     navController.navigate(Screen.Escaner.crear("serie", prefijo, modoRegulador))
                 },
@@ -140,7 +140,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             
             val instruccion = when {
                 target != "serie" -> "Apunta al código de barras de la PLACA / ACTIVO FIJO"
-                prefijo != null -> "Código de barras pequeño (empieza con \"$prefijo\"). Acércate bien; usa zoom o linterna si hace falta."
+                prefijo != null -> "Código de barras pequeño (empieza con \"${prefijo.replace(",", "\" o \"")}\"). Acércate bien; usa zoom o linterna si hace falta."
                 modoRegulador -> "Apunta a la etiqueta: se captura el texto después de SERIE: o S/N:"
                 else -> "Apunta al código de barras o a la etiqueta de SERIE"
             }

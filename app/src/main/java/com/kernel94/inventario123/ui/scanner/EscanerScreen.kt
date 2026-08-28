@@ -198,7 +198,7 @@ fun EscanerScreen(
                                     .addOnSuccessListener { codigos ->
                                         val match = codigos.firstOrNull { barcode ->
                                             val raw = barcode.rawValue
-                                            !raw.isNullOrBlank() && (filtroPrefijo == null || raw.trim().startsWith(filtroPrefijo, ignoreCase = true))
+                                            !raw.isNullOrBlank() && (filtroPrefijo == null || filtroPrefijo.split(",").any { p -> raw.trim().startsWith(p.trim(), ignoreCase = true) })
                                         }
 
                                         when {
