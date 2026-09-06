@@ -85,7 +85,7 @@ private fun SolicitudRow(s: SolicitudTraslado, onClick: () -> Unit) {
                     "#${s.id} · ${s.destinoLabel}" + if (s.porFirmar) "  ✍" else "",
                     fontWeight = FontWeight.Bold,
                 )
-                val origen = s.origen_nombre ?: s.origen_tienda_nombre?.let { "Tienda $it" } ?: "—"
+                val origen = s.origenLabel
                 val dest = when (s.destino) {
                     "asignado"  -> s.destino_usuario_nombre ?: ""
                     "en_bodega" -> s.bodega_nombre ?: ""

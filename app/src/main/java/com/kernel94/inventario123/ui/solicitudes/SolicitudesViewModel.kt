@@ -44,6 +44,11 @@ class SolicitudesViewModel(
     var tiendas by mutableStateOf<List<Tienda>>(emptyList()); private set
     var ingenieros by mutableStateOf<List<Usuario>>(emptyList()); private set
     var activosTienda by mutableStateOf<List<Activo>>(emptyList()); private set
+    var activosBodega by mutableStateOf<List<Activo>>(emptyList()); private set
+
+    /** Sacar equipo DE una bodega sólo lo puede iniciar coordinador / admin. */
+    val puedeOrigenBodega: Boolean
+        get() = (perfil?.usuario?.tipo ?: "") in listOf("coordinador", "admin")
 
     // Detalle
     var detalle by mutableStateOf<SolicitudTraslado?>(null); private set
@@ -105,20 +110,31 @@ class SolicitudesViewModel(
         }
     }
 
+    /** Carga los activos "en bodega" de una bodega (para origen = de una bodega). */
+    fun cargarActivosBodega(bodegaId: Int) {
+        viewModelScope.launch {
+            activosBodega = solicitudRepository.activosEnBodega(bodegaId)
+        }
+    }
+
     fun crear(
         destino: String, origenTipo: String, activos: List<Int>, nota: String, firmaPng: ByteArray,
-        bodegaId: Int?, tiendaId: Int?, ingenieroId: Int?, onListo: (Boolean, String) -> Unit,
+        bodegaDestinoId: Int?, tiendaId: Int?, ingenieroId: Int?, bodegaOrigenId: Int?,
+        onListo: (Boolean, String) -> Unit,
     ) {
         if (activos.isEmpty()) { onListo(false, "Selecciona al menos un activo."); return }
-        if (destino == "en_bodega" && (bodegaId ?: 0) <= 0) { onListo(false, "Selecciona la bodega destino."); return }
+        if (destino == "en_bodega" && (bodegaDestinoId ?: 0) <= 0) { onListo(false, "Selecciona la bodega destino."); return }
         if (destino == "asignado" && (ingenieroId ?: 0) <= 0) { onListo(false, "Elige el ingeniero que recibe."); return }
         if (origenTipo == "tienda" && (tiendaId ?: 0) <= 0) { onListo(false, "Selecciona la tienda de origen."); return }
+        if (origenTipo == "bodega" && (bodegaOrigenId ?: 0) <= 0) { onListo(false, "Selecciona la bodega de origen."); return }
+        if (origenTipo == "bodega" && destino == "en_bodega") { onListo(false, "El equipo ya está en bodega; elige otro destino."); return }
         enviando = true
         viewModelScope.launch {
             val r = solicitudRepository.crear(
                 destino = destino, origenTipo = origenTipo, activos = activos, nota = nota, firmaPng = firmaPng,
                 origenTiendaId = tiendaId?.takeIf { origenTipo == "tienda" },
-                destinoBodegaId = bodegaId?.takeIf { destino == "en_bodega" },
+                origenBodegaId = bodegaOrigenId?.takeIf { origenTipo == "bodega" },
+                destinoBodegaId = bodegaDestinoId?.takeIf { destino == "en_bodega" },
                 destinoUsuarioId = ingenieroId?.takeIf { destino == "asignado" },
             )
             enviando = false

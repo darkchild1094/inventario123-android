@@ -32,9 +32,14 @@ class SolicitudRepository(private val api: ApiService) {
         api.contarSolicitudesPendientes().pendientes
     } catch (e: Exception) { 0 }
 
+    /** Activos "en bodega" de una bodega (para origen = de una bodega). */
+    suspend fun activosEnBodega(bodegaId: Int): List<com.kernel94.inventario123.data.model.Activo> = try {
+        api.obtenerActivosEnBodega(bodegaId)
+    } catch (e: Exception) { emptyList() }
+
     /**
      * @param destino  "asignado" | "en_bodega" | "baja" | "garantia"
-     * @param origenTipo "asignado" (mi stock) | "tienda"
+     * @param origenTipo "asignado" (mi stock) | "tienda" | "bodega"
      */
     suspend fun crear(
         destino: String,
@@ -43,6 +48,7 @@ class SolicitudRepository(private val api: ApiService) {
         nota: String?,
         firmaPng: ByteArray,
         origenTiendaId: Int? = null,
+        origenBodegaId: Int? = null,
         destinoBodegaId: Int? = null,
         destinoUsuarioId: Int? = null,
     ): Resultado<ApiResultado> = try {
@@ -51,6 +57,7 @@ class SolicitudRepository(private val api: ApiService) {
             origenTipo = texto(origenTipo),
             nota = nota?.takeIf { it.isNotBlank() }?.let { texto(it) },
             origenTiendaId = origenTiendaId?.let { texto(it.toString()) },
+            origenBodegaId = origenBodegaId?.let { texto(it.toString()) },
             destinoBodegaId = destinoBodegaId?.let { texto(it.toString()) },
             destinoUsuarioId = destinoUsuarioId?.let { texto(it.toString()) },
             activos = activos.map { texto(it.toString()) },

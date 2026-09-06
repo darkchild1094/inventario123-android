@@ -43,8 +43,9 @@ fun CrearSolicitudScreen(
     LaunchedEffect(Unit) { viewModel.cargarFormulario() }
     val seleccion = remember { mutableStateListOf<Int>() }
     var destino by remember { mutableStateOf("asignado") }
-    var origenTienda by remember { mutableStateOf(false) }
-    var bodegaId by remember { mutableStateOf<Int?>(null) }
+    var origen by remember { mutableStateOf("asignado") } // "asignado" | "tienda" | "bodega"
+    var bodegaDestinoId by remember { mutableStateOf<Int?>(null) }
+    var bodegaOrigenId by remember { mutableStateOf<Int?>(null) }
     var tiendaId by remember { mutableStateOf<Int?>(null) }
     var ingenieroId by remember { mutableStateOf<Int?>(null) }
     var nota by remember { mutableStateOf("") }
@@ -52,11 +53,24 @@ fun CrearSolicitudScreen(
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(viewModel.bodegas) { if (bodegaId == null) bodegaId = viewModel.bodegas.firstOrNull()?.id }
+    // El destino "otro ingeniero" no admite origen "tienda"; el destino "a bodega"
+    // no admite origen "bodega". Reencauzamos a "mi stock" si quedó inconsistente.
+    LaunchedEffect(destino) {
+        if (destino == "asignado" && origen == "tienda") origen = "asignado"
+        if (destino == "en_bodega" && origen == "bodega") origen = "asignado"
+    }
+    LaunchedEffect(viewModel.bodegas) {
+        if (bodegaDestinoId == null) bodegaDestinoId = viewModel.bodegas.firstOrNull()?.id
+    }
     LaunchedEffect(tiendaId) { tiendaId?.let { viewModel.cargarActivosTienda(it) } }
-    LaunchedEffect(origenTienda, destino) { seleccion.clear() }
+    LaunchedEffect(bodegaOrigenId) { bodegaOrigenId?.let { viewModel.cargarActivosBodega(it) } }
+    LaunchedEffect(origen, destino) { seleccion.clear() }
 
-    val activos: List<Activo> = if (origenTienda) viewModel.activosTienda else viewModel.misAsignados
+    val activos: List<Activo> = when (origen) {
+        "tienda" -> viewModel.activosTienda
+        "bodega" -> viewModel.activosBodega
+        else -> viewModel.misAsignados
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -86,11 +100,25 @@ fun CrearSolicitudScreen(
 
             Text("¿De dónde sale el equipo?", fontWeight = FontWeight.Bold)
             Row {
-                FilterChip(selected = !origenTienda, onClick = { origenTienda = false }, label = { Text("De mi stock") })
+                FilterChip(selected = origen == "asignado", onClick = { origen = "asignado" }, label = { Text("De mi stock") })
                 Spacer(Modifier.width(8.dp))
-                FilterChip(selected = origenTienda, onClick = { origenTienda = true }, label = { Text("Instalado en tienda") })
+                FilterChip(
+                    selected = origen == "tienda",
+                    enabled = destino != "asignado",
+                    onClick = { origen = "tienda" },
+                    label = { Text("Instalado en tienda") },
+                )
+                if (viewModel.puedeOrigenBodega) {
+                    Spacer(Modifier.width(8.dp))
+                    FilterChip(
+                        selected = origen == "bodega",
+                        enabled = destino != "en_bodega",
+                        onClick = { origen = "bodega" },
+                        label = { Text("De una bodega") },
+                    )
+                }
             }
-            if (origenTienda) {
+            if (origen == "tienda") {
                 FiltroDropdown(
                     etiqueta = "Tienda de origen",
                     opciones = viewModel.tiendas,
@@ -100,12 +128,22 @@ fun CrearSolicitudScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+            if (origen == "bodega") {
+                FiltroDropdown(
+                    etiqueta = "Bodega de origen",
+                    opciones = viewModel.bodegas,
+                    seleccionId = bodegaOrigenId,
+                    idDe = { it.id }, nombreDe = { it.nombre },
+                    onSeleccion = { bodegaOrigenId = it },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             if (destino == "en_bodega") {
                 FiltroDropdown(
                     etiqueta = "Bodega destino", opciones = viewModel.bodegas,
-                    seleccionId = bodegaId, idDe = { it.id }, nombreDe = { it.nombre },
-                    onSeleccion = { bodegaId = it }, modifier = Modifier.fillMaxWidth(),
+                    seleccionId = bodegaDestinoId, idDe = { it.id }, nombreDe = { it.nombre },
+                    onSeleccion = { bodegaDestinoId = it }, modifier = Modifier.fillMaxWidth(),
                 )
             }
             if (destino == "asignado") {
@@ -120,7 +158,11 @@ fun CrearSolicitudScreen(
             when {
                 viewModel.cargando -> CircularProgressIndicator(Modifier.padding(8.dp))
                 activos.isEmpty() -> Text(
-                    if (origenTienda) "Selecciona una tienda con equipo en uso." else "No tienes equipo asignado.",
+                    when (origen) {
+                        "tienda" -> "Selecciona una tienda con equipo en uso."
+                        "bodega" -> "Selecciona una bodega con equipo disponible."
+                        else -> "No tienes equipo asignado."
+                    },
                     color = Color.Gray, style = MaterialTheme.typography.bodySmall,
                 )
                 else -> activos.forEach { a ->
@@ -151,9 +193,10 @@ fun CrearSolicitudScreen(
                     if (png == null) { scope.launch { snackbar.showSnackbar("Falta tu firma.") }; return@Button }
                     viewModel.crear(
                         destino = destino,
-                        origenTipo = if (origenTienda) "tienda" else "asignado",
+                        origenTipo = origen,
                         activos = seleccion.toList(), nota = nota, firmaPng = png,
-                        bodegaId = bodegaId, tiendaId = tiendaId, ingenieroId = ingenieroId,
+                        bodegaDestinoId = bodegaDestinoId, tiendaId = tiendaId, ingenieroId = ingenieroId,
+                        bodegaOrigenId = bodegaOrigenId,
                     ) { ok, msg ->
                         scope.launch { snackbar.showSnackbar(msg) }
                         if (ok) onEnviada()

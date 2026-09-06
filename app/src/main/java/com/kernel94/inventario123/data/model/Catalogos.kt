@@ -86,6 +86,7 @@ data class SolicitudTraslado(
     val bodega_nombre: String? = null,
     val origen_nombre: String? = null,
     val origen_tienda_nombre: String? = null,
+    val origen_bodega_nombre: String? = null,
     val destino_usuario_nombre: String? = null,
     val solicitante_nombre: String? = null,
     val aprobador_nombre: String? = null,
@@ -112,6 +113,10 @@ data class SolicitudTraslado(
         else        -> destino
     }
     val dobleFirma: Boolean get() = destino == "garantia"
+    val origenLabel: String get() = origen_nombre
+        ?: origen_tienda_nombre?.let { "Tienda $it" }
+        ?: origen_bodega_nombre?.let { "Bodega $it" }
+        ?: "—"
 }
 
 data class ListaSolicitudesResponse(

@@ -57,7 +57,7 @@ fun SolicitudDetalleScreen(
                     EstadoBadge(s.estado)
                 }
                 Campo("Movimiento", s.destinoLabel)
-                Campo("Origen", s.origen_nombre ?: s.origen_tienda_nombre?.let { "Tienda $it" })
+                Campo("Origen", s.origenLabel)
                 if (s.destino == "en_bodega") Campo("Bodega destino", s.bodega_nombre)
                 if (s.destino == "asignado") Campo("Recibe", s.destino_usuario_nombre)
                 Campo("Plaza", s.plaza_nombre)

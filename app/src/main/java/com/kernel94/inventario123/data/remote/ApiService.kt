@@ -124,6 +124,9 @@ interface ApiService {
         @Query("excepto_id") exceptoId: Int? = null,
     ): List<Activo>
 
+    @GET("index.php?controller=api&action=obtenerActivosEnBodega")
+    suspend fun obtenerActivosEnBodega(@Query("bodega_id") bodegaId: Int): List<Activo>
+
     // ── Catálogo de modelos (solo admin) ────────────────────────────────
     @GET("index.php?controller=api&action=listarModelos")
     suspend fun listarModelos(): List<Modelo>
@@ -160,6 +163,7 @@ interface ApiService {
         @Part("origen_tipo") origenTipo: RequestBody,
         @Part("nota") nota: RequestBody?,
         @Part("origen_tienda_id") origenTiendaId: RequestBody?,
+        @Part("origen_bodega_id") origenBodegaId: RequestBody?,
         @Part("destino_bodega_id") destinoBodegaId: RequestBody?,
         @Part("destino_usuario_id") destinoUsuarioId: RequestBody?,
         @Part("activos[]") activos: List<@JvmSuppressWildcards RequestBody>,
