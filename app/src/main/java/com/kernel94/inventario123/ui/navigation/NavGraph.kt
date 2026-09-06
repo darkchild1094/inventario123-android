@@ -45,17 +45,38 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
         }
     }
 
+    val irALogin: () -> Unit = {
+        scope.launch {
+            app.authRepository.logout()
+            navController.navigate(Screen.Login.route) {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
-        startDestination = if (sesionActivaInicial) Screen.Listado.route else Screen.Login.route
+        startDestination = if (sesionActivaInicial) Screen.Dashboard.route else Screen.Login.route
     ) {
         composable(Screen.Login.route) {
             val vm: LoginViewModel = viewModel(factory = factory)
             LoginScreen(vm) {
-                navController.navigate(Screen.Listado.route) {
+                navController.navigate(Screen.Dashboard.route) {
                     popUpTo(Screen.Login.route) { inclusive = true }
                 }
             }
+        }
+
+        composable(Screen.Dashboard.route) {
+            val vm: com.kernel94.inventario123.ui.dashboard.DashboardViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.dashboard.DashboardScreen(
+                viewModel = vm,
+                onAbrirInventario = { navController.navigate(Screen.Listado.route) },
+                onAbrirHistorial = { navController.navigate(Screen.Historial.route) },
+                onAbrirTraslados = { navController.navigate(Screen.Solicitudes.route) },
+                onCerrarSesion = irALogin,
+            )
         }
 
         composable(Screen.Listado.route) {
@@ -65,15 +86,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onAbrirDetalle = { id -> navController.navigate(Screen.Detalle.crear(id)) },
                 onEditar = { id -> navController.navigate(Screen.Editar.crear(id)) },
                 onCrearNuevo = { navController.navigate(Screen.Crear.route) },
-                onCerrarSesion = {
-                    scope.launch {
-                        app.authRepository.logout()
-                        navController.navigate(Screen.Login.route) {
-                            popUpTo(0) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    }
-                },
+                onCerrarSesion = irALogin,
                 onAbrirHistorial = { navController.navigate(Screen.Historial.route) },
                 onAbrirTiendas = { navController.navigate(Screen.Tiendas.route) },
                 onAbrirModelos = { navController.navigate(Screen.Modelos.route) },

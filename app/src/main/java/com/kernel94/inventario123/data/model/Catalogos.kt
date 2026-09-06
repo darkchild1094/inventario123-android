@@ -123,6 +123,22 @@ data class ListaSolicitudesResponse(
 
 data class ConteoPendientes(val pendientes: Int = 0)
 
+// ── Dashboard ───────────────────────────────────────────────────────────────
+
+data class DashPorNombre(val nombre: String = "", val n: Int = 0)
+data class DashMovimiento(
+    val evento: String = "", val creado_en: String? = null,
+    val equipo: String? = null, val serie: String? = null,
+)
+data class ResumenDashboard(
+    val total: Int = 0,
+    val por_status: Map<String, Int> = emptyMap(),
+    val por_dispositivo: List<DashPorNombre> = emptyList(),
+    val por_plaza: List<DashPorNombre> = emptyList(),
+    val traslados_pendientes: Int = 0,
+    val movimientos: List<DashMovimiento> = emptyList(),
+)
+
 data class Perfil(
     val usuario: Usuario? = null, val permisos: Permisos = Permisos(),
     val vistasDisponibles: List<String> = emptyList(),

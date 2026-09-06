@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.kernel94.inventario123.Inventario123App
 import com.kernel94.inventario123.ui.auth.LoginViewModel
+import com.kernel94.inventario123.ui.dashboard.DashboardViewModel
 import com.kernel94.inventario123.ui.detalle.DetalleViewModel
 import com.kernel94.inventario123.ui.form.CrearEditarActivoViewModel
 import com.kernel94.inventario123.ui.historial.HistorialViewModel
@@ -20,6 +21,8 @@ class ViewModelFactory(private val app: Inventario123App) : ViewModelProvider.Fa
         return when {
             modelClass.isAssignableFrom(LoginViewModel::class.java) ->
                 LoginViewModel(app.authRepository) as T
+            modelClass.isAssignableFrom(DashboardViewModel::class.java) ->
+                DashboardViewModel(app.activoRepository, app.authRepository) as T
             modelClass.isAssignableFrom(ListadoViewModel::class.java) ->
                 ListadoViewModel(app.activoRepository, app.catalogoRepository, app.authRepository, app.exportRepository, app.solicitudRepository) as T
             modelClass.isAssignableFrom(DetalleViewModel::class.java) ->

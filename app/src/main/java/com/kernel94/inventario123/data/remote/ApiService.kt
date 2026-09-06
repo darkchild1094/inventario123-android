@@ -24,6 +24,9 @@ interface ApiService {
     @GET("index.php?controller=api&action=obtenerPerfil")
     suspend fun obtenerPerfil(): Perfil
 
+    @GET("index.php?controller=api&action=resumenDashboard")
+    suspend fun resumenDashboard(): ResumenDashboard
+
     @GET("index.php?controller=api&action=listarActivos")
     suspend fun listarActivos(
         @Query("vista") vista: String? = null,

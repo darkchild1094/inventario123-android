@@ -2,6 +2,7 @@ package com.kernel94.inventario123.ui.navigation
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
+    object Dashboard : Screen("dashboard")
     object Listado : Screen("listado")
     object Detalle : Screen("detalle/{id}") { fun crear(id: Int) = "detalle/$id" }
     object Crear : Screen("crear_activo")

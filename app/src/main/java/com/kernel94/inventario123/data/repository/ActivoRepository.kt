@@ -34,6 +34,12 @@ class ActivoRepository(private val api: ApiService) {
         api.obtenerActivosEnTiendaPorDispositivo(tiendaId, dispositivoId, exceptoId)
     } catch (e: Exception) { emptyList() }
 
+    suspend fun resumenDashboard(): Resultado<com.kernel94.inventario123.data.model.ResumenDashboard> = try {
+        Resultado.Exito(api.resumenDashboard())
+    } catch (e: Exception) {
+        Resultado.Error("No se pudo cargar el resumen.")
+    }
+
     suspend fun crear(
         context: Context,
         serie: String, codigoBarras: String?, numActivo: String?, modeloId: Int?, status: String,
