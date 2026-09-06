@@ -54,10 +54,11 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginExitoso: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(cuentas) { cuenta ->
-                        ItemCuentaGuardada(cuenta, onClick = { 
-                            viewModel.email = it.email
-                            viewModel.password = ""
-                        }, onRemove = { viewModel.eliminarCuenta(it.email) })
+                        ItemCuentaGuardada(
+                            cuenta,
+                            onClick = { viewModel.usarCuenta(it.email) },
+                            onRemove = { viewModel.eliminarCuenta(it.email) },
+                        )
                     }
                 }
             }
@@ -133,18 +134,31 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginExitoso: () -> Unit) {
                             )
                         )
 
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 4.dp).clickable {
+                                viewModel.recordarPassword = !viewModel.recordarPassword
+                            }
+                        ) {
+                            Checkbox(
+                                checked = viewModel.recordarPassword,
+                                onCheckedChange = { viewModel.recordarPassword = it },
+                            )
+                            Text("Recordar contraseña en este dispositivo", style = MaterialTheme.typography.bodySmall)
+                        }
+
                         if (viewModel.error != null) {
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                viewModel.error!!, 
-                                color = MaterialTheme.colorScheme.error, 
+                                viewModel.error!!,
+                                color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = TextAlign.Center
                             )
                         }
 
-                        Spacer(Modifier.height(24.dp))
+                        Spacer(Modifier.height(16.dp))
                         
                         Button(
                             onClick = { viewModel.login(onLoginExitoso) },

@@ -68,7 +68,10 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onCerrarSesion = {
                     scope.launch {
                         app.authRepository.logout()
-                        navController.navigate(Screen.Login.route) { popUpTo(0) }
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                            launchSingleTop = true
+                        }
                     }
                 },
                 onAbrirHistorial = { navController.navigate(Screen.Historial.route) },
