@@ -24,8 +24,13 @@ class PendientesRepository(
 ) {
     val pendientes: StateFlow<List<ActivoPendiente>> = store.flow
 
-    /** Serializa sincronizar(): se dispara desde onCreate y desde el observer
-     *  de conectividad; sin esto dos corrutinas reenviarían la misma cola. */
+    /** Estado reactivo de conexión (para la UI). */
+    val online: StateFlow<Boolean> = conectividad.online
+    fun hayConexion(): Boolean = conectividad.hayInternet()
+
+    /** Serializa sincronizar(): se dispara desde onCreate, desde el observer
+     *  de conectividad y desde WorkManager; sin esto varias corrutinas
+     *  reenviarían la misma cola. */
     private val syncMutex = Mutex()
 
     /** Los campos + la clave de idempotencia (= localId): el servidor la usa

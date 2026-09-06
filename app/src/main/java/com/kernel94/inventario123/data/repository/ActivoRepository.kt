@@ -2,13 +2,33 @@ package com.kernel94.inventario123.data.repository
 
 import android.content.Context
 import android.net.Uri
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.kernel94.inventario123.data.model.Activo
 import com.kernel94.inventario123.data.model.ApiResultado
 import com.kernel94.inventario123.data.model.ListadoActivosResponse
 import com.kernel94.inventario123.data.remote.ApiService
 import com.kernel94.inventario123.data.remote.ImagenUtil
+import java.io.File
 
-class ActivoRepository(private val api: ApiService) {
+class ActivoRepository(private val api: ApiService, private val context: Context? = null) {
+
+    private val gson = Gson()
+    // Caché de "activos en uso" por tienda, para poder armar un reemplazo sin señal.
+    private val reemplazosCache: File? get() = context?.let { File(it.filesDir, "reemplazos_cache.json") }
+    private val reemplazosTipo = object : TypeToken<MutableMap<String, List<Activo>>>() {}.type
+
+    private fun leerReemplazosCache(): MutableMap<String, List<Activo>> =
+        reemplazosCache?.takeIf { it.exists() }?.let {
+            runCatching { gson.fromJson<MutableMap<String, List<Activo>>>(it.readText(), reemplazosTipo) }.getOrNull()
+        } ?: mutableMapOf()
+
+    private fun guardarReemplazosCache(tiendaId: Int, lista: List<Activo>) {
+        val f = reemplazosCache ?: return
+        val mapa = leerReemplazosCache()
+        mapa[tiendaId.toString()] = lista
+        runCatching { f.writeText(gson.toJson(mapa)) }
+    }
 
     suspend fun listar(
         vista: String? = null, negocioId: Int? = null, regionId: Int? = null,
@@ -27,12 +47,22 @@ class ActivoRepository(private val api: ApiService) {
     }
 
     /** Activos "en uso" de una tienda para el selector "¿Reemplaza a?".
-     *  dispositivoId null → todas las categorías. */
+     *  dispositivoId null → todas las categorías.
+     *  Con señal se traen del servidor y se cachean todas las categorías de la
+     *  tienda; sin señal se sirven del caché (filtrando por categoría en local)
+     *  para poder armar un reemplazo offline. */
     suspend fun activosEnTiendaPorDispositivo(
         tiendaId: Int, dispositivoId: Int? = null, exceptoId: Int? = null,
     ): List<Activo> = try {
-        api.obtenerActivosEnTiendaPorDispositivo(tiendaId, dispositivoId, exceptoId)
-    } catch (e: Exception) { emptyList() }
+        // Cacheamos SIEMPRE la lista completa de la tienda (sin filtro de categoría).
+        val completa = api.obtenerActivosEnTiendaPorDispositivo(tiendaId, null, exceptoId)
+        guardarReemplazosCache(tiendaId, completa)
+        if (dispositivoId == null) completa else completa.filter { it.dispositivo_id == dispositivoId }
+    } catch (e: Exception) {
+        leerReemplazosCache()[tiendaId.toString()].orEmpty()
+            .filter { exceptoId == null || it.id != exceptoId }
+            .filter { dispositivoId == null || it.dispositivo_id == dispositivoId }
+    }
 
     suspend fun resumenDashboard(): Resultado<com.kernel94.inventario123.data.model.ResumenDashboard> = try {
         Resultado.Exito(api.resumenDashboard())
@@ -107,11 +137,15 @@ class ActivoRepository(private val api: ApiService) {
 
     // ── Soporte offline: la cola de pendientes reusa el mismo contrato ────────
 
-    /** Campos de texto (map plano) para un alta de activo, listos para persistir/reenviar. */
+    /** Campos de texto (map plano) para un alta de activo, listos para persistir/reenviar.
+     *  Incluye los campos de reemplazo (opcionales) para poder encolar un
+     *  reemplazo offline: el servidor los procesa igual que en el alta directa. */
     fun camposTexto(
         serie: String, codigoBarras: String?, numActivo: String?, modeloId: Int?, status: String,
         negocioId: Int?, plazaId: Int?, procedenciaTiendaId: Int?, tiendaUsoId: Int?,
         asignadoUsuarioId: Int?, stockDestino: String?, atiUsuarioId: Int?, motivo: String?,
+        reemplazaActivoId: Int? = null, salidaDestino: String? = null, salidaUsuarioId: Int? = null,
+        salidaAtiUsuarioId: Int? = null, salidaSerie: String? = null, salidaCodigoBarras: String? = null,
     ): Map<String, String> = linkedMapOf<String, String?>(
         "serie" to serie,
         "codigo_barras" to codigoBarras,
@@ -126,6 +160,12 @@ class ActivoRepository(private val api: ApiService) {
         "stock_destino" to stockDestino,
         "ati_usuario_id" to atiUsuarioId?.toString(),
         "motivo" to motivo,
+        "reemplaza_activo_id" to reemplazaActivoId?.toString(),
+        "salida_destino" to salidaDestino,
+        "salida_usuario_id" to salidaUsuarioId?.toString(),
+        "salida_ati_usuario_id" to salidaAtiUsuarioId?.toString(),
+        "salida_serie" to salidaSerie,
+        "salida_codigo_barras" to salidaCodigoBarras,
     ).mapNotNull { (k, v) -> v?.let { k to it } }.toMap()
 
     /** Reenvía un pendiente de la cola. Lanza excepción si falla la red. */

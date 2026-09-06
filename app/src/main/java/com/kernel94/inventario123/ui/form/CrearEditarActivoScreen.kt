@@ -86,6 +86,22 @@ fun CrearEditarActivoScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
+            val online by viewModel.online.collectAsState()
+            if (!online && viewModel.idEdicion == null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                ) {
+                    Text(
+                        "Sin conexión: el activo se guardará en la cola y se enviará solo al recuperar internet.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.padding(10.dp),
+                    )
+                }
+            }
+
             // Negocio / Plaza (solo si el rol puede elegir, igual que la web)
             if (viewModel.perfil?.permisos?.puedeFiltrarPorPlaza == true) {
                 FiltroDropdown(
@@ -334,7 +350,13 @@ fun CrearEditarActivoScreen(
                 if (viewModel.guardando) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = androidx.compose.ui.graphics.Color.White, strokeWidth = 2.dp)
                 } else {
-                    Text(if (idActivoAEditar == null) "Guardar y registrar otro" else "Guardar cambios")
+                    Text(
+                        when {
+                            idActivoAEditar != null -> "Guardar cambios"
+                            !online -> "Guardar sin conexión"
+                            else -> "Guardar y registrar otro"
+                        }
+                    )
                 }
             }
             if (idActivoAEditar != null) {

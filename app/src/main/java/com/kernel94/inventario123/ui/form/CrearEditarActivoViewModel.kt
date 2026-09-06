@@ -84,6 +84,9 @@ class CrearEditarActivoViewModel(
     var mensaje by mutableStateOf<String?>(null); private set
     var esError by mutableStateOf(false); private set
 
+    /** Estado de conexión reactivo, para el aviso "sin conexión" del formulario. */
+    val online get() = pendientesRepository.online
+
     fun iniciar(idActivoAEditar: Int? = null) {
         viewModelScope.launch {
             perfil = authRepository.obtenerPerfil()
@@ -247,9 +250,10 @@ class CrearEditarActivoViewModel(
         mensaje = null
         val hayReemplazo = status == "en_uso" && reemplazaActivoId != null
 
-        // Alta simple (sin reemplazo): pasa por la cola offline — se envía ya si
-        // hay señal, o se guarda para enviarse solo al recuperar internet.
-        if (idEdicion == null && !hayReemplazo) {
+        // Alta nueva (con o sin reemplazo): pasa por la cola offline — se envía
+        // ya si hay señal, o se guarda para enviarse solo al recuperar internet.
+        // El reemplazo se encola con los mismos campos que usa el alta directa.
+        if (idEdicion == null) {
             viewModelScope.launch {
                 val campos = activoRepository.camposTexto(
                     serie = serie.trim(), codigoBarras = codigoBarras.ifBlank { null },
@@ -258,11 +262,18 @@ class CrearEditarActivoViewModel(
                     tiendaUsoId = tiendaUsoId, asignadoUsuarioId = asignadoUsuarioId,
                     stockDestino = stockDestino, atiUsuarioId = if (requiereAti()) atiUsuarioId else null,
                     motivo = motivo.trim().ifBlank { null },
+                    reemplazaActivoId = if (hayReemplazo) reemplazaActivoId else null,
+                    salidaDestino = if (hayReemplazo) salidaDestino else null,
+                    salidaUsuarioId = if (hayReemplazo) salidaUsuarioId else null,
+                    salidaAtiUsuarioId = if (hayReemplazo) salidaAtiUsuarioId else null,
+                    salidaSerie = if (hayReemplazo) salidaSerie.trim().ifBlank { null } else null,
+                    salidaCodigoBarras = if (hayReemplazo) salidaCodigoBarras.trim().ifBlank { null } else null,
                 )
                 when (val r = pendientesRepository.registrar(context, campos, fotoEquipoUri, fotoSerieUri, fotoActivoUri)) {
                     is Resultado.Exito -> {
                         guardando = false; esError = false; mensaje = r.datos
                         serie = ""; codigoBarras = ""; procedenciaTiendaId = null
+                        reemplazaActivoId = null; salidaSerie = ""; salidaCodigoBarras = ""; reemplazoOtraCategoria = false
                         motivo = ""; fotoEquipoUri = null; fotoSerieUri = null; fotoActivoUri = null
                         onExito()
                     }
@@ -272,57 +283,30 @@ class CrearEditarActivoViewModel(
             return
         }
 
+        // Edición de un activo existente: siempre online (no se encola).
         viewModelScope.launch {
-            val resultado = if (idEdicion == null) {
-                activoRepository.crear(
-                    context = context,
-                    serie = serie.trim(), codigoBarras = codigoBarras.ifBlank { null },
-                    numActivo = numActivo.ifBlank { null }, modeloId = modeloId,
-                    status = status, negocioId = negocioId, plazaId = plazaId,
-                    procedenciaTiendaId = procedenciaTiendaId, tiendaUsoId = tiendaUsoId,
-                    asignadoUsuarioId = asignadoUsuarioId, stockDestino = stockDestino,
-                    atiUsuarioId = if (requiereAti()) atiUsuarioId else null,
-                    reemplazaActivoId = if (hayReemplazo) reemplazaActivoId else null,
-                    salidaDestino = if (hayReemplazo) salidaDestino else null,
-                    salidaUsuarioId = if (hayReemplazo) salidaUsuarioId else null,
-                    salidaAtiUsuarioId = if (hayReemplazo) salidaAtiUsuarioId else null,
-                    salidaSerie = if (hayReemplazo) salidaSerie.trim().ifBlank { null } else null,
-                    salidaCodigoBarras = if (hayReemplazo) salidaCodigoBarras.trim().ifBlank { null } else null,
-                    motivo = motivo.trim().ifBlank { null },
-                    fotoEquipoUri = fotoEquipoUri, fotoSerieUri = fotoSerieUri, fotoActivoUri = fotoActivoUri,
-                )
-            } else {
-                activoRepository.actualizar(
-                    context = context,
-                    id = idEdicion!!, serie = serie.trim(), codigoBarras = codigoBarras.ifBlank { null },
-                    numActivo = numActivo.ifBlank { null }, modeloId = modeloId, status = status,
-                    procedenciaTiendaId = procedenciaTiendaId, tiendaUsoId = tiendaUsoId,
-                    asignadoUsuarioId = asignadoUsuarioId,
-                    atiUsuarioId = if (requiereAti()) atiUsuarioId else null,
-                    reemplazaActivoId = if (hayReemplazo) reemplazaActivoId else null,
-                    salidaDestino = if (hayReemplazo) salidaDestino else null,
-                    salidaUsuarioId = if (hayReemplazo) salidaUsuarioId else null,
-                    salidaAtiUsuarioId = if (hayReemplazo) salidaAtiUsuarioId else null,
-                    salidaSerie = if (hayReemplazo) salidaSerie.trim().ifBlank { null } else null,
-                    salidaCodigoBarras = if (hayReemplazo) salidaCodigoBarras.trim().ifBlank { null } else null,
-                    motivo = motivo.trim().ifBlank { null },
-                    fotoEquipoUri = fotoEquipoUri, fotoSerieUri = fotoSerieUri, fotoActivoUri = fotoActivoUri,
-                )
-            }
+            val resultado = activoRepository.actualizar(
+                context = context,
+                id = idEdicion!!, serie = serie.trim(), codigoBarras = codigoBarras.ifBlank { null },
+                numActivo = numActivo.ifBlank { null }, modeloId = modeloId, status = status,
+                procedenciaTiendaId = procedenciaTiendaId, tiendaUsoId = tiendaUsoId,
+                asignadoUsuarioId = asignadoUsuarioId,
+                atiUsuarioId = if (requiereAti()) atiUsuarioId else null,
+                reemplazaActivoId = if (hayReemplazo) reemplazaActivoId else null,
+                salidaDestino = if (hayReemplazo) salidaDestino else null,
+                salidaUsuarioId = if (hayReemplazo) salidaUsuarioId else null,
+                salidaAtiUsuarioId = if (hayReemplazo) salidaAtiUsuarioId else null,
+                salidaSerie = if (hayReemplazo) salidaSerie.trim().ifBlank { null } else null,
+                salidaCodigoBarras = if (hayReemplazo) salidaCodigoBarras.trim().ifBlank { null } else null,
+                motivo = motivo.trim().ifBlank { null },
+                fotoEquipoUri = fotoEquipoUri, fotoSerieUri = fotoSerieUri, fotoActivoUri = fotoActivoUri,
+            )
             when (resultado) {
                 is Resultado.Exito -> {
                     guardando = false
                     esError = false
                     mensaje = resultado.datos.message ?: "Guardado correctamente."
-                    if (idEdicion == null) {
-                        // Solo se limpian estos campos; todo lo demás se conserva
-                        serie = ""; codigoBarras = ""; procedenciaTiendaId = null
-                        reemplazaActivoId = null; motivo = ""; salidaSerie = ""; salidaCodigoBarras = ""; reemplazoOtraCategoria = false
-                        fotoEquipoUri = null; fotoSerieUri = null; fotoActivoUri = null
-                        onExito()
-                    } else {
-                        onExito()
-                    }
+                    onExito()
                 }
                 is Resultado.Error -> {
                     guardando = false

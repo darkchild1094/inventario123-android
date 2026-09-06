@@ -16,10 +16,17 @@ import com.kernel94.inventario123.data.repository.PendientesRepository
 import com.kernel94.inventario123.data.repository.SolicitudRepository
 import com.kernel94.inventario123.data.repository.TiendaRepository
 import com.kernel94.inventario123.data.repository.UsuarioRepository
+import com.kernel94.inventario123.data.work.SyncPendientesWorker
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
 class Inventario123App : Application() {
     lateinit var sessionManager: SessionManager private set
@@ -43,7 +50,7 @@ class Inventario123App : Application() {
         sessionManager = SessionManager(this)
         apiService = NetworkModule.crearApiService(this, sessionManager)
         authRepository = AuthRepository(apiService, sessionManager)
-        activoRepository = ActivoRepository(apiService)
+        activoRepository = ActivoRepository(apiService, this)
         catalogoRepository = CatalogoRepository(apiService, this)
         usuarioRepository = UsuarioRepository(apiService)
         exportRepository = ExportRepository(apiService)
@@ -60,5 +67,18 @@ class Inventario123App : Application() {
         connectivityObserver.alRecuperarSeñal {
             appScope.launch { runCatching { pendientesRepository.sincronizar() } }
         }
+
+        // Calentar el caché de catálogos (para que el alta offline tenga con qué
+        // llenarse aunque el usuario no haya abierto el formulario con señal).
+        appScope.launch { runCatching { catalogoRepository.obtenerCatalogos() } }
+
+        // Reintento en segundo plano: aunque la app esté cerrada, cuando haya
+        // conexión WorkManager vacía la cola de pendientes.
+        val trabajo = PeriodicWorkRequestBuilder<SyncPendientesWorker>(15, TimeUnit.MINUTES)
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            SyncPendientesWorker.NOMBRE_UNICO, ExistingPeriodicWorkPolicy.KEEP, trabajo,
+        )
     }
 }

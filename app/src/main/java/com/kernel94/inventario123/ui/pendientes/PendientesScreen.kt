@@ -82,8 +82,10 @@ private fun PendienteRow(p: ActivoPendiente, vm: PendientesViewModel) {
                 }
             }
             val cat = p.campos["modelo_id"]?.let { "modelo #$it" } ?: ""
+            val esReemplazo = p.campos["reemplaza_activo_id"] != null
             Text(
-                "Estatus: ${p.campos["status"] ?: "—"} · CB: ${p.campos["codigo_barras"] ?: "—"} $cat",
+                "Estatus: ${p.campos["status"] ?: "—"} · CB: ${p.campos["codigo_barras"] ?: "—"} $cat" +
+                    if (esReemplazo) " · reemplazo" else "",
                 style = MaterialTheme.typography.bodySmall, color = Color.Gray,
             )
             p.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Color(0xFF842029)) }

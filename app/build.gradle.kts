@@ -40,6 +40,20 @@ android {
     }
 }
 
+// WorkManager 2.9.1 tira de lifecycle-service 2.9.4; el proyecto está alineado a
+// lifecycle 2.8.4 (WorkManager 2.9.x funciona con 2.8.x). Fijamos las transitivas
+// a 2.8.4 para no arrastrar todo el tren de 2.9.
+configurations.all {
+    resolutionStrategy {
+        force(
+            "androidx.lifecycle:lifecycle-service:2.8.4",
+            "androidx.lifecycle:lifecycle-livedata-ktx:2.8.4",
+            "androidx.lifecycle:lifecycle-runtime:2.8.4",
+            "androidx.lifecycle:lifecycle-runtime-ktx:2.8.4",
+        )
+    }
+}
+
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("com.google.android.material:material:1.14.0")
@@ -60,6 +74,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("io.coil-kt:coil-compose:2.6.0")
 
     implementation("androidx.camera:camera-core:1.3.4")
