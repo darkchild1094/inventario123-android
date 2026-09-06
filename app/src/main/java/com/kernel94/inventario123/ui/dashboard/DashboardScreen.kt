@@ -32,6 +32,7 @@ fun DashboardScreen(
     onAbrirInventario: () -> Unit,
     onAbrirHistorial: () -> Unit,
     onAbrirTraslados: () -> Unit,
+    onAbrirPendientes: () -> Unit,
     onCerrarSesion: () -> Unit,
 ) {
     LaunchedEffect(Unit) { viewModel.cargar() }
@@ -149,6 +150,11 @@ fun DashboardScreen(
                         Icon(Icons.Filled.Inventory2, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text("Ver inventario")
+                    }
+                    OutlinedButton(onClick = onAbrirPendientes, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Filled.CloudUpload, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Altas pendientes de envío")
                     }
                     Spacer(Modifier.height(8.dp))
                 }

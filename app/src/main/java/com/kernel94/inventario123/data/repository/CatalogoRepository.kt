@@ -1,13 +1,30 @@
 package com.kernel94.inventario123.data.repository
 
+import android.content.Context
+import com.google.gson.Gson
 import com.kernel94.inventario123.data.model.*
 import com.kernel94.inventario123.data.remote.ApiService
+import java.io.File
 
-class CatalogoRepository(private val api: ApiService) {
+/**
+ * Catálogos. Con señal se traen del servidor y se cachean en filesDir; sin señal
+ * se sirven del caché para que el alta de activos funcione offline.
+ */
+class CatalogoRepository(private val api: ApiService, private val context: Context? = null) {
+
+    private val gson = Gson()
+    private val cache: File? get() = context?.let { File(it.filesDir, "catalogos_cache.json") }
+
     suspend fun obtenerCatalogos(): Resultado<Catalogos> = try {
-        Resultado.Exito(api.obtenerCatalogos())
+        val c = api.obtenerCatalogos()
+        cache?.let { runCatching { it.writeText(gson.toJson(c)) } }
+        Resultado.Exito(c)
     } catch (e: Exception) {
-        Resultado.Error("No se pudieron cargar los catálogos.")
+        val local = cache?.takeIf { it.exists() }?.let {
+            runCatching { gson.fromJson(it.readText(), Catalogos::class.java) }.getOrNull()
+        }
+        if (local != null) Resultado.Exito(local)
+        else Resultado.Error("No se pudieron cargar los catálogos (sin señal y sin caché).")
     }
 
     suspend fun modelosPorDispositivo(dispositivoId: Int): List<Modelo> = try {

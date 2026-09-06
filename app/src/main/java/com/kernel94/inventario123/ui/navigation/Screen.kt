@@ -15,6 +15,7 @@ sealed class Screen(val route: String) {
     object Historial : Screen("historial")
     object Tiendas : Screen("tiendas")
     object Modelos : Screen("modelos")
+    object Pendientes : Screen("pendientes")
     object Solicitudes : Screen("solicitudes")
     object CrearSolicitud : Screen("crear_solicitud")
     object SolicitudDetalle : Screen("solicitud/{id}") { fun crear(id: Int) = "solicitud/$id" }

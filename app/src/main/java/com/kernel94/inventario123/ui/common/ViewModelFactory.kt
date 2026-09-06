@@ -10,6 +10,7 @@ import com.kernel94.inventario123.ui.form.CrearEditarActivoViewModel
 import com.kernel94.inventario123.ui.historial.HistorialViewModel
 import com.kernel94.inventario123.ui.listado.ListadoViewModel
 import com.kernel94.inventario123.ui.modelos.ModelosViewModel
+import com.kernel94.inventario123.ui.pendientes.PendientesViewModel
 import com.kernel94.inventario123.ui.solicitudes.SolicitudesViewModel
 import com.kernel94.inventario123.ui.tiendas.TiendasViewModel
 import com.kernel94.inventario123.ui.usuarios.UsuariosViewModel
@@ -28,7 +29,9 @@ class ViewModelFactory(private val app: Inventario123App) : ViewModelProvider.Fa
             modelClass.isAssignableFrom(DetalleViewModel::class.java) ->
                 DetalleViewModel(app.activoRepository, app.movimientoRepository) as T
             modelClass.isAssignableFrom(CrearEditarActivoViewModel::class.java) ->
-                CrearEditarActivoViewModel(app.activoRepository, app.catalogoRepository, app.authRepository) as T
+                CrearEditarActivoViewModel(app.activoRepository, app.catalogoRepository, app.authRepository, app.pendientesRepository) as T
+            modelClass.isAssignableFrom(PendientesViewModel::class.java) ->
+                PendientesViewModel(app.pendientesRepository) as T
             modelClass.isAssignableFrom(HistorialViewModel::class.java) ->
                 HistorialViewModel(app.movimientoRepository, app.catalogoRepository, app.authRepository) as T
             modelClass.isAssignableFrom(TiendasViewModel::class.java) ->

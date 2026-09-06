@@ -40,6 +40,7 @@ fun ListadoScreen(
     onAbrirTiendas: () -> Unit = {},
     onAbrirModelos: () -> Unit = {},
     onAbrirSolicitudes: () -> Unit = {},
+    onAbrirPendientes: () -> Unit = {},
 ) {
     LaunchedEffect(Unit) { viewModel.iniciar() }
     var mostrarFiltros by remember { mutableStateOf(false) }
@@ -148,6 +149,13 @@ fun ListadoScreen(
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
                 }
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Filled.CloudUpload, contentDescription = null) },
+                    label = { Text("Altas pendientes de envío") },
+                    selected = false,
+                    onClick = { cerrarYHacer(onAbrirPendientes) },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
                 if (permisos?.puedeExportar == true) {
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Filled.FileDownload, contentDescription = null) },

@@ -105,6 +105,40 @@ class ActivoRepository(private val api: ApiService) {
         Resultado.Error("No se pudo conectar al servidor.")
     }
 
+    // ── Soporte offline: la cola de pendientes reusa el mismo contrato ────────
+
+    /** Campos de texto (map plano) para un alta de activo, listos para persistir/reenviar. */
+    fun camposTexto(
+        serie: String, codigoBarras: String?, numActivo: String?, modeloId: Int?, status: String,
+        negocioId: Int?, plazaId: Int?, procedenciaTiendaId: Int?, tiendaUsoId: Int?,
+        asignadoUsuarioId: Int?, stockDestino: String?, atiUsuarioId: Int?, motivo: String?,
+    ): Map<String, String> = linkedMapOf<String, String?>(
+        "serie" to serie,
+        "codigo_barras" to codigoBarras,
+        "num_activo" to numActivo,
+        "modelo_id" to modeloId?.toString(),
+        "status" to status,
+        "negocio_id" to negocioId?.toString(),
+        "plaza_id" to plazaId?.toString(),
+        "procedencia_tienda_id" to procedenciaTiendaId?.toString(),
+        "tienda_uso_id" to tiendaUsoId?.toString(),
+        "asignado_usuario_id" to asignadoUsuarioId?.toString(),
+        "stock_destino" to stockDestino,
+        "ati_usuario_id" to atiUsuarioId?.toString(),
+        "motivo" to motivo,
+    ).mapNotNull { (k, v) -> v?.let { k to it } }.toMap()
+
+    /** Reenvía un pendiente de la cola. Lanza excepción si falla la red. */
+    suspend fun enviarPendiente(
+        campos: Map<String, String>,
+        fotoEquipoBytes: ByteArray?, fotoSerieBytes: ByteArray?, fotoActivoBytes: ByteArray?,
+    ): ApiResultado = api.guardarActivo(
+        campos.mapNotNull { (k, v) -> ImagenUtil.texto(v)?.let { k to it } }.toMap(),
+        fotoEquipoBytes?.let { ImagenUtil.parteBytes(it, "foto_equipo", "foto_equipo.jpg", "image/jpeg") },
+        fotoSerieBytes?.let { ImagenUtil.parteBytes(it, "foto_serie", "foto_serie.jpg", "image/jpeg") },
+        fotoActivoBytes?.let { ImagenUtil.parteBytes(it, "foto_activo", "foto_activo.jpg", "image/jpeg") },
+    )
+
     /** Arma el mapa de campos de texto para guardarActivo/actualizarActivo (multipart).
      *  Los null se omiten, igual que antes hacía Retrofit con @Field nullable. */
     private fun mapaDatos(

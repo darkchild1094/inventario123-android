@@ -75,8 +75,14 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onAbrirInventario = { navController.navigate(Screen.Listado.route) },
                 onAbrirHistorial = { navController.navigate(Screen.Historial.route) },
                 onAbrirTraslados = { navController.navigate(Screen.Solicitudes.route) },
+                onAbrirPendientes = { navController.navigate(Screen.Pendientes.route) },
                 onCerrarSesion = irALogin,
             )
+        }
+
+        composable(Screen.Pendientes.route) {
+            val vm: com.kernel94.inventario123.ui.pendientes.PendientesViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.pendientes.PendientesScreen(viewModel = vm, onVolver = { navController.popBackStack() })
         }
 
         composable(Screen.Listado.route) {
@@ -91,6 +97,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onAbrirTiendas = { navController.navigate(Screen.Tiendas.route) },
                 onAbrirModelos = { navController.navigate(Screen.Modelos.route) },
                 onAbrirSolicitudes = { navController.navigate(Screen.Solicitudes.route) },
+                onAbrirPendientes = { navController.navigate(Screen.Pendientes.route) },
             )
         }
 

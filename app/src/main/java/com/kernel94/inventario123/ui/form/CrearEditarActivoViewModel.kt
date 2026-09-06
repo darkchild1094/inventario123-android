@@ -11,6 +11,7 @@ import com.kernel94.inventario123.data.model.*
 import com.kernel94.inventario123.data.repository.ActivoRepository
 import com.kernel94.inventario123.data.repository.AuthRepository
 import com.kernel94.inventario123.data.repository.CatalogoRepository
+import com.kernel94.inventario123.data.repository.PendientesRepository
 import com.kernel94.inventario123.data.repository.Resultado
 import kotlinx.coroutines.launch
 
@@ -27,6 +28,7 @@ class CrearEditarActivoViewModel(
     private val activoRepository: ActivoRepository,
     private val catalogoRepository: CatalogoRepository,
     private val authRepository: AuthRepository,
+    private val pendientesRepository: PendientesRepository,
 ) : ViewModel() {
 
     var perfil by mutableStateOf<Perfil?>(null); private set
@@ -244,6 +246,32 @@ class CrearEditarActivoViewModel(
         guardando = true
         mensaje = null
         val hayReemplazo = status == "en_uso" && reemplazaActivoId != null
+
+        // Alta simple (sin reemplazo): pasa por la cola offline — se envía ya si
+        // hay señal, o se guarda para enviarse solo al recuperar internet.
+        if (idEdicion == null && !hayReemplazo) {
+            viewModelScope.launch {
+                val campos = activoRepository.camposTexto(
+                    serie = serie.trim(), codigoBarras = codigoBarras.ifBlank { null },
+                    numActivo = numActivo.ifBlank { null }, modeloId = modeloId, status = status,
+                    negocioId = negocioId, plazaId = plazaId, procedenciaTiendaId = procedenciaTiendaId,
+                    tiendaUsoId = tiendaUsoId, asignadoUsuarioId = asignadoUsuarioId,
+                    stockDestino = stockDestino, atiUsuarioId = if (requiereAti()) atiUsuarioId else null,
+                    motivo = motivo.trim().ifBlank { null },
+                )
+                when (val r = pendientesRepository.registrar(context, campos, fotoEquipoUri, fotoSerieUri, fotoActivoUri)) {
+                    is Resultado.Exito -> {
+                        guardando = false; esError = false; mensaje = r.datos
+                        serie = ""; codigoBarras = ""; procedenciaTiendaId = null
+                        motivo = ""; fotoEquipoUri = null; fotoSerieUri = null; fotoActivoUri = null
+                        onExito()
+                    }
+                    is Resultado.Error -> { guardando = false; esError = true; mensaje = r.mensaje }
+                }
+            }
+            return
+        }
+
         viewModelScope.launch {
             val resultado = if (idEdicion == null) {
                 activoRepository.crear(
