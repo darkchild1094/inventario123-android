@@ -7,6 +7,8 @@ import com.kernel94.inventario123.data.model.ActivoPendiente
 import com.kernel94.inventario123.data.remote.ConnectivityObserver
 import com.kernel94.inventario123.data.remote.ImagenUtil
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 
 /**
@@ -21,6 +23,15 @@ class PendientesRepository(
     private val conectividad: ConnectivityObserver,
 ) {
     val pendientes: StateFlow<List<ActivoPendiente>> = store.flow
+
+    /** Serializa sincronizar(): se dispara desde onCreate y desde el observer
+     *  de conectividad; sin esto dos corrutinas reenviarían la misma cola. */
+    private val syncMutex = Mutex()
+
+    /** Los campos + la clave de idempotencia (= localId): el servidor la usa
+     *  para no crear un duplicado si un reenvío repite un alta ya aceptada. */
+    private fun camposConClave(p: ActivoPendiente): Map<String, String> =
+        p.campos + ("idempotency_key" to p.localId)
 
     /**
      * @return Resultado.Exito(mensaje) — enviado (con id) o encolado.
@@ -48,7 +59,7 @@ class PendientesRepository(
         if (conectividad.hayInternet()) {
             try {
                 val r = activoRepository.enviarPendiente(
-                    p.campos, leer(p.fotoEquipoPath), leer(p.fotoSeriePath), leer(p.fotoActivoPath),
+                    camposConClave(p), leer(p.fotoEquipoPath), leer(p.fotoSeriePath), leer(p.fotoActivoPath),
                 )
                 if (r.success) {
                     borrarFotos(p)
@@ -69,14 +80,14 @@ class PendientesRepository(
     }
 
     /** Recorre la cola y envía lo que se pueda. Devuelve cuántos se enviaron. */
-    suspend fun sincronizar(): Int {
-        if (!conectividad.hayInternet()) return 0
+    suspend fun sincronizar(): Int = syncMutex.withLock {
+        if (!conectividad.hayInternet()) return@withLock 0
         var enviados = 0
         for (p in store.porEnviar()) {
             store.actualizar(p.copy(estado = "enviando", error = null))
             try {
                 val r = activoRepository.enviarPendiente(
-                    p.campos, leer(p.fotoEquipoPath), leer(p.fotoSeriePath), leer(p.fotoActivoPath),
+                    camposConClave(p), leer(p.fotoEquipoPath), leer(p.fotoSeriePath), leer(p.fotoActivoPath),
                 )
                 if (r.success) {
                     store.actualizar(p.copy(estado = "enviado", serverId = r.id, error = null))
@@ -88,7 +99,7 @@ class PendientesRepository(
                 store.actualizar(p.copy(estado = "pendiente", error = null))
             }
         }
-        return enviados
+        enviados
     }
 
     fun reintentar(localId: String) {
