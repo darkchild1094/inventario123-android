@@ -80,14 +80,19 @@ data class SolicitudActivo(
 data class SolicitudTraslado(
     val id: Int = 0,
     val estado: String = "pendiente",
+    val destino: String = "en_bodega",           // asignado | en_bodega | baja | garantia
     val plaza_id: Int = 0,
     val plaza_nombre: String? = null,
     val bodega_nombre: String? = null,
     val origen_nombre: String? = null,
+    val origen_tienda_nombre: String? = null,
+    val destino_usuario_nombre: String? = null,
     val solicitante_nombre: String? = null,
     val aprobador_nombre: String? = null,
+    val aprobador2_nombre: String? = null,
     val firma_solicitante: String? = null,
     val firma_aprobador: String? = null,
+    val firma_aprobador2: String? = null,
     val nota: String? = null,
     val motivo_rechazo: String? = null,
     val grupo_id: String? = null,
@@ -95,12 +100,23 @@ data class SolicitudTraslado(
     val resuelto_en: String? = null,
     val activos_count: Int = 0,
     val activos: List<SolicitudActivo> = emptyList(),
-    val puedeResolver: Boolean = false,
+    val puedeFirmar: Boolean = false,
     val puedeCancelar: Boolean = false,
-)
+    val porFirmar: Boolean = false,
+) {
+    val destinoLabel: String get() = when (destino) {
+        "asignado"  -> "Traspaso a otro ingeniero"
+        "en_bodega" -> "Devolución a bodega"
+        "baja"      -> "Baja"
+        "garantia"  -> "Garantía"
+        else        -> destino
+    }
+    val dobleFirma: Boolean get() = destino == "garantia"
+}
 
 data class ListaSolicitudesResponse(
     val solicitudes: List<SolicitudTraslado> = emptyList(),
+    val pendientes: Int = 0,
     val puedeAprobar: Boolean = false,
     val puedeCrear: Boolean = false,
 )

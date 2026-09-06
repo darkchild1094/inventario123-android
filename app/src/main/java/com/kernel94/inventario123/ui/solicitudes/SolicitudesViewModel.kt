@@ -9,6 +9,8 @@ import com.kernel94.inventario123.data.model.Activo
 import com.kernel94.inventario123.data.model.Bodega
 import com.kernel94.inventario123.data.model.Perfil
 import com.kernel94.inventario123.data.model.SolicitudTraslado
+import com.kernel94.inventario123.data.model.Tienda
+import com.kernel94.inventario123.data.model.Usuario
 import com.kernel94.inventario123.data.repository.ActivoRepository
 import com.kernel94.inventario123.data.repository.AuthRepository
 import com.kernel94.inventario123.data.repository.CatalogoRepository
@@ -39,6 +41,9 @@ class SolicitudesViewModel(
     // Crear
     var misAsignados by mutableStateOf<List<Activo>>(emptyList()); private set
     var bodegas by mutableStateOf<List<Bodega>>(emptyList()); private set
+    var tiendas by mutableStateOf<List<Tienda>>(emptyList()); private set
+    var ingenieros by mutableStateOf<List<Usuario>>(emptyList()); private set
+    var activosTienda by mutableStateOf<List<Activo>>(emptyList()); private set
 
     // Detalle
     var detalle by mutableStateOf<SolicitudTraslado?>(null); private set
@@ -58,7 +63,7 @@ class SolicitudesViewModel(
                     solicitudes = r.datos.solicitudes
                     puedeAprobar = r.datos.puedeAprobar
                     puedeCrear = r.datos.puedeCrear
-                    pendientes = r.datos.solicitudes.count { it.estado == "pendiente" }
+                    pendientes = r.datos.pendientes
                 }
                 is Resultado.Error -> error = r.mensaje
             }
@@ -76,22 +81,46 @@ class SolicitudesViewModel(
                 is Resultado.Exito -> misAsignados = r.datos.activos
                 is Resultado.Error -> error = r.mensaje
             }
+            val miId = perfil?.usuario?.id ?: 0
             when (val r = catalogoRepository.obtenerCatalogos()) {
-                is Resultado.Exito -> bodegas = r.datos.bodegas.filter { b ->
-                    plazaId == 0 || (b.plazas_ids?.split(",")?.mapNotNull { it.trim().toIntOrNull() }?.contains(plazaId) ?: true)
-                }.ifEmpty { r.datos.bodegas }
+                is Resultado.Exito -> {
+                    bodegas = r.datos.bodegas.filter { b ->
+                        plazaId == 0 || (b.plazas_ids?.split(",")?.mapNotNull { it.trim().toIntOrNull() }?.contains(plazaId) ?: true)
+                    }.ifEmpty { r.datos.bodegas }
+                    tiendas = r.datos.tiendas.filter { plazaId == 0 || it.plaza_id == plazaId }.ifEmpty { r.datos.tiendas }
+                    ingenieros = r.datos.usuarios.filter {
+                        it.id != miId && (it.plaza_id == plazaId || plazaId == 0) && it.tipo in listOf("fs", "ati", "coordinador")
+                    }
+                }
                 is Resultado.Error -> {}
             }
             cargando = false
         }
     }
 
-    fun crear(activos: List<Int>, bodegaId: Int, nota: String, firmaPng: ByteArray, onListo: (Boolean, String) -> Unit) {
+    /** Carga los activos "en uso" de una tienda (para origen = instalado en tienda). */
+    fun cargarActivosTienda(tiendaId: Int) {
+        viewModelScope.launch {
+            activosTienda = activoRepository.activosEnTiendaPorDispositivo(tiendaId, null, null)
+        }
+    }
+
+    fun crear(
+        destino: String, origenTipo: String, activos: List<Int>, nota: String, firmaPng: ByteArray,
+        bodegaId: Int?, tiendaId: Int?, ingenieroId: Int?, onListo: (Boolean, String) -> Unit,
+    ) {
         if (activos.isEmpty()) { onListo(false, "Selecciona al menos un activo."); return }
-        if (bodegaId <= 0) { onListo(false, "Selecciona la bodega destino."); return }
+        if (destino == "en_bodega" && (bodegaId ?: 0) <= 0) { onListo(false, "Selecciona la bodega destino."); return }
+        if (destino == "asignado" && (ingenieroId ?: 0) <= 0) { onListo(false, "Elige el ingeniero que recibe."); return }
+        if (origenTipo == "tienda" && (tiendaId ?: 0) <= 0) { onListo(false, "Selecciona la tienda de origen."); return }
         enviando = true
         viewModelScope.launch {
-            val r = solicitudRepository.crear(activos, bodegaId, nota, firmaPng)
+            val r = solicitudRepository.crear(
+                destino = destino, origenTipo = origenTipo, activos = activos, nota = nota, firmaPng = firmaPng,
+                origenTiendaId = tiendaId?.takeIf { origenTipo == "tienda" },
+                destinoBodegaId = bodegaId?.takeIf { destino == "en_bodega" },
+                destinoUsuarioId = ingenieroId?.takeIf { destino == "asignado" },
+            )
             enviando = false
             when (r) {
                 is Resultado.Exito -> onListo(true, r.datos.message ?: "Solicitud enviada.")

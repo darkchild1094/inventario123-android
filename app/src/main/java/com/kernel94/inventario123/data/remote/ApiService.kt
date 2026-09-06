@@ -153,8 +153,12 @@ interface ApiService {
     @Multipart
     @POST("index.php?controller=api&action=crearSolicitud")
     suspend fun crearSolicitud(
+        @Part("destino") destino: RequestBody,
+        @Part("origen_tipo") origenTipo: RequestBody,
         @Part("nota") nota: RequestBody?,
-        @Part("destino_bodega_id") destinoBodegaId: RequestBody,
+        @Part("origen_tienda_id") origenTiendaId: RequestBody?,
+        @Part("destino_bodega_id") destinoBodegaId: RequestBody?,
+        @Part("destino_usuario_id") destinoUsuarioId: RequestBody?,
         @Part("activos[]") activos: List<@JvmSuppressWildcards RequestBody>,
         @Part firma: MultipartBody.Part,
     ): ApiResultado

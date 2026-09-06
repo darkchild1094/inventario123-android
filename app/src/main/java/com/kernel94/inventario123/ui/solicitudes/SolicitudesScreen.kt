@@ -81,9 +81,18 @@ private fun SolicitudRow(s: SolicitudTraslado, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(14.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("#${s.id} · ${s.origen_nombre ?: "—"}", fontWeight = FontWeight.Bold)
                 Text(
-                    "${s.activos_count} activo(s) → ${s.bodega_nombre ?: "bodega"} · ${s.plaza_nombre ?: ""}",
+                    "#${s.id} · ${s.destinoLabel}" + if (s.porFirmar) "  ✍" else "",
+                    fontWeight = FontWeight.Bold,
+                )
+                val origen = s.origen_nombre ?: s.origen_tienda_nombre?.let { "Tienda $it" } ?: "—"
+                val dest = when (s.destino) {
+                    "asignado"  -> s.destino_usuario_nombre ?: ""
+                    "en_bodega" -> s.bodega_nombre ?: ""
+                    else        -> ""
+                }
+                Text(
+                    "${s.activos_count} activo(s) · $origen" + if (dest.isNotEmpty()) " → $dest" else "",
                     style = MaterialTheme.typography.bodySmall, color = Color.Gray
                 )
                 s.creado_en?.let { Text(it.take(16), style = MaterialTheme.typography.labelSmall, color = Color.Gray) }

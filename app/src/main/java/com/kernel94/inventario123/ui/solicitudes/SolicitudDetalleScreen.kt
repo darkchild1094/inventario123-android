@@ -56,12 +56,14 @@ fun SolicitudDetalleScreen(
                     Text("Estado: ", fontWeight = FontWeight.Bold)
                     EstadoBadge(s.estado)
                 }
-                Campo("Ingeniero", s.origen_nombre)
+                Campo("Movimiento", s.destinoLabel)
+                Campo("Origen", s.origen_nombre ?: s.origen_tienda_nombre?.let { "Tienda $it" })
+                if (s.destino == "en_bodega") Campo("Bodega destino", s.bodega_nombre)
+                if (s.destino == "asignado") Campo("Recibe", s.destino_usuario_nombre)
                 Campo("Plaza", s.plaza_nombre)
-                Campo("Bodega destino", s.bodega_nombre)
+                Campo("Solicitante", s.solicitante_nombre)
                 Campo("Creada", s.creado_en?.take(16))
                 s.nota?.takeIf { it.isNotBlank() }?.let { Campo("Motivo", it) }
-                s.aprobador_nombre?.let { Campo("Resuelta por", it + (s.resuelto_en?.let { r -> " · ${r.take(16)}" } ?: "")) }
                 if (s.estado == "rechazada") s.motivo_rechazo?.let { Campo("Motivo del rechazo", it) }
 
                 Text("Activos (${s.activos.size})", fontWeight = FontWeight.Bold)
@@ -80,24 +82,15 @@ fun SolicitudDetalleScreen(
                     }
                 }
 
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Firma ingeniero", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-                        s.firma_solicitante?.let { AsyncImage(model = Urls.firma(it), contentDescription = null, modifier = Modifier.fillMaxWidth().height(90.dp)) }
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text("Firma coordinador", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-                        if (s.firma_aprobador != null) {
-                            AsyncImage(model = Urls.firma(s.firma_aprobador), contentDescription = null, modifier = Modifier.fillMaxWidth().height(90.dp))
-                        } else {
-                            Text("Pendiente", color = Color.Gray)
-                        }
-                    }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FirmaMini("Solicitante", s.firma_solicitante, Modifier.weight(1f))
+                    FirmaMini(if (s.dobleFirma) "ATI" else "Aprobador", s.firma_aprobador, Modifier.weight(1f))
+                    if (s.dobleFirma) FirmaMini("Coordinador", s.firma_aprobador2, Modifier.weight(1f))
                 }
 
-                if (s.puedeResolver && s.estado == "pendiente") {
+                if (s.puedeFirmar && s.estado == "pendiente") {
                     HorizontalDivider()
-                    Text("Aprobar (requiere tu firma)", fontWeight = FontWeight.Bold)
+                    Text("Firmar (requiere tu firma)", fontWeight = FontWeight.Bold)
                     FirmaCanvas(firma, Modifier.fillMaxWidth())
                     Button(
                         onClick = {
@@ -108,7 +101,7 @@ fun SolicitudDetalleScreen(
                         enabled = !viewModel.enviando,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF198754)),
-                    ) { Text(if (viewModel.enviando) "Procesando…" else "Firmar y aprobar") }
+                    ) { Text(if (viewModel.enviando) "Procesando…" else "Firmar") }
 
                     OutlinedTextField(
                         value = motivo, onValueChange = { motivo = it },
@@ -143,5 +136,17 @@ private fun Campo(etiqueta: String, valor: String?) {
     Row {
         Text("$etiqueta: ", fontWeight = FontWeight.SemiBold)
         Text(valor)
+    }
+}
+
+@Composable
+private fun FirmaMini(etiqueta: String, archivo: String?, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(etiqueta, style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+        if (archivo != null) {
+            AsyncImage(model = Urls.firma(archivo), contentDescription = null, modifier = Modifier.fillMaxWidth().height(80.dp))
+        } else {
+            Text("Pendiente", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        }
     }
 }

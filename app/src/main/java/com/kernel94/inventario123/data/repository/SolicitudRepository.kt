@@ -32,15 +32,27 @@ class SolicitudRepository(private val api: ApiService) {
         api.contarSolicitudesPendientes().pendientes
     } catch (e: Exception) { 0 }
 
+    /**
+     * @param destino  "asignado" | "en_bodega" | "baja" | "garantia"
+     * @param origenTipo "asignado" (mi stock) | "tienda"
+     */
     suspend fun crear(
+        destino: String,
+        origenTipo: String,
         activos: List<Int>,
-        destinoBodegaId: Int,
         nota: String?,
         firmaPng: ByteArray,
+        origenTiendaId: Int? = null,
+        destinoBodegaId: Int? = null,
+        destinoUsuarioId: Int? = null,
     ): Resultado<ApiResultado> = try {
         val r = api.crearSolicitud(
+            destino = texto(destino),
+            origenTipo = texto(origenTipo),
             nota = nota?.takeIf { it.isNotBlank() }?.let { texto(it) },
-            destinoBodegaId = texto(destinoBodegaId.toString()),
+            origenTiendaId = origenTiendaId?.let { texto(it.toString()) },
+            destinoBodegaId = destinoBodegaId?.let { texto(it.toString()) },
+            destinoUsuarioId = destinoUsuarioId?.let { texto(it.toString()) },
             activos = activos.map { texto(it.toString()) },
             firma = ImagenUtil.parteBytes(firmaPng, "firma", "firma_solicitante.png"),
         )
