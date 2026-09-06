@@ -36,6 +36,10 @@ fun ListadoScreen(
     onEditar: (Int) -> Unit,
     onCrearNuevo: () -> Unit,
     onCerrarSesion: () -> Unit,
+    onAbrirHistorial: () -> Unit = {},
+    onAbrirTiendas: () -> Unit = {},
+    onAbrirModelos: () -> Unit = {},
+    onAbrirSolicitudes: () -> Unit = {},
 ) {
     LaunchedEffect(Unit) { viewModel.iniciar() }
     var mostrarFiltros by remember { mutableStateOf(false) }
@@ -44,6 +48,8 @@ fun ListadoScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val permisos = viewModel.perfil?.permisos
 
     fun exportarYCompartir() {
         viewModel.exportar(context) { resultado ->
@@ -58,237 +64,317 @@ fun ListadoScreen(
                     }
                     context.startActivity(Intent.createChooser(intent, "Compartir inventario"))
                 }
-                is Resultado.Error -> {
-                    scope.launch { snackbarHostState.showSnackbar(resultado.mensaje) }
-                }
+                is Resultado.Error -> scope.launch { snackbarHostState.showSnackbar(resultado.mensaje) }
             }
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        AsyncImage(
-                            model = viewModel.perfil?.usuario?.foto?.let { 
-                                "https://fieldserviceplus.alwaysdata.net/inventario123/uploads/usuarios/$it" 
-                            } ?: "file:///android_asset/logo_login.png",
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(Color.Gray.copy(alpha = 0.2f))
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = viewModel.perfil?.usuario?.nombre ?: "Usuario",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(
-                                text = viewModel.perfil?.usuario?.plaza_nombre ?: "Inventario123",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.7f)
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BsDark, titleContentColor = Color.White),
-                actions = {
-                    if (viewModel.perfil?.permisos?.puedeExportar == true) {
-                        IconButton(onClick = { exportarYCompartir() }, enabled = !viewModel.exportando) {
-                            if (viewModel.exportando) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
-                            } else {
-                                Icon(Icons.Filled.FileDownload, contentDescription = "Exportar", tint = Color.White)
-                            }
-                        }
-                    }
-                    IconButton(onClick = { mostrarFiltros = !mostrarFiltros }) {
-                        Icon(Icons.Filled.FilterAlt, contentDescription = "Filtros", tint = Color.White)
-                    }
-                    IconButton(onClick = onCerrarSesion) {
-                        Icon(Icons.Filled.Logout, contentDescription = "Cerrar sesión", tint = Color.White)
+    fun cerrarYHacer(accion: () -> Unit) {
+        scope.launch { drawerState.close() }
+        accion()
+    }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(drawerContainerColor = Color.White) {
+                // Encabezado con el usuario
+                Column(Modifier.fillMaxWidth().background(BsDark).padding(20.dp)) {
+                    AsyncImage(
+                        model = viewModel.perfil?.usuario?.foto?.let { com.kernel94.inventario123.data.remote.Urls.usuarioFoto(it) }
+                            ?: "file:///android_asset/logo_login.png",
+                        contentDescription = null,
+                        modifier = Modifier.size(52.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.15f))
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        viewModel.perfil?.usuario?.nombre ?: "Usuario",
+                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White
+                    )
+                    Text(
+                        viewModel.perfil?.usuario?.plaza_nombre ?: "Inventario123",
+                        style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.75f)
+                    )
+                    permisos?.tipo?.takeIf { it.isNotBlank() }?.let {
+                        Text(it.uppercase(), style = MaterialTheme.typography.labelSmall, color = BsPrimary)
                     }
                 }
-            )
-        },
-        floatingActionButton = {
-            if (viewModel.perfil?.permisos?.puedeCrearActivo == true) {
-                FloatingActionButton(onClick = onCrearNuevo, containerColor = BsPrimary) {
-                    Icon(Icons.Filled.Add, contentDescription = "Nuevo", tint = Color.White)
+                Spacer(Modifier.height(8.dp))
+
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Filled.Inventory2, contentDescription = null) },
+                    label = { Text("Inventario") },
+                    selected = true,
+                    onClick = { scope.launch { drawerState.close() } },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+                if (permisos?.puedeVerHistorial == true) {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Filled.History, contentDescription = null) },
+                        label = { Text("Historial") },
+                        selected = false,
+                        onClick = { cerrarYHacer(onAbrirHistorial) },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
                 }
+                if (permisos?.puedeGestionarTiendas == true) {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Filled.Store, contentDescription = null) },
+                        label = { Text("Tiendas · ATI responsable") },
+                        selected = false,
+                        onClick = { cerrarYHacer(onAbrirTiendas) },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+                if (permisos?.puedeGestionarModelos == true) {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Filled.Category, contentDescription = null) },
+                        label = { Text("Catálogo de modelos") },
+                        selected = false,
+                        onClick = { cerrarYHacer(onAbrirModelos) },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+                if (permisos?.puedeVerTraslados == true) {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Filled.SwapHoriz, contentDescription = null) },
+                        label = { Text("Traslados a bodega") },
+                        badge = {
+                            if (viewModel.solicitudesPendientes > 0)
+                                Text(viewModel.solicitudesPendientes.toString(), fontWeight = FontWeight.Bold, color = BsPrimary)
+                        },
+                        selected = false,
+                        onClick = { cerrarYHacer(onAbrirSolicitudes) },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+                if (permisos?.puedeExportar == true) {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Filled.FileDownload, contentDescription = null) },
+                        label = { Text("Exportar inventario") },
+                        badge = { if (viewModel.exportando) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) },
+                        selected = false,
+                        onClick = { if (!viewModel.exportando) cerrarYHacer { exportarYCompartir() } },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Filled.FilterAlt, contentDescription = null) },
+                    label = { Text(if (mostrarFiltros) "Ocultar filtros" else "Mostrar filtros") },
+                    selected = mostrarFiltros,
+                    onClick = { mostrarFiltros = !mostrarFiltros; scope.launch { drawerState.close() } },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                Spacer(Modifier.weight(1f))
+                HorizontalDivider()
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Filled.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                    label = { Text("Cerrar sesión", color = MaterialTheme.colorScheme.error) },
+                    selected = false,
+                    onClick = { cerrarYHacer(onCerrarSesion) },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                )
             }
         }
-    ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize().background(Color(0xFFF1F3F5))) {
-
-            if (vistasDisponibles.size > 1) {
-                TabRow(
-                    selectedTabIndex = vistasDisponibles.indexOf(viewModel.vistaActual).coerceAtLeast(0),
-                    containerColor = BsDark,
-                    contentColor = Color.White,
-                    indicator = { tabPositions ->
-                        val index = vistasDisponibles.indexOf(viewModel.vistaActual).coerceAtLeast(0)
-                        TabRowDefaults.SecondaryIndicator(
-                            Modifier.tabIndicatorOffset(tabPositions[index]),
-                            color = BsPrimary
-                        )
+    ) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                TopAppBar(
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Filled.Menu, contentDescription = "Menú", tint = Color.White)
+                        }
+                    },
+                    title = {
+                        Column {
+                            Text(
+                                viewModel.perfil?.usuario?.nombre ?: "Inventario123",
+                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color.White
+                            )
+                            Text(
+                                viewModel.perfil?.usuario?.plaza_nombre ?: "Inventario123",
+                                style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = BsDark, titleContentColor = Color.White),
+                )
+            },
+            floatingActionButton = {
+                if (permisos?.puedeCrearActivo == true) {
+                    FloatingActionButton(onClick = onCrearNuevo, containerColor = BsPrimary) {
+                        Icon(Icons.Filled.Add, contentDescription = "Nuevo", tint = Color.White)
                     }
-                ) {
-                    vistasDisponibles.forEach { vista ->
-                        val conteo = viewModel.conteosVistas[vista]
-                        Tab(
-                            selected = viewModel.vistaActual == vista,
-                            onClick = { viewModel.cambiarVista(vista) },
-                            text = { 
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(etiquetaVista(vista), color = Color.White)
-                                    if (conteo != null) {
-                                        Spacer(Modifier.width(6.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .size(20.dp)
-                                                .clip(RoundedCornerShape(50))
-                                                .background(if (viewModel.vistaActual == vista) BsPrimary else Color.White.copy(alpha = 0.2f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = conteo.toString(),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White,
-                                                fontSize = 10.sp
-                                            )
+                }
+            }
+        ) { padding ->
+            Column(Modifier.padding(padding).fillMaxSize().background(Color(0xFFF1F3F5))) {
+
+                if (vistasDisponibles.size > 1) {
+                    TabRow(
+                        selectedTabIndex = vistasDisponibles.indexOf(viewModel.vistaActual).coerceAtLeast(0),
+                        containerColor = BsDark,
+                        contentColor = Color.White,
+                        indicator = { tabPositions ->
+                            val index = vistasDisponibles.indexOf(viewModel.vistaActual).coerceAtLeast(0)
+                            TabRowDefaults.SecondaryIndicator(
+                                Modifier.tabIndicatorOffset(tabPositions[index]),
+                                color = BsPrimary
+                            )
+                        }
+                    ) {
+                        vistasDisponibles.forEach { vista ->
+                            val conteo = viewModel.conteosVistas[vista]
+                            Tab(
+                                selected = viewModel.vistaActual == vista,
+                                onClick = { viewModel.cambiarVista(vista) },
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(etiquetaVista(vista), color = Color.White)
+                                        if (conteo != null) {
+                                            Spacer(Modifier.width(6.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(20.dp)
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(if (viewModel.vistaActual == vista) BsPrimary else Color.White.copy(alpha = 0.2f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = conteo.toString(),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White,
+                                                    fontSize = 10.sp
+                                                )
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        )
-                    }
-                }
-            }
-
-            // Barra de búsqueda estilo backend
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                OutlinedTextField(
-                    value = viewModel.busqueda,
-                    onValueChange = { viewModel.onBusquedaChange(it) },
-                    placeholder = { Text("Serie, placa, modelo...") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(20.dp)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = BsPrimary,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedContainerColor = Color(0xFFF8F9FA),
-                        unfocusedContainerColor = Color(0xFFF8F9FA)
-                    )
-                )
-            }
-
-            if (mostrarFiltros && viewModel.perfil?.permisos?.puedeFiltrarPorPlaza == true) {
-                Card(
-                    modifier = Modifier.padding(horizontal = 12.dp).padding(bottom = 12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
-                ) {
-                    Column(Modifier.padding(12.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Box(Modifier.weight(1f)) {
-                                FiltroDropdown(
-                                    etiqueta = "Negocio", opciones = viewModel.catalogos.negocios,
-                                    seleccionId = viewModel.negocioId, idDe = { it.id }, nombreDe = { it.nombre },
-                                    onSeleccion = { viewModel.negocioId = it; viewModel.onFiltroChange() }
-                                )
-                            }
-                            Box(Modifier.weight(1f)) {
-                                FiltroDropdown(
-                                    etiqueta = "Plaza", opciones = viewModel.catalogos.plazas,
-                                    seleccionId = viewModel.plazaId, idDe = { it.id }, nombreDe = { it.nombre },
-                                    onSeleccion = { viewModel.plazaId = it; viewModel.onFiltroChange() }
-                                )
-                            }
-                        }
-                        
-                        if (viewModel.vistaActual == "todos") {
-                            Spacer(Modifier.height(8.dp))
-                            FiltroDropdown(
-                                etiqueta = "Técnico / Usuario", 
-                                opciones = viewModel.catalogos.usuarios,
-                                seleccionId = viewModel.usuarioId, 
-                                idDe = { it.id }, 
-                                nombreDe = { it.nombre },
-                                onSeleccion = { viewModel.usuarioId = it; viewModel.onFiltroChange() },
-                                modifier = Modifier.fillMaxWidth()
                             )
                         }
+                    }
+                }
 
-                        TextButton(
-                            onClick = { viewModel.limpiarFiltros() },
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Limpiar filtros")
+                // Barra de búsqueda estilo backend
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    OutlinedTextField(
+                        value = viewModel.busqueda,
+                        onValueChange = { viewModel.onBusquedaChange(it) },
+                        placeholder = { Text("Serie, código, N° activo, modelo...") },
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().padding(8.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = BsPrimary,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedContainerColor = Color(0xFFF8F9FA),
+                            unfocusedContainerColor = Color(0xFFF8F9FA)
+                        )
+                    )
+                }
+
+                if (mostrarFiltros && permisos?.puedeFiltrarPorPlaza == true) {
+                    Card(
+                        modifier = Modifier.padding(horizontal = 12.dp).padding(bottom = 12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
+                        Column(Modifier.padding(12.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Box(Modifier.weight(1f)) {
+                                    FiltroDropdown(
+                                        etiqueta = "Negocio", opciones = viewModel.catalogos.negocios,
+                                        seleccionId = viewModel.negocioId, idDe = { it.id }, nombreDe = { it.nombre },
+                                        onSeleccion = { viewModel.negocioId = it; viewModel.onFiltroChange() }
+                                    )
+                                }
+                                Box(Modifier.weight(1f)) {
+                                    FiltroDropdown(
+                                        etiqueta = "Plaza", opciones = viewModel.catalogos.plazas,
+                                        seleccionId = viewModel.plazaId, idDe = { it.id }, nombreDe = { it.nombre },
+                                        onSeleccion = { viewModel.plazaId = it; viewModel.onFiltroChange() }
+                                    )
+                                }
+                            }
+
+                            if (viewModel.vistaActual == "todos") {
+                                Spacer(Modifier.height(8.dp))
+                                FiltroDropdown(
+                                    etiqueta = "Técnico / Usuario",
+                                    opciones = viewModel.catalogos.usuarios,
+                                    seleccionId = viewModel.usuarioId,
+                                    idDe = { it.id },
+                                    nombreDe = { it.nombre },
+                                    onSeleccion = { viewModel.usuarioId = it; viewModel.onFiltroChange() },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+
+                            TextButton(
+                                onClick = { viewModel.limpiarFiltros() },
+                                modifier = Modifier.align(Alignment.End)
+                            ) {
+                                Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Limpiar filtros")
+                            }
+                        }
+                    }
+                }
+
+                when {
+                    viewModel.cargando -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = BsPrimary) }
+                    viewModel.error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(viewModel.error!!, color = Color.Gray) }
+                    viewModel.activos.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No hay activos para mostrar", color = Color.Gray) }
+                    else -> LazyColumn(
+                        Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        items(viewModel.activos) { activo ->
+                            ActivoCard(
+                                activo = activo,
+                                onClick = { onAbrirDetalle(activo.id) },
+                                onEditar = { onEditar(activo.id) },
+                                onEliminar = { activoAEliminar = activo.id },
+                            )
                         }
                     }
                 }
             }
 
-            when {
-                viewModel.cargando -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = BsPrimary) }
-                viewModel.error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(viewModel.error!!, color = Color.Gray) }
-                viewModel.activos.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No hay activos para mostrar", color = Color.Gray) }
-                else -> LazyColumn(
-                    Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(bottom = 80.dp)
-                ) {
-                    items(viewModel.activos) { activo ->
-                        ActivoCard(
-                            activo = activo,
-                            onClick = { onAbrirDetalle(activo.id) },
-                            onEditar = { onEditar(activo.id) },
-                            onEliminar = { activoAEliminar = activo.id },
-                        )
+            if (activoAEliminar != null) {
+                AlertDialog(
+                    onDismissRequest = { activoAEliminar = null },
+                    title = { Text("¿Eliminar activo?") },
+                    text = { Text("Esta acción no se puede deshacer.") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                val id = activoAEliminar!!
+                                activoAEliminar = null
+                                viewModel.eliminar(id) { ok, msg ->
+                                    scope.launch { snackbarHostState.showSnackbar(msg) }
+                                }
+                            },
+                            colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                        ) {
+                            Text("Eliminar")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { activoAEliminar = null }) {
+                            Text("Cancelar")
+                        }
                     }
-                }
+                )
             }
-        }
-
-        if (activoAEliminar != null) {
-            AlertDialog(
-                onDismissRequest = { activoAEliminar = null },
-                title = { Text("¿Eliminar activo?") },
-                text = { Text("Esta acción no se puede deshacer.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            val id = activoAEliminar!!
-                            activoAEliminar = null
-                            viewModel.eliminar(id) { ok, msg ->
-                                scope.launch { snackbarHostState.showSnackbar(msg) }
-                            }
-                        },
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
-                    ) {
-                        Text("Eliminar")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { activoAEliminar = null }) {
-                        Text("Cancelar")
-                    }
-                }
-            )
         }
     }
 }

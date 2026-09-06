@@ -14,6 +14,7 @@ import com.kernel94.inventario123.data.repository.AuthRepository
 import com.kernel94.inventario123.data.repository.CatalogoRepository
 import com.kernel94.inventario123.data.repository.ExportRepository
 import com.kernel94.inventario123.data.repository.Resultado
+import com.kernel94.inventario123.data.repository.SolicitudRepository
 import kotlinx.coroutines.Job
 import java.io.File
 import kotlinx.coroutines.delay
@@ -24,7 +25,10 @@ class ListadoViewModel(
     private val catalogoRepository: CatalogoRepository,
     private val authRepository: AuthRepository,
     private val exportRepository: ExportRepository,
+    private val solicitudRepository: SolicitudRepository,
 ) : ViewModel() {
+
+    var solicitudesPendientes by mutableStateOf(0); private set
 
     var perfil by mutableStateOf<Perfil?>(null); private set
     var catalogos by mutableStateOf(Catalogos()); private set
@@ -54,6 +58,9 @@ class ListadoViewModel(
             when (val r = catalogoRepository.obtenerCatalogos()) {
                 is Resultado.Exito -> catalogos = r.datos
                 is Resultado.Error -> {}
+            }
+            if (perfil?.permisos?.puedeAprobarTraslados == true) {
+                solicitudesPendientes = solicitudRepository.contarPendientes()
             }
             cargar()
 

@@ -29,4 +29,13 @@ class CatalogoRepository(private val api: ApiService) {
     suspend fun usuariosPorPlaza(plazaId: Int): List<Usuario> = try {
         api.obtenerUsuariosPorPlaza(plazaId)
     } catch (e: Exception) { emptyList() }
+
+    suspend fun plazasPorRegion(regionId: Int): List<Plaza> = try {
+        api.obtenerPlazasPorRegion(regionId)
+    } catch (e: Exception) { emptyList() }
+
+    /** Usuarios tipo ATI de una plaza (responsable de garantía/baja). */
+    suspend fun atisPorPlaza(plazaId: Int): List<Usuario> = try {
+        api.obtenerAtisPorPlaza(plazaId)
+    } catch (e: Exception) { emptyList() }
 }

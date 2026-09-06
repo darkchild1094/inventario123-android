@@ -145,8 +145,9 @@ fun ActivoCard(
 
                 // Detalles con alineación derecha (como en la imagen)
                 DetailRow(Icons.Filled.ViewHeadline, "Serie:", activo.serie ?: "—")
-                DetailRow(Icons.Filled.Label, "Placa:", activo.placa ?: "—")
-                DetailRow(Icons.Filled.Storefront, "Técnico:", activo.usuario_nombre ?: "—")
+                DetailRow(Icons.Filled.Label, "Código:", activo.codigoBarras ?: "—")
+                if (!activo.numActivo.isNullOrBlank()) DetailRow(Icons.Filled.Tag, "N° activo:", activo.numActivo)
+                DetailRow(Icons.Filled.Storefront, "Ubicación:", activo.ubicacionValor)
 
                 Spacer(Modifier.height(16.dp))
 

@@ -16,9 +16,10 @@ fun <T> FiltroDropdown(
     nombreDe: (T) -> String,
     onSeleccion: (Int?) -> Unit,
     modifier: Modifier = Modifier,
+    etiquetaNula: String = "Todos...",
 ) {
     var expandido by remember { mutableStateOf(false) }
-    val textoActual = opciones.firstOrNull { idDe(it) == seleccionId }?.let(nombreDe) ?: "Todos..."
+    val textoActual = opciones.firstOrNull { idDe(it) == seleccionId }?.let(nombreDe) ?: etiquetaNula
 
     ExposedDropdownMenuBox(expanded = expandido, onExpandedChange = { expandido = it }, modifier = modifier) {
         OutlinedTextField(
@@ -30,7 +31,7 @@ fun <T> FiltroDropdown(
             modifier = Modifier.menuAnchor().fillMaxWidth(),
         )
         ExposedDropdownMenu(expanded = expandido, onDismissRequest = { expandido = false }) {
-            DropdownMenuItem(text = { Text("Todos...") }, onClick = { onSeleccion(null); expandido = false })
+            DropdownMenuItem(text = { Text(etiquetaNula) }, onClick = { onSeleccion(null); expandido = false })
             opciones.forEach { op ->
                 DropdownMenuItem(text = { Text(nombreDe(op)) }, onClick = { onSeleccion(idDe(op)); expandido = false })
             }

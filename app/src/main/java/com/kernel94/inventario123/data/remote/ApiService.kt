@@ -1,6 +1,8 @@
 package com.kernel94.inventario123.data.remote
 
 import com.kernel94.inventario123.data.model.*
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
@@ -38,32 +40,26 @@ interface ApiService {
     @GET("index.php?controller=api&action=obtenerActivo")
     suspend fun obtenerActivo(@Query("id") id: Int): Activo
 
-    @FormUrlEncoded
+    // Multipart porque guardarActivo/actualizarActivo ahora aceptan las 3 fotos
+    // opcionales del activo (migración 007 + ImageHelper), igual que crear.php/editar.php
+    // (enctype="multipart/form-data"). Los campos de texto van por @PartMap (se omite
+    // el que venga null, igual que antes con @Field), las fotos por @Part nullable.
+    @Multipart
     @POST("index.php?controller=api&action=guardarActivo")
     suspend fun guardarActivo(
-        @Field("serie") serie: String,
-        @Field("placa") placa: String?,
-        @Field("modelo_id") modeloId: Int?,
-        @Field("status") status: String,
-        @Field("negocio_id") negocioId: Int?,
-        @Field("plaza_id") plazaId: Int?,
-        @Field("procedencia_tienda_id") procedenciaTiendaId: Int?,
-        @Field("tienda_uso_id") tiendaUsoId: Int?,
-        @Field("asignado_usuario_id") asignadoUsuarioId: Int?,
-        @Field("stock_destino") stockDestino: String?,
+        @PartMap datos: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part fotoEquipo: MultipartBody.Part?,
+        @Part fotoSerie: MultipartBody.Part?,
+        @Part fotoActivo: MultipartBody.Part?,
     ): ApiResultado
 
-    @FormUrlEncoded
+    @Multipart
     @POST("index.php?controller=api&action=actualizarActivo")
     suspend fun actualizarActivo(
-        @Field("id") id: Int,
-        @Field("serie") serie: String,
-        @Field("placa") placa: String?,
-        @Field("modelo_id") modeloId: Int?,
-        @Field("status") status: String,
-        @Field("procedencia_tienda_id") procedenciaTiendaId: Int?,
-        @Field("tienda_uso_id") tiendaUsoId: Int?,
-        @Field("asignado_usuario_id") asignadoUsuarioId: Int?,
+        @PartMap datos: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part fotoEquipo: MultipartBody.Part?,
+        @Part fotoSerie: MultipartBody.Part?,
+        @Part fotoActivo: MultipartBody.Part?,
     ): ApiResultado
 
     @FormUrlEncoded
@@ -87,6 +83,96 @@ interface ApiService {
 
     @GET("index.php?controller=api&action=obtenerUsuariosPorPlaza")
     suspend fun obtenerUsuariosPorPlaza(@Query("plaza_id") plazaId: Int): List<Usuario>
+
+    @GET("index.php?controller=api&action=obtenerPlazasPorRegion")
+    suspend fun obtenerPlazasPorRegion(@Query("region_id") regionId: Int): List<Plaza>
+
+    // ── Historial (tabla movimiento, migración 002) ──────────────────────
+    @GET("index.php?controller=api&action=listarHistorial")
+    suspend fun listarHistorial(
+        @Query("activo_id") activoId: Int? = null,
+        @Query("serie") serie: String? = null,
+        @Query("evento") evento: String? = null,
+        @Query("tienda_id") tiendaId: Int? = null,
+        @Query("usuario_id") usuarioId: Int? = null,
+        @Query("desde") desde: String? = null,
+        @Query("hasta") hasta: String? = null,
+        @Query("pagina") pagina: Int = 1,
+        @Query("por_pagina") porPagina: Int = 30,
+    ): ListadoMovimientosResponse
+
+    // ── ATI responsable por tienda (migración 002/003) ───────────────────
+    @GET("index.php?controller=api&action=obtenerAtisPorPlaza")
+    suspend fun obtenerAtisPorPlaza(@Query("plaza_id") plazaId: Int): List<Usuario>
+
+    @FormUrlEncoded
+    @POST("index.php?controller=api&action=asignarAtiTienda")
+    suspend fun asignarAtiTienda(
+        @Field("tienda_id") tiendaId: Int,
+        @Field("ati_usuario_id") atiUsuarioId: Int?,
+    ): ApiResultado
+
+    // Alimenta el selector "¿Reemplaza a?" del alta de un activo "en uso".
+    // dispositivoId null → todas las categorías (reemplazo entre categorías).
+    @GET("index.php?controller=api&action=obtenerActivosEnTiendaPorDispositivo")
+    suspend fun obtenerActivosEnTiendaPorDispositivo(
+        @Query("tienda_id") tiendaId: Int,
+        @Query("dispositivo_id") dispositivoId: Int? = null,
+        @Query("excepto_id") exceptoId: Int? = null,
+    ): List<Activo>
+
+    // ── Catálogo de modelos (solo admin) ────────────────────────────────
+    @GET("index.php?controller=api&action=listarModelos")
+    suspend fun listarModelos(): List<Modelo>
+
+    @GET("index.php?controller=api&action=obtenerModelo")
+    suspend fun obtenerModelo(@Query("id") id: Int): Modelo
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=guardarModelo")
+    suspend fun guardarModelo(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=actualizarModelo")
+    suspend fun actualizarModelo(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=eliminarModelo")
+    suspend fun eliminarModelo(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
+    // ── Solicitudes de traslado a bodega (doble firma) ──────────────────
+    @GET("index.php?controller=api&action=listarSolicitudes")
+    suspend fun listarSolicitudes(@Query("estado") estado: String? = null): ListaSolicitudesResponse
+
+    @GET("index.php?controller=api&action=obtenerSolicitud")
+    suspend fun obtenerSolicitud(@Query("id") id: Int): SolicitudTraslado
+
+    @GET("index.php?controller=api&action=contarSolicitudesPendientes")
+    suspend fun contarSolicitudesPendientes(): ConteoPendientes
+
+    @Multipart
+    @POST("index.php?controller=api&action=crearSolicitud")
+    suspend fun crearSolicitud(
+        @Part("nota") nota: RequestBody?,
+        @Part("destino_bodega_id") destinoBodegaId: RequestBody,
+        @Part("activos[]") activos: List<@JvmSuppressWildcards RequestBody>,
+        @Part firma: MultipartBody.Part,
+    ): ApiResultado
+
+    @Multipart
+    @POST("index.php?controller=api&action=aprobarSolicitud")
+    suspend fun aprobarSolicitud(
+        @Part("id") id: RequestBody,
+        @Part firma: MultipartBody.Part,
+    ): ApiResultado
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=rechazarSolicitud")
+    suspend fun rechazarSolicitud(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=cancelarSolicitud")
+    suspend fun cancelarSolicitud(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
 
     @GET("index.php?controller=api&action=listarUsuarios")
     suspend fun listarUsuarios(): List<Usuario>

@@ -11,4 +11,10 @@ sealed class Screen(val route: String) {
             "escaner/$target?prefijo=$prefijo&modoRegulador=$modoRegulador" 
     }
     object Usuarios : Screen("usuarios")
+    object Historial : Screen("historial")
+    object Tiendas : Screen("tiendas")
+    object Modelos : Screen("modelos")
+    object Solicitudes : Screen("solicitudes")
+    object CrearSolicitud : Screen("crear_solicitud")
+    object SolicitudDetalle : Screen("solicitud/{id}") { fun crear(id: Int) = "solicitud/$id" }
 }

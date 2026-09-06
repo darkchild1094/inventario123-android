@@ -6,15 +6,23 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kernel94.inventario123.data.model.Activo
+import com.kernel94.inventario123.data.model.Movimiento
 import com.kernel94.inventario123.data.repository.ActivoRepository
+import com.kernel94.inventario123.data.repository.MovimientoRepository
 import com.kernel94.inventario123.data.repository.Resultado
 import kotlinx.coroutines.launch
 
-class DetalleViewModel(private val activoRepository: ActivoRepository) : ViewModel() {
+class DetalleViewModel(
+    private val activoRepository: ActivoRepository,
+    private val movimientoRepository: MovimientoRepository,
+) : ViewModel() {
     var activo by mutableStateOf<Activo?>(null); private set
     var cargando by mutableStateOf(false); private set
     var error by mutableStateOf<String?>(null); private set
     var eliminado by mutableStateOf(false); private set
+
+    var timeline by mutableStateOf<List<Movimiento>>(emptyList()); private set
+    var timelineDisponible by mutableStateOf(true); private set
 
     fun cargar(id: Int) {
         cargando = true
@@ -24,6 +32,9 @@ class DetalleViewModel(private val activoRepository: ActivoRepository) : ViewMod
                 is Resultado.Exito -> { activo = r.datos; cargando = false }
                 is Resultado.Error -> { error = r.mensaje; cargando = false }
             }
+        }
+        viewModelScope.launch {
+            timeline = movimientoRepository.timelineDe(id)
         }
     }
 

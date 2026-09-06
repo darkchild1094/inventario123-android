@@ -10,29 +10,36 @@ import okhttp3.Response
  * respondan JSON en vez de HTML/redirects, mismo mecanismo que ya usa el
  * front-end web para sus llamadas AJAX).
  *
- * También detecta sesión expirada/inválida (401 del servidor): limpia la
- * sesión local guardada y notifica a la UI para regresar a Login, sin
- * importar en qué pantalla estaba el usuario cuando pasó.
+ * Ante un 401 del servidor NO cierra sesión al primer intento: reintenta la
+ * misma petición una vez (un blip de red o una carrera no deben tirar la
+ * sesión). Solo si el reintento también da 401 limpia la sesión local y
+ * notifica a la UI para volver a Login.
  */
 class SessionInterceptor(private val sessionManager: SessionManager) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val sessionId = runBlocking { sessionManager.sessionIdActual() }
-        val requestBuilder = chain.request().newBuilder()
-            .addHeader("X-Requested-With", "XMLHttpRequest")
-            .addHeader("Accept", "application/json")
 
-        if (!sessionId.isNullOrBlank()) {
-            requestBuilder.addHeader("X-Session-Id", sessionId)
-        }
+        fun construir() = chain.request().newBuilder()
+            .header("X-Requested-With", "XMLHttpRequest")
+            .header("Accept", "application/json")
+            .apply { if (!sessionId.isNullOrBlank()) header("X-Session-Id", sessionId) }
+            .build()
 
-        val response = chain.proceed(requestBuilder.build())
+        var response = chain.proceed(construir())
 
         // No aplica al propio endpoint de login (ahí un 401 es "credenciales
         // incorrectas", no "sesión expirada" — no debe disparar el logout global).
         val esLogin = chain.request().url.queryParameter("action") == "login"
         if (response.code == 401 && !esLogin && !sessionId.isNullOrBlank()) {
-            runBlocking { sessionManager.cerrarSesion() }
-            SessionExpiredNotifier.notificar()
+            // Segundo intento tras una pequeña pausa.
+            response.close()
+            try { Thread.sleep(400) } catch (_: InterruptedException) {}
+            response = chain.proceed(construir())
+
+            if (response.code == 401) {
+                runBlocking { sessionManager.cerrarSesion() }
+                SessionExpiredNotifier.notificar()
+            }
         }
 
         return response

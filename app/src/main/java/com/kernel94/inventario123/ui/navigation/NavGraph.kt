@@ -15,9 +15,13 @@ import com.kernel94.inventario123.ui.detalle.DetalleActivoScreen
 import com.kernel94.inventario123.ui.detalle.DetalleViewModel
 import com.kernel94.inventario123.ui.form.CrearEditarActivoScreen
 import com.kernel94.inventario123.ui.form.CrearEditarActivoViewModel
+import com.kernel94.inventario123.ui.historial.HistorialScreen
+import com.kernel94.inventario123.ui.historial.HistorialViewModel
 import com.kernel94.inventario123.ui.listado.ListadoScreen
 import com.kernel94.inventario123.ui.listado.ListadoViewModel
 import com.kernel94.inventario123.ui.scanner.EscanerScreen
+import com.kernel94.inventario123.ui.tiendas.TiendasScreen
+import com.kernel94.inventario123.ui.tiendas.TiendasViewModel
 import com.kernel94.inventario123.ui.usuarios.UsuariosScreen
 import com.kernel94.inventario123.ui.usuarios.UsuariosViewModel
 import kotlinx.coroutines.launch
@@ -26,8 +30,9 @@ import kotlinx.coroutines.launch
 fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
     val navController = rememberNavController()
     val factory = remember { ViewModelFactory(app) }
+    val scope = rememberCoroutineScope()
     var serieEscaneada by remember { mutableStateOf<String?>(null) }
-    var placaEscaneada by remember { mutableStateOf<String?>(null) }
+    var codigoEscaneado by remember { mutableStateOf<String?>(null) }
 
     // Si cualquier llamada al API responde 401 (sesión expirada/invalida en el
     // servidor), SessionInterceptor lo notifica aquí y regresamos a Login sin
@@ -61,11 +66,15 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onEditar = { id -> navController.navigate(Screen.Editar.crear(id)) },
                 onCrearNuevo = { navController.navigate(Screen.Crear.route) },
                 onCerrarSesion = {
-                    kotlinx.coroutines.MainScope().launch {
+                    scope.launch {
                         app.authRepository.logout()
                         navController.navigate(Screen.Login.route) { popUpTo(0) }
                     }
                 },
+                onAbrirHistorial = { navController.navigate(Screen.Historial.route) },
+                onAbrirTiendas = { navController.navigate(Screen.Tiendas.route) },
+                onAbrirModelos = { navController.navigate(Screen.Modelos.route) },
+                onAbrirSolicitudes = { navController.navigate(Screen.Solicitudes.route) },
             )
         }
 
@@ -88,18 +97,16 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 viewModel = vm, idActivoAEditar = null,
                 onVolver = { navController.popBackStack() },
                 onAbrirEscanerSerie = {
-                    // Detecta UPS/Regulador por NOMBRE del dispositivo (no por id
-                    // hardcodeado, que podría no coincidir entre entornos).
                     val nombreDispositivo = vm.nombreDispositivoSeleccionado()?.uppercase() ?: ""
                     val prefijo = if (nombreDispositivo.contains("UPS")) "3S,SM" else null
                     val modoRegulador = nombreDispositivo.contains("REGULADOR")
                     navController.navigate(Screen.Escaner.crear("serie", prefijo, modoRegulador))
                 },
-                onAbrirEscanerPlaca = { navController.navigate(Screen.Escaner.crear("placa")) },
+                onAbrirEscanerCodigo = { navController.navigate(Screen.Escaner.crear("codigo")) },
                 serieEscaneada = serieEscaneada,
-                placaEscaneada = placaEscaneada,
+                codigoEscaneado = codigoEscaneado,
                 onSerieConsumida = { serieEscaneada = null },
-                onPlacaConsumida = { placaEscaneada = null },
+                onCodigoConsumido = { codigoEscaneado = null },
             )
         }
 
@@ -118,11 +125,11 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                     val modoRegulador = nombreDispositivo.contains("REGULADOR")
                     navController.navigate(Screen.Escaner.crear("serie", prefijo, modoRegulador))
                 },
-                onAbrirEscanerPlaca = { navController.navigate(Screen.Escaner.crear("placa")) },
+                onAbrirEscanerCodigo = { navController.navigate(Screen.Escaner.crear("codigo")) },
                 serieEscaneada = serieEscaneada,
-                placaEscaneada = placaEscaneada,
+                codigoEscaneado = codigoEscaneado,
                 onSerieConsumida = { serieEscaneada = null },
-                onPlacaConsumida = { placaEscaneada = null },
+                onCodigoConsumido = { codigoEscaneado = null },
             )
         }
 
@@ -137,9 +144,9 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             val target = backStackEntry.arguments?.getString("target") ?: "serie"
             val prefijo = backStackEntry.arguments?.getString("prefijo")
             val modoRegulador = backStackEntry.arguments?.getBoolean("modoRegulador") ?: false
-            
+
             val instruccion = when {
-                target != "serie" -> "Apunta al código de barras de la PLACA / ACTIVO FIJO"
+                target != "serie" -> "Apunta al CÓDIGO DE BARRAS del activo"
                 prefijo != null -> "Código de barras pequeño (empieza con \"${prefijo.replace(",", "\" o \"")}\"). Acércate bien; usa zoom o linterna si hace falta."
                 modoRegulador -> "Apunta a la etiqueta: se captura el texto después de SERIE: o S/N:"
                 else -> "Apunta al código de barras o a la etiqueta de SERIE"
@@ -148,18 +155,65 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 instruccion = instruccion,
                 filtroPrefijo = prefijo,
                 modoRegulador = modoRegulador,
+                target = target,
                 onCodigoDetectado = { codigo ->
                     if (target == "serie") serieEscaneada = codigo
-                    else placaEscaneada = codigo
+                    else codigoEscaneado = codigo
                     navController.popBackStack()
                 },
                 onCerrar = { navController.popBackStack() },
             )
         }
 
+        composable(Screen.Historial.route) {
+            val vm: HistorialViewModel = viewModel(factory = factory)
+            HistorialScreen(viewModel = vm, onVolver = { navController.popBackStack() })
+        }
+
+        composable(Screen.Tiendas.route) {
+            val vm: TiendasViewModel = viewModel(factory = factory)
+            TiendasScreen(viewModel = vm, onVolver = { navController.popBackStack() })
+        }
+
         composable(Screen.Usuarios.route) {
             val vm: UsuariosViewModel = viewModel(factory = factory)
             UsuariosScreen(viewModel = vm, onVolver = { navController.popBackStack() })
+        }
+
+        composable(Screen.Modelos.route) {
+            val vm: com.kernel94.inventario123.ui.modelos.ModelosViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.modelos.ModelosScreen(viewModel = vm, onVolver = { navController.popBackStack() })
+        }
+
+        composable(Screen.Solicitudes.route) {
+            val vm: com.kernel94.inventario123.ui.solicitudes.SolicitudesViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.solicitudes.SolicitudesScreen(
+                viewModel = vm,
+                onVolver = { navController.popBackStack() },
+                onAbrirDetalle = { id -> navController.navigate(Screen.SolicitudDetalle.crear(id)) },
+                onNueva = { navController.navigate(Screen.CrearSolicitud.route) },
+            )
+        }
+
+        composable(Screen.CrearSolicitud.route) {
+            val vm: com.kernel94.inventario123.ui.solicitudes.SolicitudesViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.solicitudes.CrearSolicitudScreen(
+                viewModel = vm,
+                onVolver = { navController.popBackStack() },
+                onEnviada = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            Screen.SolicitudDetalle.route,
+            arguments = listOf(navArgument("id") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getInt("id") ?: 0
+            val vm: com.kernel94.inventario123.ui.solicitudes.SolicitudesViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.solicitudes.SolicitudDetalleScreen(
+                viewModel = vm, solicitudId = id,
+                onVolver = { navController.popBackStack() },
+            )
         }
     }
 }

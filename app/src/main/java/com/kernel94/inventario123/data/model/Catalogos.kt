@@ -22,8 +22,18 @@ data class Plaza(
     val negocio_id: Int? = null, val negocio_nombre: String? = null,
 )
 data class Dispositivo(val id: Int = 0, val nombre: String = "")
-data class Modelo(val id: Int = 0, val nombre: String = "", val dispositivo_id: Int? = null)
-data class Tienda(val id: Int = 0, val nombre: String = "", val plaza_id: Int? = null)
+data class Modelo(
+    val id: Int = 0, val nombre: String = "", val dispositivo_id: Int? = null,
+    val marca_id: Int? = null, val marca_nombre: String? = null,
+    val dispositivo_nombre: String? = null, val activos_count: Int = 0,
+)
+data class Marca(val id: Int = 0, val nombre: String = "")
+data class Tienda(
+    val id: Int = 0, val nombre: String = "", val plaza_id: Int? = null,
+    val cr_tienda: String? = null, val coordenadas: String? = null,
+    val ati_usuario_id: Int? = null, val ati_nombre: String? = null,
+    val plaza_nombre: String? = null,
+)
 data class Bodega(val id: Int = 0, val nombre: String = "", val usuario_id: Int? = null, val plazas_ids: String? = null)
 data class Area(val id: Int = 0, val nombre: String = "")
 data class StatusOpcion(val value: String = "", val label: String = "")
@@ -46,8 +56,56 @@ data class Permisos(
     val puedeFiltrarPorPlaza: Boolean = false, val puedeCrearActivo: Boolean = false,
     val puedeEditarActivo: Boolean = false, val puedeGestionarUsuarios: Boolean = false,
     val puedeExportar: Boolean = false, val puedeVerBodega: Boolean = false,
+    val puedeVerHistorial: Boolean = false, val puedeGestionarTiendas: Boolean = false,
+    val puedeGestionarModelos: Boolean = false,
+    val puedeCrearSolicitudTraslado: Boolean = false,
+    val puedeAprobarTraslados: Boolean = false,
+    val puedeVerTraslados: Boolean = false,
     val plazaId: Int = 0, val plazasIds: List<Int> = emptyList(),
 )
+
+// ── Solicitudes de traslado a bodega (doble firma) ───────────────────────────
+
+data class SolicitudActivo(
+    val id: Int = 0,
+    val serie: String? = null,
+    val codigo_barras: String? = null,
+    val num_activo: String? = null,
+    val status: String? = null,
+    val modelo_nombre: String? = null,
+    val marca_nombre: String? = null,
+    val dispositivo_nombre: String? = null,
+)
+
+data class SolicitudTraslado(
+    val id: Int = 0,
+    val estado: String = "pendiente",
+    val plaza_id: Int = 0,
+    val plaza_nombre: String? = null,
+    val bodega_nombre: String? = null,
+    val origen_nombre: String? = null,
+    val solicitante_nombre: String? = null,
+    val aprobador_nombre: String? = null,
+    val firma_solicitante: String? = null,
+    val firma_aprobador: String? = null,
+    val nota: String? = null,
+    val motivo_rechazo: String? = null,
+    val grupo_id: String? = null,
+    val creado_en: String? = null,
+    val resuelto_en: String? = null,
+    val activos_count: Int = 0,
+    val activos: List<SolicitudActivo> = emptyList(),
+    val puedeResolver: Boolean = false,
+    val puedeCancelar: Boolean = false,
+)
+
+data class ListaSolicitudesResponse(
+    val solicitudes: List<SolicitudTraslado> = emptyList(),
+    val puedeAprobar: Boolean = false,
+    val puedeCrear: Boolean = false,
+)
+
+data class ConteoPendientes(val pendientes: Int = 0)
 
 data class Perfil(
     val usuario: Usuario? = null, val permisos: Permisos = Permisos(),
