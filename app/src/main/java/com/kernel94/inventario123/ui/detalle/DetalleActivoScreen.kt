@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -67,6 +68,8 @@ fun DetalleActivoScreen(
                         FilaDetalle("Serie", a.serie ?: "—")
                         FilaDetalle("Código de barras", a.codigoBarras ?: "—")
                         FilaDetalle("N° de activo", a.numActivo ?: "—")
+                        FilaDetalle("Dispositivo", a.dispositivo_nombre ?: "—")
+                        FilaDetalle("Marca", a.marca_nombre ?: "—")
                         FilaDetalle("Modelo", a.modelo_nombre ?: "—")
                         Divider(Modifier.padding(vertical = 10.dp))
                         FilaDetalle("Negocio", a.negocio_nombre ?: "—")
@@ -159,17 +162,21 @@ private fun MovimientoItem(m: Movimiento) {
             Text(m.creado_en ?: "", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
         }
         Spacer(Modifier.height(4.dp))
+        Text(m.equipoTitulo, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+        Text(m.equipoIds, style = MaterialTheme.typography.bodySmall, color = Color.Gray, fontFamily = FontFamily.Monospace)
         if (m.hayCambioStatus) {
             Text("Estatus: ${m.status_anterior ?: "—"} → ${m.status_nuevo ?: "—"}", style = MaterialTheme.typography.bodySmall)
         }
         if (m.hayCambioStock) {
             Text("Stock: ${m.stock_ant_nombre ?: "—"} → ${m.stock_new_nombre}", style = MaterialTheme.typography.bodySmall)
         }
-        if (!m.relacionado_serie.isNullOrBlank()) {
-            Text("Relacionado con serie ${m.relacionado_serie}", style = MaterialTheme.typography.bodySmall)
-        }
         if (!m.tienda_nombre.isNullOrBlank()) {
             Text("Tienda: ${m.tienda_nombre}", style = MaterialTheme.typography.bodySmall)
+        }
+        if (m.tieneRelacionado) {
+            Spacer(Modifier.height(2.dp))
+            Text("↔ ${m.relLabel}: ${m.relTitulo}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+            Text(m.relIds, style = MaterialTheme.typography.bodySmall, color = Color.Gray, fontFamily = FontFamily.Monospace)
         }
         if (!m.nota.isNullOrBlank()) {
             Text(m.nota, style = MaterialTheme.typography.bodySmall, color = Color.Gray)

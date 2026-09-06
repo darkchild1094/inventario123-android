@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kernel94.inventario123.data.model.Movimiento
@@ -153,16 +154,18 @@ private fun MovimientoRow(m: Movimiento) {
                 Text(m.creado_en ?: "", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
             }
             Spacer(Modifier.height(6.dp))
-            val serieTxt = m.activo_serie ?: "—"
-            Text(serieTxt, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-            val equipo = listOfNotNull(m.dispositivo_nombre, m.modelo_nombre).joinToString(" ")
-            if (equipo.isNotBlank()) Text(equipo, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text(m.equipoTitulo, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+            Text(m.equipoIds, style = MaterialTheme.typography.bodySmall, color = Color.Gray, fontFamily = FontFamily.Monospace)
             if (m.hayCambioStatus) Text("Estatus: ${m.status_anterior ?: "—"} → ${m.status_nuevo ?: "—"}", style = MaterialTheme.typography.bodySmall)
             if (m.hayCambioStock) Text("Stock: ${m.stock_ant_nombre ?: "—"} → ${m.stock_new_nombre}", style = MaterialTheme.typography.bodySmall)
             else if (!m.stock_new_nombre.isNullOrBlank() || !m.stock_ant_nombre.isNullOrBlank())
                 Text("Stock: ${m.stock_new_nombre ?: m.stock_ant_nombre}", style = MaterialTheme.typography.bodySmall)
             if (!m.tienda_nombre.isNullOrBlank()) Text("Tienda: ${m.tienda_nombre}", style = MaterialTheme.typography.bodySmall)
-            if (!m.relacionado_serie.isNullOrBlank()) Text("↔ ${m.relacionado_serie}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            if (m.tieneRelacionado) {
+                Spacer(Modifier.height(2.dp))
+                Text("↔ ${m.relLabel}: ${m.relTitulo}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                Text(m.relIds, style = MaterialTheme.typography.bodySmall, color = Color.Gray, fontFamily = FontFamily.Monospace)
+            }
             if (!m.nota.isNullOrBlank()) Text(m.nota, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             Text("Por: ${m.actor_nombre ?: "Sistema"}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
         }
