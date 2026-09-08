@@ -16,8 +16,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kernel94.inventario123.data.model.DashMovimiento
+import com.kernel94.inventario123.ui.shell.AppDrawerContent
 import com.kernel94.inventario123.ui.theme.BsDark
 import com.kernel94.inventario123.ui.theme.BsPrimary
+import kotlinx.coroutines.launch
 
 private val EVENTOS = mapOf(
     "alta" to "Alta", "cambio_status" to "Cambio de estatus", "cambio_stock" to "Cambio de stock",
@@ -36,15 +38,44 @@ fun DashboardScreen(
     onCerrarSesion: () -> Unit,
     onAbrirModulo: (String) -> Unit = {},
     onAbrirConsulta: () -> Unit = {},
+    onAbrirModelos: () -> Unit = {},
+    onAbrirUsuarios: () -> Unit = {},
 ) {
     LaunchedEffect(Unit) { viewModel.cargar() }
     val r = viewModel.resumen
     val p = viewModel.perfil
     val nombre = p?.usuario?.nombre?.split(" ")?.firstOrNull() ?: "Usuario"
+    val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    fun cerrarYHacer(a: () -> Unit) { scope.launch { drawerState.close() }; a() }
 
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            AppDrawerContent(
+                perfil = p,
+                moduloActivo = "dashboard",
+                solicitudesPendientes = r?.traslados_pendientes ?: 0,
+                onModulo = { m -> cerrarYHacer { onAbrirModulo(m) } },
+                onDashboard = { scope.launch { drawerState.close() } },
+                onConsulta = { cerrarYHacer(onAbrirConsulta) },
+                onHistorial = { cerrarYHacer(onAbrirHistorial) },
+                onTraslados = { cerrarYHacer(onAbrirTraslados) },
+                onPendientes = { cerrarYHacer(onAbrirPendientes) },
+                onModelos = { cerrarYHacer(onAbrirModelos) },
+                onUsuarios = { cerrarYHacer(onAbrirUsuarios) },
+                onCerrarSesion = { cerrarYHacer(onCerrarSesion) },
+            )
+        }
+    ) {
     Scaffold(
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                        Icon(Icons.Filled.Menu, contentDescription = "Menú", tint = Color.White)
+                    }
+                },
                 title = {
                     Column {
                         Text("Hola, $nombre", fontWeight = FontWeight.Bold, color = Color.White)
@@ -195,6 +226,7 @@ fun DashboardScreen(
                 }
             }
         }
+    }
     }
 }
 

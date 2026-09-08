@@ -45,6 +45,8 @@ fun ListadoScreen(
     onAbrirPendientes: () -> Unit = {},
     onAbrirModulo: (String) -> Unit = {},
     onAbrirConsulta: () -> Unit = {},
+    onAbrirDashboard: () -> Unit = {},
+    onAbrirUsuarios: () -> Unit = {},
 ) {
     LaunchedEffect(modulo, tiendaId) { viewModel.iniciar(modulo, tiendaId) }
     var mostrarFiltros by remember { mutableStateOf(false) }
@@ -82,127 +84,20 @@ fun ListadoScreen(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(drawerContainerColor = Color.White) {
-                // Encabezado con el usuario
-                Column(Modifier.fillMaxWidth().background(BsDark).padding(20.dp)) {
-                    AsyncImage(
-                        model = viewModel.perfil?.usuario?.foto?.let { com.kernel94.inventario123.data.remote.Urls.usuarioFoto(it) }
-                            ?: "file:///android_asset/logo_login.png",
-                        contentDescription = null,
-                        modifier = Modifier.size(52.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.15f))
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        viewModel.perfil?.usuario?.nombre ?: "Usuario",
-                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White
-                    )
-                    Text(
-                        viewModel.perfil?.usuario?.plaza_nombre ?: "Inventario123",
-                        style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.75f)
-                    )
-                    permisos?.tipo?.takeIf { it.isNotBlank() }?.let {
-                        Text(it.uppercase(), style = MaterialTheme.typography.labelSmall, color = BsPrimary)
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-
-                // ── Módulos del rol (fuente: perfil.modulos) ──────────────────
-                viewModel.perfil?.modulos.orEmpty().forEach { m ->
-                    NavigationDrawerItem(
-                        icon = { Icon(iconoModulo(m.clave), contentDescription = null) },
-                        label = { Text(m.etiqueta) },
-                        selected = (m.clave == "dashboard" && viewModel.modulo == null && false) ||
-                                   (viewModel.modulo == m.clave),
-                        onClick = {
-                            cerrarYHacer {
-                                when (m.clave) {
-                                    "dashboard" -> {}
-                                    "consulta"  -> onAbrirConsulta()
-                                    "usuarios"  -> {}
-                                    else        -> onAbrirModulo(m.clave)
-                                }
-                            }
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                }
-                HorizontalDivider(Modifier.padding(vertical = 6.dp))
-
-                if (permisos?.puedeVerHistorial == true) {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Filled.History, contentDescription = null) },
-                        label = { Text("Historial") },
-                        selected = false,
-                        onClick = { cerrarYHacer(onAbrirHistorial) },
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                }
-                if (permisos?.puedeGestionarTiendas == true) {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Filled.Store, contentDescription = null) },
-                        label = { Text("Tiendas · ATI responsable") },
-                        selected = false,
-                        onClick = { cerrarYHacer(onAbrirTiendas) },
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                }
-                if (permisos?.puedeGestionarModelos == true) {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Filled.Category, contentDescription = null) },
-                        label = { Text("Catálogo de modelos") },
-                        selected = false,
-                        onClick = { cerrarYHacer(onAbrirModelos) },
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                }
-                if (permisos?.puedeVerTraslados == true) {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Filled.SwapHoriz, contentDescription = null) },
-                        label = { Text("Traslados a bodega") },
-                        badge = {
-                            if (viewModel.solicitudesPendientes > 0)
-                                Text(viewModel.solicitudesPendientes.toString(), fontWeight = FontWeight.Bold, color = BsPrimary)
-                        },
-                        selected = false,
-                        onClick = { cerrarYHacer(onAbrirSolicitudes) },
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                }
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Filled.CloudUpload, contentDescription = null) },
-                    label = { Text("Altas pendientes de envío") },
-                    selected = false,
-                    onClick = { cerrarYHacer(onAbrirPendientes) },
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
-                if (permisos?.puedeExportar == true) {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Filled.FileDownload, contentDescription = null) },
-                        label = { Text("Exportar inventario") },
-                        badge = { if (viewModel.exportando) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) },
-                        selected = false,
-                        onClick = { if (!viewModel.exportando) cerrarYHacer { exportarYCompartir() } },
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                }
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Filled.FilterAlt, contentDescription = null) },
-                    label = { Text(if (mostrarFiltros) "Ocultar filtros" else "Mostrar filtros") },
-                    selected = mostrarFiltros,
-                    onClick = { mostrarFiltros = !mostrarFiltros; scope.launch { drawerState.close() } },
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
-
-                Spacer(Modifier.weight(1f))
-                HorizontalDivider()
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Filled.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                    label = { Text("Cerrar sesión", color = MaterialTheme.colorScheme.error) },
-                    selected = false,
-                    onClick = { cerrarYHacer(onCerrarSesion) },
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                )
-            }
+            com.kernel94.inventario123.ui.shell.AppDrawerContent(
+                perfil = viewModel.perfil,
+                moduloActivo = viewModel.modulo ?: "",
+                solicitudesPendientes = viewModel.solicitudesPendientes,
+                onModulo = { m -> cerrarYHacer { onAbrirModulo(m) } },
+                onDashboard = { cerrarYHacer(onAbrirDashboard) },
+                onConsulta = { cerrarYHacer(onAbrirConsulta) },
+                onHistorial = { cerrarYHacer(onAbrirHistorial) },
+                onTraslados = { cerrarYHacer(onAbrirSolicitudes) },
+                onPendientes = { cerrarYHacer(onAbrirPendientes) },
+                onModelos = { cerrarYHacer(onAbrirModelos) },
+                onUsuarios = { cerrarYHacer(onAbrirUsuarios) },
+                onCerrarSesion = { cerrarYHacer(onCerrarSesion) },
+            )
         }
     ) {
         Scaffold(
@@ -215,15 +110,22 @@ fun ListadoScreen(
                         }
                     },
                     title = {
-                        Column {
-                            Text(
-                                viewModel.perfil?.usuario?.nombre ?: "Inventario123",
-                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color.White
-                            )
-                            Text(
-                                viewModel.perfil?.usuario?.plaza_nombre ?: "Inventario123",
-                                style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f)
-                            )
+                        val m = viewModel.modulo
+                        Text(
+                            m?.replaceFirstChar { it.uppercase() } ?: (viewModel.perfil?.usuario?.plaza_nombre ?: "Inventario123"),
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White,
+                        )
+                    },
+                    actions = {
+                        IconButton(onClick = { mostrarFiltros = !mostrarFiltros }) {
+                            Icon(Icons.Filled.FilterAlt, contentDescription = "Filtros",
+                                tint = if (mostrarFiltros) BsPrimary else Color.White)
+                        }
+                        if (permisos?.puedeExportar == true) {
+                            IconButton(onClick = { if (!viewModel.exportando) exportarYCompartir() }) {
+                                if (viewModel.exportando) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
+                                else Icon(Icons.Filled.FileDownload, contentDescription = "Exportar", tint = Color.White)
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = BsDark, titleContentColor = Color.White),
@@ -410,16 +312,4 @@ fun ListadoScreen(
 
 private fun etiquetaVista(vista: String): String = when (vista) {
     "bodega" -> "Bodega"; "mi_stock" -> "Mi Stock"; "todos" -> "Todos"; else -> vista.replaceFirstChar { it.uppercase() }
-}
-
-private fun iconoModulo(clave: String) = when (clave) {
-    "dashboard" -> Icons.Filled.Dashboard
-    "consulta"  -> Icons.Filled.QrCodeScanner
-    "tiendas"   -> Icons.Filled.Store
-    "bodega"    -> Icons.Filled.Warehouse
-    "mi_stock"  -> Icons.Filled.Handyman
-    "stock_pfs" -> Icons.Filled.Groups
-    "ati"       -> Icons.Filled.ManageAccounts
-    "usuarios"  -> Icons.Filled.People
-    else        -> Icons.Filled.Inventory2
 }

@@ -165,33 +165,52 @@ fun CrearEditarActivoScreen(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             )
 
-            Text("Estatus", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 8.dp))
-            // Un ingeniero (pfs) editando un activo suyo 'asignado' NO puede mandarlo
-            // a bodega directo: debe usar "Traslados a bodega" (firma del coordinador).
-            val ocultarEnBodega = viewModel.perfil?.permisos?.tipo == "pfs" &&
-                viewModel.idEdicion != null && viewModel.status == "asignado"
-            Column {
-                ESTATUS_OPCIONES.forEach { (valor, etiqueta) ->
-                    if (ocultarEnBodega && valor == "en_bodega") return@forEach
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = viewModel.status == valor, onClick = { viewModel.onStatusChange(valor) })
-                        Text(etiqueta)
+            // Módulos compactos (bodega / mi_stock / stock_pfs / ati): el estatus
+            // queda fijo por el módulo, no se muestran los radios.
+            val estatusFijoPorModulo = moduloContexto in listOf("bodega", "mi_stock", "stock_pfs", "ati")
+            if (estatusFijoPorModulo) {
+                val txt = when (moduloContexto) {
+                    "bodega" -> "Destino: En bodega"
+                    "mi_stock" -> "Destino: A mi stock"
+                    "stock_pfs" -> "Destino: Stock de ingeniero (PFS)"
+                    "ati" -> "Destino: Stock de ATI"
+                    else -> ""
+                }
+                Text(txt, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 8.dp))
+            } else {
+                Text("Estatus", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 8.dp))
+                // Un ingeniero (pfs) editando un activo suyo 'asignado' NO puede mandarlo
+                // a bodega directo: debe usar "Traslados a bodega" (firma del coordinador).
+                val ocultarEnBodega = viewModel.perfil?.permisos?.tipo == "pfs" &&
+                    viewModel.idEdicion != null && viewModel.status == "asignado"
+                Column {
+                    ESTATUS_OPCIONES.forEach { (valor, etiqueta) ->
+                        if (ocultarEnBodega && valor == "en_bodega") return@forEach
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = viewModel.status == valor, onClick = { viewModel.onStatusChange(valor) })
+                            Text(etiqueta)
+                        }
                     }
                 }
-            }
-            if (ocultarEnBodega) {
-                Text(
-                    "Para mandar este equipo a bodega usa \"Traslados a bodega\".",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = BsPrimary,
-                    modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
-                )
+                if (ocultarEnBodega) {
+                    Text(
+                        "Para mandar este equipo a bodega usa \"Traslados a bodega\".",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = BsPrimary,
+                        modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
+                    )
+                }
             }
 
-            // Campos condicionales, igual que manejarEstatus() / ActivoGuardado en la web
-            if (viewModel.requiereAsignadoUsuario()) {
+            // Campos condicionales, igual que manejarEstatus() / ActivoGuardado en la web.
+            // En "mi_stock" el destino soy yo -> no se muestra el selector de usuario.
+            if (viewModel.requiereAsignadoUsuario() && moduloContexto != "mi_stock") {
                 FiltroDropdown(
-                    etiqueta = "Asignado a", opciones = viewModel.usuariosAsignables,
+                    etiqueta = if (moduloContexto == "stock_pfs" || moduloContexto == "ati") "Ingeniero *" else "Asignado a",
+                    opciones = if (moduloContexto == "stock_pfs") viewModel.usuariosAsignables.filter { it.tipo == "pfs" }
+                               else if (moduloContexto == "ati") viewModel.usuariosAsignables.filter { it.tipo == "ati" }
+                               else viewModel.usuariosAsignables,
                     seleccionId = viewModel.asignadoUsuarioId, idDe = { it.id }, nombreDe = { it.nombre },
                     onSeleccion = { viewModel.asignadoUsuarioId = it },
                     etiquetaNula = "Yo mismo",

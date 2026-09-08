@@ -58,6 +58,14 @@ interface ApiService {
     @GET("index.php?controller=api&action=consultar")
     suspend fun consultar(@Query("q") q: String): ConsultaResponse
 
+    // Form "Movimiento en tienda": ¿la serie está en mi stock (instalación=mover)
+    // o instalada en esta tienda (retiro)?
+    @GET("index.php?controller=api&action=resolverSerie")
+    suspend fun resolverSerie(
+        @Query("serie") serie: String,
+        @Query("tienda_id") tiendaId: Int? = null,
+    ): ResolverSerieResponse
+
     // Lista del módulo "Tiendas": acotada al rol, con nº de activos por tienda.
     @GET("index.php?controller=api&action=listarTiendas")
     suspend fun listarTiendas(

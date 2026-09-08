@@ -56,6 +56,12 @@ class ActivoRepository(private val api: ApiService, private val context: Context
         Resultado.Error("No se pudo consultar. Revisa tu conexión.")
     }
 
+    suspend fun resolverSerie(serie: String, tiendaId: Int? = null): Resultado<com.kernel94.inventario123.data.model.ResolverSerieResponse> = try {
+        Resultado.Exito(api.resolverSerie(serie, tiendaId))
+    } catch (e: Exception) {
+        Resultado.Error("No se pudo verificar la serie.")
+    }
+
     /** Activos "en uso" de una tienda para el selector "¿Reemplaza a?".
      *  dispositivoId null → todas las categorías.
      *  Con señal se traen del servidor y se cachean todas las categorías de la

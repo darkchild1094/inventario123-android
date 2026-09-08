@@ -10,6 +10,10 @@ sealed class Screen(val route: String) {
             "modulo/$modulo?tiendaId=${tiendaId ?: 0}"
     }
     object Consulta : Screen("consulta")
+    // Form simple del módulo Tiendas: Instalación / Retiro / Reemplazo.
+    object TiendaMov : Screen("tienda_mov?tiendaId={tiendaId}") {
+        fun crear(tiendaId: Int? = null) = "tienda_mov?tiendaId=${tiendaId ?: 0}"
+    }
     object Detalle : Screen("detalle/{id}") { fun crear(id: Int) = "detalle/$id" }
     object Crear : Screen("crear_activo?modulo={modulo}&tiendaUsoId={tiendaUsoId}") {
         fun crear(modulo: String? = null, tiendaUsoId: Int? = null) =

@@ -77,6 +77,11 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 else       -> navController.navigate(Screen.Modulo.crear(clave))
             }
         }
+        // FAB "crear" según módulo: tiendas -> form de 3 modos; resto -> alta.
+        val abrirCrear: (String, Int?) -> Unit = { modulo, tiendaId ->
+            if (modulo == "tiendas") navController.navigate(Screen.TiendaMov.crear(tiendaId))
+            else navController.navigate(Screen.Crear.crear(modulo.ifBlank { null }, tiendaId))
+        }
 
         composable(Screen.Dashboard.route) {
             val vm: com.kernel94.inventario123.ui.dashboard.DashboardViewModel = viewModel(factory = factory)
@@ -89,6 +94,8 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onCerrarSesion = irALogin,
                 onAbrirModulo = abrirModulo,
                 onAbrirConsulta = { navController.navigate(Screen.Consulta.route) },
+                onAbrirModelos = { navController.navigate(Screen.Modelos.route) },
+                onAbrirUsuarios = { navController.navigate(Screen.Usuarios.route) },
             )
         }
 
@@ -120,7 +127,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 tiendaId = tiendaArg.takeIf { it > 0 },
                 onAbrirDetalle = { id -> navController.navigate(Screen.Detalle.crear(id)) },
                 onEditar = { id -> navController.navigate(Screen.Editar.crear(id)) },
-                onCrearNuevo = { navController.navigate(Screen.Crear.crear(moduloArg, tiendaArg.takeIf { it > 0 })) },
+                onCrearNuevo = { abrirCrear(moduloArg, tiendaArg.takeIf { it > 0 }) },
                 onCerrarSesion = irALogin,
                 onAbrirHistorial = { navController.navigate(Screen.Historial.route) },
                 onAbrirTiendas = { navController.navigate(Screen.Tiendas.route) },
@@ -129,6 +136,27 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onAbrirPendientes = { navController.navigate(Screen.Pendientes.route) },
                 onAbrirModulo = abrirModulo,
                 onAbrirConsulta = { navController.navigate(Screen.Consulta.route) },
+                onAbrirDashboard = { navController.navigate(Screen.Dashboard.route) { launchSingleTop = true } },
+                onAbrirUsuarios = { navController.navigate(Screen.Usuarios.route) },
+            )
+        }
+
+        composable(
+            Screen.TiendaMov.route,
+            arguments = listOf(navArgument("tiendaId") { type = NavType.IntType; defaultValue = 0 }),
+        ) { backStackEntry ->
+            val tId = backStackEntry.arguments?.getInt("tiendaId") ?: 0
+            val vm: com.kernel94.inventario123.ui.form.TiendaMovViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.form.TiendaMovScreen(
+                viewModel = vm,
+                tiendaFijaId = tId.takeIf { it > 0 },
+                onVolver = { navController.popBackStack() },
+                onAbrirEscanerSerie = { navController.navigate(Screen.Escaner.crear("serie")) },
+                onAbrirEscanerCodigo = { navController.navigate(Screen.Escaner.crear("codigo")) },
+                serieEscaneada = serieEscaneada,
+                codigoEscaneado = codigoEscaneado,
+                onSerieConsumida = { serieEscaneada = null },
+                onCodigoConsumido = { codigoEscaneado = null },
             )
         }
 
@@ -152,6 +180,8 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onAbrirPendientes = { navController.navigate(Screen.Pendientes.route) },
                 onAbrirModulo = abrirModulo,
                 onAbrirConsulta = { navController.navigate(Screen.Consulta.route) },
+                onAbrirDashboard = { navController.navigate(Screen.Dashboard.route) { launchSingleTop = true } },
+                onAbrirUsuarios = { navController.navigate(Screen.Usuarios.route) },
             )
         }
 

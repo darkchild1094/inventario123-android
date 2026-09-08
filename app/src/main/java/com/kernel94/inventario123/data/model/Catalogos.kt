@@ -229,6 +229,15 @@ data class ListaTiendasResponse(
     val puedeAsignarAti: Boolean = false,
 )
 
+data class ResolverSerieResponse(
+    val encontrado: Boolean = false,
+    val activo: Activo? = null,
+    val en_mi_stock: Boolean = false,
+    val en_esta_tienda: Boolean = false,
+    val ubicacion_corta: String? = null,
+    val coincidencias: List<ConsultaCoincidencia> = emptyList(),
+)
+
 data class ApiResultado(val success: Boolean = false, val message: String? = null, val id: Int? = null)
 data class LoginResponse(val success: Boolean = false, val message: String? = null, val usuario: Usuario? = null, val session_id: String? = null)
 data class LoginRequest(val email: String, val password: String)
