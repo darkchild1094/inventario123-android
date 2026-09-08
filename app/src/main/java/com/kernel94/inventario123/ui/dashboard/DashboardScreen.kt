@@ -34,6 +34,8 @@ fun DashboardScreen(
     onAbrirTraslados: () -> Unit,
     onAbrirPendientes: () -> Unit,
     onCerrarSesion: () -> Unit,
+    onAbrirModulo: (String) -> Unit = {},
+    onAbrirConsulta: () -> Unit = {},
 ) {
     LaunchedEffect(Unit) { viewModel.cargar() }
     val r = viewModel.resumen
@@ -47,7 +49,7 @@ fun DashboardScreen(
                     Column {
                         Text("Hola, $nombre", fontWeight = FontWeight.Bold, color = Color.White)
                         Text(
-                            "${p?.permisos?.tipo?.uppercase() ?: ""} · ${p?.usuario?.plaza_nombre ?: ""}",
+                            "${com.kernel94.inventario123.data.model.rolLabel(p?.permisos?.tipo)} · ${p?.usuario?.plaza_nombre ?: ""}",
                             style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = .75f),
                         )
                     }
@@ -70,6 +72,39 @@ fun DashboardScreen(
                 viewModel.cargando && r == null -> Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 viewModel.error != null && r == null -> Text(viewModel.error!!, color = Color.Gray)
                 r != null -> {
+                    // Módulos del rol (fuente: perfil.modulos)
+                    val modulos = p?.modulos.orEmpty().filter { it.clave != "dashboard" }
+                    if (modulos.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            modulos.chunked(2).forEach { fila ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    fila.forEach { m ->
+                                        val cnt = r.por_modulo[m.clave]
+                                        Card(
+                                            onClick = {
+                                                when (m.clave) {
+                                                    "consulta" -> onAbrirConsulta()
+                                                    else       -> onAbrirModulo(m.clave)
+                                                }
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                                        ) {
+                                            Column(Modifier.padding(14.dp)) {
+                                                Text(m.etiqueta, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                                Text(
+                                                    cnt?.let { "$it activos" } ?: if (!m.editable) "Consultar" else "",
+                                                    style = MaterialTheme.typography.labelSmall, color = Color.Gray,
+                                                )
+                                            }
+                                        }
+                                    }
+                                    if (fila.size == 1) Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+
                     // KPIs
                     val kpis = listOf(
                         Triple("Total", r.total, Color(0xFF212529)),

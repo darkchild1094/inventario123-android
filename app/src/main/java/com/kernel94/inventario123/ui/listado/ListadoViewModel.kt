@@ -34,6 +34,10 @@ class ListadoViewModel(
     var catalogos by mutableStateOf(Catalogos()); private set
 
     var vistaActual by mutableStateOf("todos")
+    // Navegación por módulos: si != null, manda sobre "vista".
+    var modulo by mutableStateOf<String?>(null)
+    var tiendaId by mutableStateOf<Int?>(null)
+    var moduloEditable by mutableStateOf(false); private set
     var negocioId by mutableStateOf<Int?>(null)
     var regionId by mutableStateOf<Int?>(null)
     var plazaId by mutableStateOf<Int?>(null)
@@ -50,11 +54,16 @@ class ListadoViewModel(
 
     private var debounceJob: Job? = null
 
-    fun iniciar() {
+    /** @param moduloArg si viene, la pantalla lista ese módulo; @param tiendaArg acota a una tienda. */
+    fun iniciar(moduloArg: String? = null, tiendaArg: Int? = null) {
+        modulo = moduloArg?.takeIf { it.isNotBlank() }
+        tiendaId = tiendaArg?.takeIf { it > 0 }
         viewModelScope.launch {
             perfil = authRepository.obtenerPerfil()
             val vistas = perfil?.vistasDisponibles ?: emptyList()
-            vistaActual = if ("todos" in vistas) "todos" else vistas.firstOrNull() ?: "todos"
+            if (modulo == null) {
+                vistaActual = if ("todos" in vistas) "todos" else vistas.firstOrNull() ?: "todos"
+            }
             when (val r = catalogoRepository.obtenerCatalogos()) {
                 is Resultado.Exito -> catalogos = r.datos
                 is Resultado.Error -> {}
@@ -64,13 +73,15 @@ class ListadoViewModel(
             }
             cargar()
 
-            // Cargar conteos de las demás vistas disponibles en segundo plano
-            vistas.forEach { vista ->
-                if (vista != vistaActual) {
-                    launch {
-                        val res = activoRepository.listar(vista = vista, porPagina = 1)
-                        if (res is Resultado.Exito) {
-                            conteosVistas = conteosVistas + (vista to res.datos.paginacion.total_resultados)
+            // Sólo en modo "vista" (legado): conteos de las demás pestañas.
+            if (modulo == null) {
+                vistas.forEach { vista ->
+                    if (vista != vistaActual) {
+                        launch {
+                            val res = activoRepository.listar(vista = vista, porPagina = 1)
+                            if (res is Resultado.Exito) {
+                                conteosVistas = conteosVistas + (vista to res.datos.paginacion.total_resultados)
+                            }
                         }
                     }
                 }
@@ -101,8 +112,10 @@ class ListadoViewModel(
         error = null
         viewModelScope.launch {
             when (val r = activoRepository.listar(
-                vista = vistaActual, negocioId = negocioId, regionId = regionId,
-                plazaId = plazaId, usuarioId = usuarioId, status = status,
+                modulo = modulo,
+                vista = if (modulo == null) vistaActual else null,
+                negocioId = negocioId, regionId = regionId,
+                plazaId = plazaId, tiendaId = tiendaId, usuarioId = usuarioId, status = status,
                 busqueda = busqueda.ifBlank { null }, pagina = pagina,
                 porPagina = 5000 // Aumentamos el límite para mostrar prácticamente todo sin paginación manual
             )) {
@@ -110,9 +123,9 @@ class ListadoViewModel(
                     activos = r.datos.activos
                     paginaActual = r.datos.paginacion.pagina_actual
                     totalPaginas = r.datos.paginacion.total_paginas
-                    
-                    // Actualizar el conteo de la vista actual
-                    conteosVistas = conteosVistas + (vistaActual to r.datos.paginacion.total_resultados)
+                    moduloEditable = r.datos.moduloEditable
+
+                    conteosVistas = conteosVistas + ((modulo ?: vistaActual) to r.datos.paginacion.total_resultados)
 
                     cargando = false
                 }
@@ -129,7 +142,9 @@ class ListadoViewModel(
     fun exportar(context: Context, onListo: (Resultado<File>) -> Unit) {
         exportando = true
         viewModelScope.launch {
-            val r = exportRepository.exportarInventario(context)
+            val m = modulo
+            val r = if (m != null) exportRepository.exportarModulo(context, m, tiendaId)
+                    else exportRepository.exportarInventario(context)
             exportando = false
             onListo(r)
         }

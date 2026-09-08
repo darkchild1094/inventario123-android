@@ -87,7 +87,15 @@ class CrearEditarActivoViewModel(
     /** Estado de conexión reactivo, para el aviso "sin conexión" del formulario. */
     val online get() = pendientesRepository.online
 
-    fun iniciar(idActivoAEditar: Int? = null) {
+    /** Estatus prefijado según el módulo desde el que se abrió el alta. */
+    private fun statusPorModulo(modulo: String?): String? = when (modulo) {
+        "tiendas"   -> "en_uso"
+        "bodega"    -> "en_bodega"
+        "mi_stock", "stock_pfs", "ati" -> "asignado"
+        else        -> null
+    }
+
+    fun iniciar(idActivoAEditar: Int? = null, moduloContexto: String? = null, tiendaUsoContexto: Int? = null) {
         viewModelScope.launch {
             perfil = authRepository.obtenerPerfil()
             when (val r = catalogoRepository.obtenerCatalogos()) {
@@ -129,6 +137,9 @@ class CrearEditarActivoViewModel(
                         plazaId = plaza.id
                     }
                 }
+                // Contexto de módulo: estatus prefijado + tienda preseleccionada.
+                statusPorModulo(moduloContexto)?.let { status = it }
+                tiendaUsoContexto?.let { tiendaUsoId = it }
             }
 
             aplicarCascadaNegocio()

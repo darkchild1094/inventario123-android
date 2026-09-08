@@ -79,4 +79,6 @@ data class ListadoActivosResponse(
     val activos: List<Activo> = emptyList(),
     val paginacion: Paginacion = Paginacion(),
     val vista: String? = null,
+    val modulo: String? = null,
+    val moduloEditable: Boolean = false,
 )

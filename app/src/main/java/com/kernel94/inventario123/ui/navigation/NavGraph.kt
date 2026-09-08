@@ -68,6 +68,16 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             }
         }
 
+        // Enrutado de un módulo a su pantalla (Tiendas tiene lista propia).
+        val abrirModulo: (String) -> Unit = { clave ->
+            when (clave) {
+                "tiendas"  -> navController.navigate(Screen.Tiendas.route)
+                "usuarios" -> navController.navigate(Screen.Usuarios.route)
+                "consulta" -> navController.navigate(Screen.Consulta.route)
+                else       -> navController.navigate(Screen.Modulo.crear(clave))
+            }
+        }
+
         composable(Screen.Dashboard.route) {
             val vm: com.kernel94.inventario123.ui.dashboard.DashboardViewModel = viewModel(factory = factory)
             com.kernel94.inventario123.ui.dashboard.DashboardScreen(
@@ -77,6 +87,48 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onAbrirTraslados = { navController.navigate(Screen.Solicitudes.route) },
                 onAbrirPendientes = { navController.navigate(Screen.Pendientes.route) },
                 onCerrarSesion = irALogin,
+                onAbrirModulo = abrirModulo,
+                onAbrirConsulta = { navController.navigate(Screen.Consulta.route) },
+            )
+        }
+
+        composable(Screen.Consulta.route) {
+            val vm: com.kernel94.inventario123.ui.consulta.ConsultaViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.consulta.ConsultaScreen(
+                viewModel = vm,
+                onVolver = { navController.popBackStack() },
+                onAbrirDetalle = { id -> navController.navigate(Screen.Detalle.crear(id)) },
+                onAbrirEscaner = { navController.navigate(Screen.Escaner.crear("codigo")) },
+                serieEscaneada = codigoEscaneado ?: serieEscaneada,
+                onSerieConsumida = { codigoEscaneado = null; serieEscaneada = null },
+            )
+        }
+
+        composable(
+            Screen.Modulo.route,
+            arguments = listOf(
+                navArgument("modulo") { type = NavType.StringType },
+                navArgument("tiendaId") { type = NavType.IntType; defaultValue = 0 },
+            )
+        ) { backStackEntry ->
+            val moduloArg = backStackEntry.arguments?.getString("modulo") ?: ""
+            val tiendaArg = backStackEntry.arguments?.getInt("tiendaId") ?: 0
+            val vm: ListadoViewModel = viewModel(factory = factory)
+            ListadoScreen(
+                viewModel = vm,
+                modulo = moduloArg,
+                tiendaId = tiendaArg.takeIf { it > 0 },
+                onAbrirDetalle = { id -> navController.navigate(Screen.Detalle.crear(id)) },
+                onEditar = { id -> navController.navigate(Screen.Editar.crear(id)) },
+                onCrearNuevo = { navController.navigate(Screen.Crear.crear(moduloArg, tiendaArg.takeIf { it > 0 })) },
+                onCerrarSesion = irALogin,
+                onAbrirHistorial = { navController.navigate(Screen.Historial.route) },
+                onAbrirTiendas = { navController.navigate(Screen.Tiendas.route) },
+                onAbrirModelos = { navController.navigate(Screen.Modelos.route) },
+                onAbrirSolicitudes = { navController.navigate(Screen.Solicitudes.route) },
+                onAbrirPendientes = { navController.navigate(Screen.Pendientes.route) },
+                onAbrirModulo = abrirModulo,
+                onAbrirConsulta = { navController.navigate(Screen.Consulta.route) },
             )
         }
 
@@ -91,13 +143,15 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 viewModel = vm,
                 onAbrirDetalle = { id -> navController.navigate(Screen.Detalle.crear(id)) },
                 onEditar = { id -> navController.navigate(Screen.Editar.crear(id)) },
-                onCrearNuevo = { navController.navigate(Screen.Crear.route) },
+                onCrearNuevo = { navController.navigate(Screen.Crear.crear()) },
                 onCerrarSesion = irALogin,
                 onAbrirHistorial = { navController.navigate(Screen.Historial.route) },
                 onAbrirTiendas = { navController.navigate(Screen.Tiendas.route) },
                 onAbrirModelos = { navController.navigate(Screen.Modelos.route) },
                 onAbrirSolicitudes = { navController.navigate(Screen.Solicitudes.route) },
                 onAbrirPendientes = { navController.navigate(Screen.Pendientes.route) },
+                onAbrirModulo = abrirModulo,
+                onAbrirConsulta = { navController.navigate(Screen.Consulta.route) },
             )
         }
 
@@ -114,10 +168,20 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             )
         }
 
-        composable(Screen.Crear.route) {
+        composable(
+            Screen.Crear.route,
+            arguments = listOf(
+                navArgument("modulo") { type = NavType.StringType; defaultValue = "" },
+                navArgument("tiendaUsoId") { type = NavType.IntType; defaultValue = 0 },
+            )
+        ) { backStackEntry ->
+            val moduloArg = backStackEntry.arguments?.getString("modulo").orEmpty()
+            val tiendaUsoArg = backStackEntry.arguments?.getInt("tiendaUsoId") ?: 0
             val vm: CrearEditarActivoViewModel = viewModel(factory = factory)
             CrearEditarActivoScreen(
                 viewModel = vm, idActivoAEditar = null,
+                moduloContexto = moduloArg.takeIf { it.isNotBlank() },
+                tiendaUsoContexto = tiendaUsoArg.takeIf { it > 0 },
                 onVolver = { navController.popBackStack() },
                 onAbrirEscanerSerie = {
                     val nombreDispositivo = vm.nombreDispositivoSeleccionado()?.uppercase() ?: ""
@@ -195,7 +259,11 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
 
         composable(Screen.Tiendas.route) {
             val vm: TiendasViewModel = viewModel(factory = factory)
-            TiendasScreen(viewModel = vm, onVolver = { navController.popBackStack() })
+            TiendasScreen(
+                viewModel = vm,
+                onVolver = { navController.popBackStack() },
+                onAbrirTienda = { id -> navController.navigate(Screen.Modulo.crear("tiendas", id)) },
+            )
         }
 
         composable(Screen.Usuarios.route) {

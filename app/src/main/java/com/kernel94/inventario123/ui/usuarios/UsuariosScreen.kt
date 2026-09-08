@@ -17,7 +17,7 @@ import com.kernel94.inventario123.data.model.Usuario
 import com.kernel94.inventario123.ui.theme.BsPrimary
 import kotlinx.coroutines.launch
 
-private val TIPOS_USUARIO = listOf("admin", "coordinador", "fs", "ati")
+private val TIPOS_USUARIO = listOf("admin", "coordinador", "pfs", "ati")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,7 +106,7 @@ private fun FormularioUsuarioDialog(
     var nombre by remember { mutableStateOf(usuario?.nombre ?: "") }
     var email by remember { mutableStateOf(usuario?.email ?: "") }
     var password by remember { mutableStateOf("") }
-    var tipo by remember { mutableStateOf(usuario?.tipo ?: "fs") }
+    var tipo by remember { mutableStateOf(usuario?.tipo ?: "pfs") }
     val plazasSeleccionadas = remember { mutableStateListOf<Int>().apply { usuario?.plaza_id?.let { add(it) } } }
 
     AlertDialog(

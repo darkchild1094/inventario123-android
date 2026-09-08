@@ -5,18 +5,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kernel94.inventario123.data.model.Catalogos
 import com.kernel94.inventario123.data.model.Perfil
 import com.kernel94.inventario123.data.model.Plaza
-import com.kernel94.inventario123.data.model.Tienda
+import com.kernel94.inventario123.data.model.TiendaConteo
 import com.kernel94.inventario123.data.model.Usuario
 import com.kernel94.inventario123.data.repository.AuthRepository
 import com.kernel94.inventario123.data.repository.CatalogoRepository
 import com.kernel94.inventario123.data.repository.Resultado
 import com.kernel94.inventario123.data.repository.TiendaRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** Pantalla "Tiendas · ATI responsable" (espeja app/views/tiendas/index.php, solo admin). */
+/**
+ * Módulo "Tiendas": lista de tiendas acotada al rol, con nº de activos por tienda.
+ * Al tocar una tienda se ven sus activos (drill-down al módulo). Sólo admin puede
+ * asignar el ATI responsable desde aquí.
+ */
 class TiendasViewModel(
     private val tiendaRepository: TiendaRepository,
     private val catalogoRepository: CatalogoRepository,
@@ -28,16 +33,13 @@ class TiendasViewModel(
     var plazaId by mutableStateOf<Int?>(null)
     var busqueda by mutableStateOf("")
 
-    private var tiendasTodas by mutableStateOf<List<Tienda>>(emptyList())
+    var tiendas by mutableStateOf<List<TiendaConteo>>(emptyList()); private set
+    var puedeAsignarAti by mutableStateOf(false); private set
     var atis by mutableStateOf<List<Usuario>>(emptyList()); private set
     var cargando by mutableStateOf(false); private set
     var mensaje by mutableStateOf<String?>(null); private set
 
-    val tiendas: List<Tienda>
-        get() = if (busqueda.isBlank()) tiendasTodas
-        else tiendasTodas.filter {
-            it.nombre.contains(busqueda, true) || (it.cr_tienda ?: "").contains(busqueda, true)
-        }
+    private var debounceJob: Job? = null
 
     fun iniciar() {
         viewModelScope.launch {
@@ -46,22 +48,34 @@ class TiendasViewModel(
                 is Resultado.Exito -> plazas = r.datos.plazas
                 is Resultado.Error -> {}
             }
-            if (plazaId == null) plazaId = perfil?.permisos?.plazaId?.takeIf { it > 0 } ?: plazas.firstOrNull()?.id
             cargar()
         }
     }
 
     fun onPlazaChange(id: Int?) {
-        plazaId = id
+        plazaId = id?.takeIf { it > 0 }
         cargar()
     }
 
+    fun onBusquedaChange(t: String) {
+        busqueda = t
+        debounceJob?.cancel()
+        debounceJob = viewModelScope.launch { delay(350); cargar() }
+    }
+
     fun cargar() {
-        val pid = plazaId ?: return
         cargando = true
         viewModelScope.launch {
-            tiendasTodas = tiendaRepository.tiendasPorPlaza(pid)
-            atis = tiendaRepository.atisPorPlaza(pid)
+            when (val r = tiendaRepository.listar(plazaId, busqueda)) {
+                is Resultado.Exito -> {
+                    tiendas = r.datos.tiendas
+                    puedeAsignarAti = r.datos.puedeAsignarAti
+                }
+                is Resultado.Error -> mensaje = r.mensaje
+            }
+            if (puedeAsignarAti) {
+                plazaId?.let { atis = tiendaRepository.atisPorPlaza(it) }
+            }
             cargando = false
         }
     }
@@ -71,7 +85,7 @@ class TiendasViewModel(
             when (val r = tiendaRepository.asignarAti(tiendaId, atiUsuarioId)) {
                 is Resultado.Exito -> {
                     mensaje = r.datos
-                    tiendasTodas = tiendasTodas.map {
+                    tiendas = tiendas.map {
                         if (it.id == tiendaId) it.copy(
                             ati_usuario_id = atiUsuarioId,
                             ati_nombre = atis.firstOrNull { u -> u.id == atiUsuarioId }?.nombre,

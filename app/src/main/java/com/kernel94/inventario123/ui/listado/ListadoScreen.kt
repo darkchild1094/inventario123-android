@@ -36,13 +36,17 @@ fun ListadoScreen(
     onEditar: (Int) -> Unit,
     onCrearNuevo: () -> Unit,
     onCerrarSesion: () -> Unit,
+    modulo: String? = null,
+    tiendaId: Int? = null,
     onAbrirHistorial: () -> Unit = {},
     onAbrirTiendas: () -> Unit = {},
     onAbrirModelos: () -> Unit = {},
     onAbrirSolicitudes: () -> Unit = {},
     onAbrirPendientes: () -> Unit = {},
+    onAbrirModulo: (String) -> Unit = {},
+    onAbrirConsulta: () -> Unit = {},
 ) {
-    LaunchedEffect(Unit) { viewModel.iniciar() }
+    LaunchedEffect(modulo, tiendaId) { viewModel.iniciar(modulo, tiendaId) }
     var mostrarFiltros by remember { mutableStateOf(false) }
     var activoAEliminar by remember { mutableStateOf<Int?>(null) }
     val vistasDisponibles = viewModel.perfil?.vistasDisponibles ?: listOf("todos")
@@ -102,13 +106,28 @@ fun ListadoScreen(
                 }
                 Spacer(Modifier.height(8.dp))
 
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Filled.Inventory2, contentDescription = null) },
-                    label = { Text("Inventario") },
-                    selected = true,
-                    onClick = { scope.launch { drawerState.close() } },
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
+                // ── Módulos del rol (fuente: perfil.modulos) ──────────────────
+                viewModel.perfil?.modulos.orEmpty().forEach { m ->
+                    NavigationDrawerItem(
+                        icon = { Icon(iconoModulo(m.clave), contentDescription = null) },
+                        label = { Text(m.etiqueta) },
+                        selected = (m.clave == "dashboard" && viewModel.modulo == null && false) ||
+                                   (viewModel.modulo == m.clave),
+                        onClick = {
+                            cerrarYHacer {
+                                when (m.clave) {
+                                    "dashboard" -> {}
+                                    "consulta"  -> onAbrirConsulta()
+                                    "usuarios"  -> {}
+                                    else        -> onAbrirModulo(m.clave)
+                                }
+                            }
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+                HorizontalDivider(Modifier.padding(vertical = 6.dp))
+
                 if (permisos?.puedeVerHistorial == true) {
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Filled.History, contentDescription = null) },
@@ -211,7 +230,9 @@ fun ListadoScreen(
                 )
             },
             floatingActionButton = {
-                if (permisos?.puedeCrearActivo == true) {
+                val puedeCrearAqui = permisos?.puedeCrearActivo == true &&
+                    (viewModel.modulo == null || viewModel.moduloEditable)
+                if (puedeCrearAqui) {
                     FloatingActionButton(onClick = onCrearNuevo, containerColor = BsPrimary) {
                         Icon(Icons.Filled.Add, contentDescription = "Nuevo", tint = Color.White)
                     }
@@ -220,7 +241,7 @@ fun ListadoScreen(
         ) { padding ->
             Column(Modifier.padding(padding).fillMaxSize().background(Color(0xFFF1F3F5))) {
 
-                if (vistasDisponibles.size > 1) {
+                if (viewModel.modulo == null && vistasDisponibles.size > 1) {
                     TabRow(
                         selectedTabIndex = vistasDisponibles.indexOf(viewModel.vistaActual).coerceAtLeast(0),
                         containerColor = BsDark,
@@ -389,4 +410,16 @@ fun ListadoScreen(
 
 private fun etiquetaVista(vista: String): String = when (vista) {
     "bodega" -> "Bodega"; "mi_stock" -> "Mi Stock"; "todos" -> "Todos"; else -> vista.replaceFirstChar { it.uppercase() }
+}
+
+private fun iconoModulo(clave: String) = when (clave) {
+    "dashboard" -> Icons.Filled.Dashboard
+    "consulta"  -> Icons.Filled.QrCodeScanner
+    "tiendas"   -> Icons.Filled.Store
+    "bodega"    -> Icons.Filled.Warehouse
+    "mi_stock"  -> Icons.Filled.Handyman
+    "stock_pfs" -> Icons.Filled.Groups
+    "ati"       -> Icons.Filled.ManageAccounts
+    "usuarios"  -> Icons.Filled.People
+    else        -> Icons.Filled.Inventory2
 }

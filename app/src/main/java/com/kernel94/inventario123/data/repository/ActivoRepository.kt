@@ -31,11 +31,12 @@ class ActivoRepository(private val api: ApiService, private val context: Context
     }
 
     suspend fun listar(
+        modulo: String? = null,
         vista: String? = null, negocioId: Int? = null, regionId: Int? = null,
-        plazaId: Int? = null, usuarioId: Int? = null, status: String? = null,
+        plazaId: Int? = null, tiendaId: Int? = null, usuarioId: Int? = null, status: String? = null,
         busqueda: String? = null, pagina: Int = 1, porPagina: Int = 5000,
     ): Resultado<ListadoActivosResponse> = try {
-        Resultado.Exito(api.listarActivos(vista, negocioId, regionId, plazaId, usuarioId, status, busqueda, pagina, porPagina))
+        Resultado.Exito(api.listarActivos(modulo, vista, negocioId, regionId, plazaId, tiendaId, usuarioId, status, busqueda, pagina, porPagina))
     } catch (e: Exception) {
         Resultado.Error("No se pudo cargar el listado.")
     }
@@ -44,6 +45,15 @@ class ActivoRepository(private val api: ApiService, private val context: Context
         Resultado.Exito(api.obtenerActivo(id))
     } catch (e: Exception) {
         Resultado.Error("No se pudo cargar el detalle del activo.")
+    }
+
+    suspend fun consultar(q: String): Resultado<com.kernel94.inventario123.data.model.ConsultaResponse> = try {
+        Resultado.Exito(api.consultar(q))
+    } catch (e: retrofit2.HttpException) {
+        if (e.code() == 404) Resultado.Exito(com.kernel94.inventario123.data.model.ConsultaResponse(encontrado = false))
+        else Resultado.Error("No se pudo consultar.")
+    } catch (e: Exception) {
+        Resultado.Error("No se pudo consultar. Revisa tu conexión.")
     }
 
     /** Activos "en uso" de una tienda para el selector "¿Reemplaza a?".

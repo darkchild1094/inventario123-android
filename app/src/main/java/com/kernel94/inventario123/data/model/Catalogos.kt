@@ -3,8 +3,17 @@ package com.kernel94.inventario123.data.model
 data class Usuario(
     val id: Int = 0, val nombre: String = "", val email: String? = null,
     val foto: String? = null, val plaza_id: Int? = null, val plaza_nombre: String? = null,
-    val tipo: String = "fs",
+    val tipo: String = "pfs",
 )
+
+/** Etiqueta legible para un rol de usuario. */
+fun rolLabel(tipo: String?): String = when (tipo?.lowercase()) {
+    "admin"       -> "Admin"
+    "coordinador" -> "Coordinador"
+    "ati"         -> "ATI"
+    "pfs", "fs"   -> "PFS"
+    else          -> tipo?.uppercase() ?: "—"
+}
 
 data class CuentaGuardada(
     val id: Int,
@@ -135,18 +144,89 @@ data class DashMovimiento(
     val evento: String = "", val creado_en: String? = null,
     val equipo: String? = null, val serie: String? = null,
 )
+data class TecnicoResumen(
+    val usuarios: Int = 0, val tiendas: Int = 0, val modelos: Int = 0, val bodegas: Int = 0,
+    val solicitudes_por_estado: Map<String, Int> = emptyMap(),
+    val activos_sin_modelo: Int = 0,
+)
 data class ResumenDashboard(
     val total: Int = 0,
     val por_status: Map<String, Int> = emptyMap(),
     val por_dispositivo: List<DashPorNombre> = emptyList(),
     val por_plaza: List<DashPorNombre> = emptyList(),
+    val por_modulo: Map<String, Int> = emptyMap(),
     val traslados_pendientes: Int = 0,
     val movimientos: List<DashMovimiento> = emptyList(),
+    val tecnico: TecnicoResumen? = null,
+)
+
+// ── Navegación por módulos ──────────────────────────────────────────────────
+
+data class Modulo(
+    val clave: String = "",
+    val etiqueta: String = "",
+    val icono: String = "",
+    val editable: Boolean = false,
 )
 
 data class Perfil(
     val usuario: Usuario? = null, val permisos: Permisos = Permisos(),
+    val modulos: List<Modulo> = emptyList(),
     val vistasDisponibles: List<String> = emptyList(),
+)
+
+// ── Consulta (módulo global de identificación de un equipo) ─────────────────
+
+data class ConsultaUbicacion(
+    val stock_tipo: String? = null,
+    val tienda_stock: String? = null,
+    val bodega: String? = null,
+    val usuario: String? = null,
+    val tienda_uso: String? = null,
+    val procedencia: String? = null,
+    val plaza_nombre: String? = null,
+    val region_nombre: String? = null,
+    val negocio_nombre: String? = null,
+    val status: String? = null,
+    val resumen: String? = null,
+)
+data class ConsultaCoincidencia(
+    val id: Int = 0,
+    val serie: String? = null,
+    val codigo_barras: String? = null,
+    val num_activo: String? = null,
+    val dispositivo_nombre: String? = null,
+    val modelo_nombre: String? = null,
+    val marca_nombre: String? = null,
+    val status: String? = null,
+    val ubicacion_corta: String? = null,
+)
+data class ConsultaResponse(
+    val encontrado: Boolean = false,
+    val message: String? = null,
+    val activo: Activo? = null,
+    val ubicacion: ConsultaUbicacion? = null,
+    val historial: List<Movimiento> = emptyList(),
+    val coincidencias: List<ConsultaCoincidencia> = emptyList(),
+)
+
+// ── Módulo Tiendas ─────────────────────────────────────────────────────────
+
+data class TiendaConteo(
+    val id: Int = 0,
+    val cr_tienda: String? = null,
+    val nombre: String = "",
+    val plaza_id: Int? = null,
+    val plaza_nombre: String? = null,
+    val region_nombre: String? = null,
+    val negocio_nombre: String? = null,
+    val ati_usuario_id: Int? = null,
+    val ati_nombre: String? = null,
+    val activos_count: Int = 0,
+)
+data class ListaTiendasResponse(
+    val tiendas: List<TiendaConteo> = emptyList(),
+    val puedeAsignarAti: Boolean = false,
 )
 
 data class ApiResultado(val success: Boolean = false, val message: String? = null, val id: Int? = null)

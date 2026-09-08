@@ -14,6 +14,15 @@ interface ApiService {
     @GET("index.php?controller=export&action=inventario")
     suspend fun exportarInventario(): Response<ResponseBody>
 
+    // Exporta sólo los activos de un módulo (Tiendas, Bodega, Mi Stock, Stock PFS, ATI).
+    @Streaming
+    @GET("index.php?controller=export&action=modulo")
+    suspend fun exportarModulo(
+        @Query("modulo") modulo: String,
+        @Query("tienda_id") tiendaId: Int? = null,
+        @Query("plaza_id") plazaId: Int? = null,
+    ): Response<ResponseBody>
+
     @Headers("Content-Type: application/json")
     @POST("index.php?controller=api&action=login")
     suspend fun login(@Body body: LoginRequest): LoginResponse
@@ -29,10 +38,12 @@ interface ApiService {
 
     @GET("index.php?controller=api&action=listarActivos")
     suspend fun listarActivos(
+        @Query("modulo") modulo: String? = null,
         @Query("vista") vista: String? = null,
         @Query("negocio_id") negocioId: Int? = null,
         @Query("region_id") regionId: Int? = null,
         @Query("plaza_id") plazaId: Int? = null,
+        @Query("tienda_id") tiendaId: Int? = null,
         @Query("usuario_id") usuarioId: Int? = null,
         @Query("status") status: String? = null,
         @Query("busqueda") busqueda: String? = null,
@@ -42,6 +53,17 @@ interface ApiService {
 
     @GET("index.php?controller=api&action=obtenerActivo")
     suspend fun obtenerActivo(@Query("id") id: Int): Activo
+
+    // Módulo "Consulta": identifica un equipo (global, sólo lectura).
+    @GET("index.php?controller=api&action=consultar")
+    suspend fun consultar(@Query("q") q: String): ConsultaResponse
+
+    // Lista del módulo "Tiendas": acotada al rol, con nº de activos por tienda.
+    @GET("index.php?controller=api&action=listarTiendas")
+    suspend fun listarTiendas(
+        @Query("plaza_id") plazaId: Int? = null,
+        @Query("busqueda") busqueda: String? = null,
+    ): ListaTiendasResponse
 
     // Multipart porque guardarActivo/actualizarActivo ahora aceptan las 3 fotos
     // opcionales del activo (migración 007 + ImageHelper), igual que crear.php/editar.php

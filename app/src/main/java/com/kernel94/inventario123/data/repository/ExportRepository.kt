@@ -37,4 +37,26 @@ class ExportRepository(private val api: ApiService) {
             Resultado.Error("No se pudo conectar al servidor para exportar.")
         }
     }
+
+    /** Descarga el Excel de un módulo (Tiendas, Bodega, Mi Stock, Stock PFS, ATI). */
+    suspend fun exportarModulo(context: Context, modulo: String, tiendaId: Int? = null): Resultado<File> {
+        return try {
+            val response = api.exportarModulo(modulo, tiendaId)
+            if (!response.isSuccessful || response.body() == null) {
+                return Resultado.Error(
+                    if (response.code() == 403) "No tienes permiso para exportar."
+                    else "No se pudo generar el archivo."
+                )
+            }
+            val carpeta = File(context.cacheDir, "exportados").apply { mkdirs() }
+            val sello = SimpleDateFormat("yyyy-MM-dd_HH-mm", Locale("es", "MX")).format(Date())
+            val archivo = File(carpeta, "Inventario_${modulo.replaceFirstChar { it.uppercase() }}_$sello.xlsx")
+            response.body()!!.byteStream().use { entrada ->
+                archivo.outputStream().use { salida -> entrada.copyTo(salida) }
+            }
+            Resultado.Exito(archivo)
+        } catch (e: Exception) {
+            Resultado.Error("No se pudo conectar al servidor para exportar.")
+        }
+    }
 }

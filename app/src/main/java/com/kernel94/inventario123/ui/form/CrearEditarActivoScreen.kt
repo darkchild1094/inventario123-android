@@ -39,8 +39,10 @@ fun CrearEditarActivoScreen(
     codigoEscaneado: String?,
     onSerieConsumida: () -> Unit,
     onCodigoConsumido: () -> Unit,
+    moduloContexto: String? = null,
+    tiendaUsoContexto: Int? = null,
 ) {
-    LaunchedEffect(idActivoAEditar) { viewModel.iniciar(idActivoAEditar) }
+    LaunchedEffect(idActivoAEditar) { viewModel.iniciar(idActivoAEditar, moduloContexto, tiendaUsoContexto) }
 
     LaunchedEffect(serieEscaneada) {
         if (!serieEscaneada.isNullOrBlank()) {
@@ -164,9 +166,9 @@ fun CrearEditarActivoScreen(
             )
 
             Text("Estatus", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 8.dp))
-            // Un ingeniero (fs) editando un activo suyo 'asignado' NO puede mandarlo
+            // Un ingeniero (pfs) editando un activo suyo 'asignado' NO puede mandarlo
             // a bodega directo: debe usar "Traslados a bodega" (firma del coordinador).
-            val ocultarEnBodega = viewModel.perfil?.permisos?.tipo == "fs" &&
+            val ocultarEnBodega = viewModel.perfil?.permisos?.tipo == "pfs" &&
                 viewModel.idEdicion != null && viewModel.status == "asignado"
             Column {
                 ESTATUS_OPCIONES.forEach { (valor, etiqueta) ->

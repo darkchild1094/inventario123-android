@@ -94,7 +94,7 @@ class SolicitudesViewModel(
                     }.ifEmpty { r.datos.bodegas }
                     tiendas = r.datos.tiendas.filter { plazaId == 0 || it.plaza_id == plazaId }.ifEmpty { r.datos.tiendas }
                     ingenieros = r.datos.usuarios.filter {
-                        it.id != miId && (it.plaza_id == plazaId || plazaId == 0) && it.tipo in listOf("fs", "ati", "coordinador")
+                        it.id != miId && (it.plaza_id == plazaId || plazaId == 0) && it.tipo in listOf("pfs", "ati", "coordinador")
                     }
                 }
                 is Resultado.Error -> {}
