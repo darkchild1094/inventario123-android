@@ -33,6 +33,7 @@ class CrearEditarActivoViewModel(
 
     var perfil by mutableStateOf<Perfil?>(null); private set
     var catalogos by mutableStateOf(Catalogos()); private set
+    var hintsEscaner by mutableStateOf(HintsEscaner()); private set
 
     // Campos del formulario (persisten entre registros, excepto los marcados abajo)
     var serie by mutableStateOf("")            // se limpia después de guardar
@@ -102,6 +103,7 @@ class CrearEditarActivoViewModel(
                 is Resultado.Exito -> catalogos = r.datos
                 is Resultado.Error -> {}
             }
+            hintsEscaner = catalogoRepository.obtenerHintsEscaner()
 
             if (idActivoAEditar != null) {
                 idEdicion = idActivoAEditar
@@ -253,9 +255,15 @@ class CrearEditarActivoViewModel(
         return tipo == "admin" || tipo == "coordinador" || tipo == "ati"
     }
 
+    private val cbRegex = Regex("^\\d{8}$")
+
     fun guardar(context: Context, onExito: () -> Unit) {
         if (serie.isBlank()) {
             mensaje = "La serie es obligatoria."; esError = true; return
+        }
+        if ((codigoBarras.isNotBlank() && !cbRegex.matches(codigoBarras.trim())) ||
+            (salidaCodigoBarras.isNotBlank() && !cbRegex.matches(salidaCodigoBarras.trim()))) {
+            mensaje = "El código de barras debe ser 8 dígitos numéricos."; esError = true; return
         }
         guardando = true
         mensaje = null
@@ -335,4 +343,17 @@ class CrearEditarActivoViewModel(
      *  hardcodeados que podrían cambiar entre entornos/plazas. */
     fun nombreDispositivoSeleccionado(): String? =
         catalogos.dispositivos.find { it.id == dispositivoId }?.nombre
+
+    /** Prefijos a priorizar en el lector de series para el dispositivo elegido
+     *  (coma-separados). Usa las pistas del servidor; fallback por nombre. */
+    fun prefijoEscanerSerie(): String? = hintSerie().prefijos.joinToString(",").ifBlank {
+        if (nombreDispositivoSeleccionado()?.uppercase()?.contains("UPS") == true) "3S,SM" else null
+    }
+    /** ¿Conviene modo OCR (sin código útil) para este dispositivo? */
+    fun ocrEscanerSerie(): Boolean = hintSerie().modo_ocr ||
+        (nombreDispositivoSeleccionado()?.uppercase()?.contains("REGULADOR") == true &&
+         nombreDispositivoSeleccionado()?.uppercase()?.contains("UPS") != true)
+
+    private fun hintSerie(): HintSerie =
+        hintsEscaner.por_dispositivo[dispositivoId?.toString()]?.serie ?: HintSerie()
 }

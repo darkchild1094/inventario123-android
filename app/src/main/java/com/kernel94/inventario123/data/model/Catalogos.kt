@@ -229,6 +229,27 @@ data class ListaTiendasResponse(
     val puedeAsignarAti: Boolean = false,
 )
 
+// ── Pistas para el escáner de series (derivadas de las series ya registradas) ──
+
+data class HintSerie(
+    val prefijos: List<String> = emptyList(),
+    val modo_ocr: Boolean = false,
+    val zoom_alto: Boolean = false,
+)
+data class HintCodigoBarras(val longitud: Int = 8, val solo_digitos: Boolean = true)
+data class HintDispositivo(
+    val serie: HintSerie = HintSerie(),
+    val codigo_barras: HintCodigoBarras = HintCodigoBarras(),
+)
+data class HintsEscaner(
+    val por_dispositivo: Map<String, HintDispositivo> = emptyMap(),
+)
+
+/** Motivos de movimiento (select en los formularios). El texto se guarda tal cual en movimiento.nota. */
+val MOTIVOS_MOVIMIENTO = listOf(
+    "Renovación tecnológica", "Daño", "Garantía", "Alta", "Baja", "Traspaso",
+)
+
 data class ResolverSerieResponse(
     val encontrado: Boolean = false,
     val activo: Activo? = null,

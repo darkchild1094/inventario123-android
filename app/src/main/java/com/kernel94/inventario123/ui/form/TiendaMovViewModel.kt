@@ -36,6 +36,7 @@ class TiendaMovViewModel(
 
     var perfil by mutableStateOf<Perfil?>(null); private set
     var catalogos by mutableStateOf(Catalogos()); private set
+    var hintsEscaner by mutableStateOf(HintsEscaner()); private set
     var tiendas by mutableStateOf<List<Tienda>>(emptyList()); private set
 
     var modo by mutableStateOf(ModoMov.INSTALACION)
@@ -71,6 +72,19 @@ class TiendaMovViewModel(
     val online get() = pendientesRepository.online
     private val miId get() = perfil?.usuario?.id ?: 0
 
+    private val cbRegex = Regex("^\\d{8}$")
+    private fun cbInvalido(v: String) = v.isNotBlank() && !cbRegex.matches(v.trim())
+
+    private fun nombreDisp() = catalogos.dispositivos.find { it.id == dispositivoId }?.nombre?.uppercase() ?: ""
+    private fun hintSerie(): HintSerie =
+        hintsEscaner.por_dispositivo[dispositivoId?.toString()]?.serie ?: HintSerie()
+    /** Prefijos (coma-separados) a priorizar en el lector de series. */
+    fun prefijoEscanerSerie(): String? = hintSerie().prefijos.joinToString(",").ifBlank {
+        if (nombreDisp().contains("UPS")) "3S,SM" else null
+    }
+    fun ocrEscanerSerie(): Boolean = hintSerie().modo_ocr ||
+        (nombreDisp().contains("REGULADOR") && !nombreDisp().contains("UPS"))
+
     private var jSerie: Job? = null
     private var jSalida: Job? = null
 
@@ -82,6 +96,7 @@ class TiendaMovViewModel(
                 is Resultado.Exito -> catalogos = r.datos
                 is Resultado.Error -> {}
             }
+            hintsEscaner = catalogoRepository.obtenerHintsEscaner()
             val misPlazas = perfil?.permisos?.plazasIds?.toSet().orEmpty() +
                 listOfNotNull(perfil?.permisos?.plazaId?.takeIf { it > 0 })
             tiendas = if (perfil?.permisos?.tipo == "admin" || misPlazas.isEmpty()) catalogos.tiendas
@@ -140,6 +155,9 @@ class TiendaMovViewModel(
         val tId = tiendaId
         if (tId == null || tId <= 0) { mensaje = "Elige la tienda."; esError = true; return }
         if (serie.isBlank()) { mensaje = "La serie es obligatoria."; esError = true; return }
+        if (cbInvalido(codigoBarras) || (modo == ModoMov.REEMPLAZO && cbInvalido(salidaCodigoBarras))) {
+            mensaje = "El código de barras debe ser 8 dígitos numéricos."; esError = true; return
+        }
         guardando = true; mensaje = null
 
         viewModelScope.launch {

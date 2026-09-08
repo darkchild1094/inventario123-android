@@ -33,13 +33,25 @@ fun TiendaMovScreen(
     onCodigoConsumido: () -> Unit,
 ) {
     val context = LocalContext.current
+    // Qué campo se está escaneando: "serie" | "codigo" | "salida_serie" | "salida_codigo"
+    var objetivoEscaneo by remember { mutableStateOf("serie") }
     LaunchedEffect(tiendaFijaId) { viewModel.iniciar(tiendaFijaId) }
     LaunchedEffect(serieEscaneada) {
-        if (!serieEscaneada.isNullOrBlank()) { viewModel.onSerieChange(serieEscaneada); onSerieConsumida() }
+        if (!serieEscaneada.isNullOrBlank()) {
+            if (objetivoEscaneo == "salida_serie") viewModel.onSalidaSerieChange(serieEscaneada)
+            else viewModel.onSerieChange(serieEscaneada)
+            onSerieConsumida()
+        }
     }
     LaunchedEffect(codigoEscaneado) {
-        if (!codigoEscaneado.isNullOrBlank()) { viewModel.codigoBarras = codigoEscaneado; onCodigoConsumido() }
+        if (!codigoEscaneado.isNullOrBlank()) {
+            if (objetivoEscaneo == "salida_codigo") viewModel.salidaCodigoBarras = codigoEscaneado
+            else viewModel.codigoBarras = codigoEscaneado
+            onCodigoConsumido()
+        }
     }
+    val abrirSerie = { obj: String -> objetivoEscaneo = obj; onAbrirEscanerSerie() }
+    val abrirCodigo = { obj: String -> objetivoEscaneo = obj; onAbrirEscanerCodigo() }
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(viewModel.mensaje) {
         viewModel.mensaje?.let { snackbar.showSnackbar(it); viewModel.limpiarMensaje() }
@@ -97,12 +109,14 @@ fun TiendaMovScreen(
                 value = viewModel.serie, onValueChange = viewModel::onSerieChange,
                 label = { Text(if (viewModel.modo == ModoMov.RETIRO) "Serie del equipo a retirar" else "Serie") },
                 singleLine = true, modifier = Modifier.fillMaxWidth(),
-                trailingIcon = { IconButton(onClick = onAbrirEscanerSerie) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear") } },
+                trailingIcon = { IconButton(onClick = { abrirSerie("serie") }) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear serie") } },
             )
             OutlinedTextField(
-                value = viewModel.codigoBarras, onValueChange = { viewModel.codigoBarras = it },
-                label = { Text("Código de barras") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                trailingIcon = { IconButton(onClick = onAbrirEscanerCodigo) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear") } },
+                value = viewModel.codigoBarras, onValueChange = { viewModel.codigoBarras = it.filter(Char::isDigit).take(8) },
+                label = { Text("Código de barras (8 dígitos)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                isError = viewModel.codigoBarras.isNotBlank() && viewModel.codigoBarras.length != 8,
+                supportingText = { if (viewModel.codigoBarras.isNotBlank() && viewModel.codigoBarras.length != 8) Text("Deben ser 8 dígitos numéricos") },
+                trailingIcon = { IconButton(onClick = { abrirCodigo("codigo") }) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear código") } },
             )
 
             // Hint del lookup
@@ -141,10 +155,13 @@ fun TiendaMovScreen(
                 OutlinedTextField(
                     value = viewModel.salidaSerie, onValueChange = viewModel::onSalidaSerieChange,
                     label = { Text("Serie del que sale") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = { IconButton(onClick = { abrirSerie("salida_serie") }) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear serie del que sale") } },
                 )
                 OutlinedTextField(
-                    value = viewModel.salidaCodigoBarras, onValueChange = { viewModel.salidaCodigoBarras = it },
-                    label = { Text("CB del que sale") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    value = viewModel.salidaCodigoBarras, onValueChange = { viewModel.salidaCodigoBarras = it.filter(Char::isDigit).take(8) },
+                    label = { Text("CB del que sale (8 dígitos)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    isError = viewModel.salidaCodigoBarras.isNotBlank() && viewModel.salidaCodigoBarras.length != 8,
+                    trailingIcon = { IconButton(onClick = { abrirCodigo("salida_codigo") }) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear código del que sale") } },
                 )
                 viewModel.lookupSalida?.let { lk ->
                     val ok = lk.encontrado && lk.en_esta_tienda
@@ -156,9 +173,10 @@ fun TiendaMovScreen(
                 }
             }
 
-            OutlinedTextField(
-                value = viewModel.motivo, onValueChange = { viewModel.motivo = it },
-                label = { Text("Razón / motivo") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            MotivoDropdown(
+                seleccion = viewModel.motivo,
+                onSeleccion = { viewModel.motivo = it },
+                modifier = Modifier.fillMaxWidth(),
             )
 
             FotoActivoCampo(

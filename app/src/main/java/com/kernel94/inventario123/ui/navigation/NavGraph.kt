@@ -151,7 +151,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 viewModel = vm,
                 tiendaFijaId = tId.takeIf { it > 0 },
                 onVolver = { navController.popBackStack() },
-                onAbrirEscanerSerie = { navController.navigate(Screen.Escaner.crear("serie")) },
+                onAbrirEscanerSerie = { navController.navigate(Screen.Escaner.crear("serie", vm.prefijoEscanerSerie(), vm.ocrEscanerSerie())) },
                 onAbrirEscanerCodigo = { navController.navigate(Screen.Escaner.crear("codigo")) },
                 serieEscaneada = serieEscaneada,
                 codigoEscaneado = codigoEscaneado,
@@ -214,10 +214,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 tiendaUsoContexto = tiendaUsoArg.takeIf { it > 0 },
                 onVolver = { navController.popBackStack() },
                 onAbrirEscanerSerie = {
-                    val nombreDispositivo = vm.nombreDispositivoSeleccionado()?.uppercase() ?: ""
-                    val prefijo = if (nombreDispositivo.contains("UPS")) "3S,SM" else null
-                    val modoRegulador = nombreDispositivo.contains("REGULADOR")
-                    navController.navigate(Screen.Escaner.crear("serie", prefijo, modoRegulador))
+                    navController.navigate(Screen.Escaner.crear("serie", vm.prefijoEscanerSerie(), vm.ocrEscanerSerie()))
                 },
                 onAbrirEscanerCodigo = { navController.navigate(Screen.Escaner.crear("codigo")) },
                 serieEscaneada = serieEscaneada,
@@ -237,10 +234,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 viewModel = vm, idActivoAEditar = id,
                 onVolver = { navController.popBackStack() },
                 onAbrirEscanerSerie = {
-                    val nombreDispositivo = vm.nombreDispositivoSeleccionado()?.uppercase() ?: ""
-                    val prefijo = if (nombreDispositivo.contains("UPS")) "3S,SM" else null
-                    val modoRegulador = nombreDispositivo.contains("REGULADOR")
-                    navController.navigate(Screen.Escaner.crear("serie", prefijo, modoRegulador))
+                    navController.navigate(Screen.Escaner.crear("serie", vm.prefijoEscanerSerie(), vm.ocrEscanerSerie()))
                 },
                 onAbrirEscanerCodigo = { navController.navigate(Screen.Escaner.crear("codigo")) },
                 serieEscaneada = serieEscaneada,

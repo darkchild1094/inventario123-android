@@ -147,8 +147,10 @@ fun CrearEditarActivoScreen(
             )
             OutlinedTextField(
                 value = viewModel.codigoBarras,
-                onValueChange = { viewModel.codigoBarras = it },
-                label = { Text("Código de barras") },
+                onValueChange = { viewModel.codigoBarras = it.filter(Char::isDigit).take(8) },
+                label = { Text("Código de barras (8 dígitos)") },
+                isError = viewModel.codigoBarras.isNotBlank() && viewModel.codigoBarras.length != 8,
+                supportingText = { if (viewModel.codigoBarras.isNotBlank() && viewModel.codigoBarras.length != 8) Text("Deben ser 8 dígitos numéricos") },
                 trailingIcon = {
                     IconButton(onClick = onAbrirEscanerCodigo) {
                         Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear código de barras")
@@ -269,8 +271,9 @@ fun CrearEditarActivoScreen(
                         )
                         OutlinedTextField(
                             value = viewModel.salidaCodigoBarras,
-                            onValueChange = { viewModel.salidaCodigoBarras = it },
-                            label = { Text("Código de barras del equipo que sale") },
+                            onValueChange = { viewModel.salidaCodigoBarras = it.filter(Char::isDigit).take(8) },
+                            label = { Text("Código de barras del que sale (8 dígitos)") },
+                            isError = viewModel.salidaCodigoBarras.isNotBlank() && viewModel.salidaCodigoBarras.length != 8,
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                         )
@@ -327,13 +330,10 @@ fun CrearEditarActivoScreen(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             )
 
-            OutlinedTextField(
-                value = viewModel.motivo,
-                onValueChange = { viewModel.motivo = it.take(255) },
-                label = { Text("Motivo del movimiento (opcional)") },
-                supportingText = { Text("Se guarda en el historial junto con este movimiento.") },
-                minLines = 2,
-                maxLines = 4,
+            MotivoDropdown(
+                seleccion = viewModel.motivo,
+                onSeleccion = { viewModel.motivo = it },
+                etiqueta = "Motivo del movimiento",
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             )
 

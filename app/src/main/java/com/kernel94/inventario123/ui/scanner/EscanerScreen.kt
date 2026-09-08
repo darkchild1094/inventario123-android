@@ -79,7 +79,8 @@ fun EscanerScreen(
     val esCodigo = target == "codigo" || target == "codigo_barras"
 
     // Validación por forma del campo objetivo.
-    val regexCodigo = remember { Regex("^\\d{7,14}$") }
+    // Código de barras de inventario: 8 dígitos numéricos exactos.
+    val regexCodigo = remember { Regex("^\\d{8}$") }
     val regexSerie = remember { Regex("^[A-Za-z0-9][A-Za-z0-9\\-./]{3,29}$") }
     fun limpiar(v: String) = v.replace(Regex("[\\u202a-\\u202e\\u200e\\u200f\\s]"), "").trim()
     fun cumpleForma(v: String): Boolean {

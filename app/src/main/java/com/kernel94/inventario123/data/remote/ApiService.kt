@@ -108,6 +108,10 @@ interface ApiService {
     @GET("index.php?controller=api&action=obtenerModelosPorDispositivo")
     suspend fun obtenerModelosPorDispositivo(@Query("dispositivo_id") dispositivoId: Int): List<Modelo>
 
+    // Pistas para el lector de series por tipo de dispositivo (prefijos frecuentes, OCR).
+    @GET("index.php?controller=api&action=obtenerHintsEscaner")
+    suspend fun obtenerHintsEscaner(): HintsEscaner
+
     @GET("index.php?controller=api&action=obtenerPlazasPorNegocio")
     suspend fun obtenerPlazasPorNegocio(@Query("negocio_id") negocioId: Int): List<Plaza>
 

@@ -14,6 +14,18 @@ class CatalogoRepository(private val api: ApiService, private val context: Conte
 
     private val gson = Gson()
     private val cache: File? get() = context?.let { File(it.filesDir, "catalogos_cache.json") }
+    private val cacheHints: File? get() = context?.let { File(it.filesDir, "hints_escaner_cache.json") }
+
+    /** Pistas del lector de series por dispositivo. Se cachea para uso offline. */
+    suspend fun obtenerHintsEscaner(): HintsEscaner = try {
+        val h = api.obtenerHintsEscaner()
+        cacheHints?.let { runCatching { it.writeText(gson.toJson(h)) } }
+        h
+    } catch (e: Exception) {
+        cacheHints?.takeIf { it.exists() }?.let {
+            runCatching { gson.fromJson(it.readText(), HintsEscaner::class.java) }.getOrNull()
+        } ?: HintsEscaner()
+    }
 
     suspend fun obtenerCatalogos(): Resultado<Catalogos> = try {
         val c = api.obtenerCatalogos()
