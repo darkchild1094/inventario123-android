@@ -45,7 +45,8 @@ class TiendaMovViewModel(
     var serie by mutableStateOf("")
     var codigoBarras by mutableStateOf("")
     var motivo by mutableStateOf("")
-    var fotoEquipoUri by mutableStateOf<Uri?>(null)
+    var fotoEquipoUri by mutableStateOf<Uri?>(null)   // equipo instalado / entrante
+    var fotoSalidaUri by mutableStateOf<Uri?>(null)   // equipo retirado (modo reemplazo)
 
     // Sólo cuando la instalación/reemplazo es un alta nueva.
     var dispositivoId by mutableStateOf<Int?>(null)
@@ -197,17 +198,19 @@ class TiendaMovViewModel(
                         mensaje = "El equipo que sale no está instalado en esta tienda."
                         return@launch
                     }
-                    val campos = activoRepository.camposTexto(
+                    // Online: lleva 2 fotos (instalado + retirado); no pasa por la cola.
+                    activoRepository.crear(
+                        context = context,
                         serie = serie.trim(), codigoBarras = codigoBarras.ifBlank { null },
                         numActivo = null, modeloId = modeloId, status = "en_uso",
-                        negocioId = null, plazaId = null, procedenciaTiendaId = null,
-                        tiendaUsoId = tId, asignadoUsuarioId = null, stockDestino = null,
-                        atiUsuarioId = null, motivo = motivo.trim().ifBlank { null },
+                        negocioId = null, plazaId = null, procedenciaTiendaId = null, tiendaUsoId = tId,
+                        asignadoUsuarioId = null, stockDestino = null, atiUsuarioId = null,
                         reemplazaActivoId = saleId, salidaDestino = "asignado", salidaUsuarioId = miId,
                         salidaSerie = salidaSerie.trim().ifBlank { null },
                         salidaCodigoBarras = salidaCodigoBarras.trim().ifBlank { null },
+                        motivo = motivo.trim().ifBlank { null },
+                        fotoEquipoUri = fotoEquipoUri, fotoEquipoSalidaUri = fotoSalidaUri,
                     )
-                    pendientesRepository.registrar(context, campos, fotoEquipoUri, null, null)
                 }
             }
 
@@ -229,7 +232,7 @@ class TiendaMovViewModel(
     }
 
     private fun limpiar() {
-        serie = ""; codigoBarras = ""; motivo = ""; fotoEquipoUri = null
+        serie = ""; codigoBarras = ""; motivo = ""; fotoEquipoUri = null; fotoSalidaUri = null
         salidaSerie = ""; salidaCodigoBarras = ""
         modeloId = null; lookup = null; lookupSalida = null
     }

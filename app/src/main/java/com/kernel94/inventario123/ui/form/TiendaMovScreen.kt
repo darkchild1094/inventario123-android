@@ -162,13 +162,21 @@ fun TiendaMovScreen(
             )
 
             FotoActivoCampo(
-                etiqueta = "Foto del equipo", urlActual = null,
+                etiqueta = if (viewModel.modo == ModoMov.REEMPLAZO) "Foto del equipo instalado" else "Foto del equipo",
+                urlActual = null,
                 uriSeleccionada = viewModel.fotoEquipoUri, onCambio = { viewModel.fotoEquipoUri = it },
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (viewModel.modo == ModoMov.REEMPLAZO) {
+                FotoActivoCampo(
+                    etiqueta = "Foto del equipo retirado", urlActual = null,
+                    uriSeleccionada = viewModel.fotoSalidaUri, onCambio = { viewModel.fotoSalidaUri = it },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             if (!online) {
-                Text("Sin conexión: la instalación de equipo nuevo y el reemplazo se guardan y se envían al recuperar señal. El retiro requiere conexión.",
+                Text("Sin conexión: la instalación de equipo nuevo se guarda y se envía al recuperar señal. El retiro y el reemplazo requieren conexión.",
                     style = MaterialTheme.typography.bodySmall, color = Color(0xFFB8860B))
             }
 
