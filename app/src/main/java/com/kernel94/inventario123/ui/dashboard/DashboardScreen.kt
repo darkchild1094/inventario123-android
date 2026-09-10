@@ -96,8 +96,8 @@ fun DashboardScreen(
     ) { padding ->
         Column(
             Modifier.padding(padding).fillMaxSize().background(Color(0xFFF1F3F5))
-                .verticalScroll(rememberScrollState()).padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             when {
                 viewModel.cargando && r == null -> Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -106,9 +106,9 @@ fun DashboardScreen(
                     // Módulos del rol (fuente: perfil.modulos)
                     val modulos = p?.modulos.orEmpty().filter { it.clave != "dashboard" }
                     if (modulos.isNotEmpty()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             modulos.chunked(2).forEach { fila ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     fila.forEach { m ->
                                         val cnt = r.por_modulo[m.clave]
                                         Card(
@@ -121,7 +121,7 @@ fun DashboardScreen(
                                             modifier = Modifier.weight(1f),
                                             colors = CardDefaults.cardColors(containerColor = Color.White),
                                         ) {
-                                            Column(Modifier.padding(14.dp)) {
+                                            Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
                                                 Text(m.etiqueta, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                                                 Text(
                                                     cnt?.let { "$it activos" } ?: if (!m.editable) "Consultar" else "",
@@ -145,19 +145,18 @@ fun DashboardScreen(
                         Triple("Garantía", r.por_status["garantia"] ?: 0, Color(0xFFFFC107)),
                         Triple("Baja", r.por_status["baja"] ?: 0, Color(0xFFDC3545)),
                     )
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         kpis.chunked(3).forEach { fila ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 fila.forEach { (lbl, n, c) ->
+                                    val fg = if (lbl == "Garantía") Color.Black else Color.White
                                     Card(
                                         Modifier.weight(1f),
                                         colors = CardDefaults.cardColors(containerColor = c),
                                     ) {
-                                        Column(Modifier.padding(12.dp)) {
-                                            Text("$n", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge,
-                                                color = if (lbl == "Garantía") Color.Black else Color.White)
-                                            Text(lbl, style = MaterialTheme.typography.labelSmall,
-                                                color = (if (lbl == "Garantía") Color.Black else Color.White).copy(alpha = .85f))
+                                        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                                            Text("$n", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = fg)
+                                            Text(lbl, style = MaterialTheme.typography.labelSmall, color = fg.copy(alpha = .85f), maxLines = 1)
                                         }
                                     }
                                 }
@@ -171,7 +170,7 @@ fun DashboardScreen(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3CD)),
                         ) {
-                            Row(Modifier.padding(14.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Filled.SwapHoriz, contentDescription = null, tint = Color(0xFF664D03))
                                 Spacer(Modifier.width(10.dp))
                                 Text("${r.traslados_pendientes} solicitud(es) por firmar", color = Color(0xFF664D03), fontWeight = FontWeight.SemiBold)
@@ -181,7 +180,7 @@ fun DashboardScreen(
 
                     // Por tipo de equipo
                     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-                        Column(Modifier.padding(14.dp)) {
+                        Column(Modifier.padding(12.dp)) {
                             Text("Por tipo de equipo", fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(8.dp))
                             val max = (r.por_dispositivo.maxOfOrNull { it.n } ?: 1).coerceAtLeast(1)
@@ -201,7 +200,7 @@ fun DashboardScreen(
 
                     // Movimientos recientes
                     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-                        Column(Modifier.padding(14.dp)) {
+                        Column(Modifier.padding(12.dp)) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Movimientos recientes", fontWeight = FontWeight.Bold)
                                 TextButton(onClick = onAbrirHistorial) { Text("Ver todo") }
