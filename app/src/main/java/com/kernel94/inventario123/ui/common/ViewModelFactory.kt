@@ -15,6 +15,7 @@ import com.kernel94.inventario123.ui.historial.HistorialViewModel
 import com.kernel94.inventario123.ui.listado.ListadoViewModel
 import com.kernel94.inventario123.ui.modelos.ModelosViewModel
 import com.kernel94.inventario123.ui.pendientes.PendientesViewModel
+import com.kernel94.inventario123.ui.bodega.InventarioStockViewModel
 import com.kernel94.inventario123.ui.rentec.RentecDetalleViewModel
 import com.kernel94.inventario123.ui.rentec.RentecListaViewModel
 import com.kernel94.inventario123.ui.solicitudes.SolicitudesViewModel
@@ -56,6 +57,8 @@ class ViewModelFactory(private val app: Inventario123App) : ViewModelProvider.Fa
                 InventarioBodegaDetalleViewModel(app.bodegaRepository) as T
             modelClass.isAssignableFrom(InventarioBodegaViewModel::class.java) ->
                 InventarioBodegaViewModel(app.bodegaRepository) as T
+            modelClass.isAssignableFrom(InventarioStockViewModel::class.java) ->
+                InventarioStockViewModel(app.bodegaRepository) as T
             modelClass.isAssignableFrom(RentecDetalleViewModel::class.java) ->
                 RentecDetalleViewModel(app.rentecRepository, app.exportRepository) as T
             modelClass.isAssignableFrom(RentecListaViewModel::class.java) ->

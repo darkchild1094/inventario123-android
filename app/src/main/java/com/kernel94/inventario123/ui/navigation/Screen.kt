@@ -49,6 +49,9 @@ sealed class Screen(val route: String) {
     // Inventario físico de bodega (auditoría por escaneo, migración 027).
     object InventarioBodega : Screen("inventario_bodega")
     object InventarioBodegaDetalle : Screen("inventario_bodega/{id}") { fun crear(id: Int) = "inventario_bodega/$id" }
+    // Inventario físico de stock personal (Mi Stock / Stock PFS, migración 029).
+    // Reusa InventarioBodegaDetalle para la pantalla de escaneo (es genérica).
+    object InventarioStock : Screen("inventario_stock")
     // RENTEC: proyectos de Renovación Tecnológica (migración 028).
     object Rentec : Screen("rentec")
     object RentecDetalle : Screen("rentec/{id}") { fun crear(id: Int) = "rentec/$id" }

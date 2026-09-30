@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.kernel94.inventario123.data.model.InventarioBodegaDetalle
 import com.kernel94.inventario123.ui.theme.BsDark
@@ -87,6 +89,32 @@ fun InventarioBodegaDetalleScreen(
                             ) { Text("Cerrar inventario") }
                         } else {
                             AssistChip(onClick = {}, label = { Text("Cerrado") })
+                        }
+                    }
+
+                    if (inv.abierto) {
+                        var codigoManual by remember { mutableStateOf("") }
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            OutlinedTextField(
+                                value = codigoManual,
+                                onValueChange = { codigoManual = it },
+                                label = { Text("O teclea serie / N° de activo") },
+                                singleLine = true,
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = {
+                                    if (codigoManual.isNotBlank()) { viewModel.escanear(codigoManual.trim()); codigoManual = "" }
+                                }),
+                                modifier = Modifier.weight(1f),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            IconButton(onClick = {
+                                if (codigoManual.isNotBlank()) { viewModel.escanear(codigoManual.trim()); codigoManual = "" }
+                            }) {
+                                Icon(Icons.Filled.Search, contentDescription = "Buscar", tint = BsPrimary)
+                            }
                         }
                     }
 

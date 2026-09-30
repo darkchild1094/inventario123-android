@@ -190,6 +190,17 @@ interface ApiService {
     @POST("index.php?controller=api&action=inventarioBodegaCerrar")
     suspend fun inventarioBodegaCerrar(@Body body: Map<String, @JvmSuppressWildcards Any?>): InventarioBodegaResponse
 
+    // ── Inventario físico de stock personal (Mi Stock / Stock PFS) ──────
+    @GET("index.php?controller=api&action=inventarioStockUsuarios")
+    suspend fun inventarioStockUsuarios(): List<Usuario>
+
+    @GET("index.php?controller=api&action=inventarioStockListar")
+    suspend fun inventarioStockListar(@Query("stock_usuario_id") stockUsuarioId: Int): List<InventarioBodega>
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=inventarioStockIniciar")
+    suspend fun inventarioStockIniciar(@Body body: Map<String, @JvmSuppressWildcards Any?>): InventarioBodegaResponse
+
     // ── RENTEC: proyectos de Renovación Tecnológica ──────────────────────
     @GET("index.php?controller=api&action=rentecListar")
     suspend fun rentecListar(): List<ProyectoRentec>

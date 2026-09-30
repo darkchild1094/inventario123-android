@@ -1,9 +1,11 @@
 package com.kernel94.inventario123.data.model
 
-/** Auditoría física mensual de una bodega: snapshot de activos en_bodega + qué se escaneó. */
+/** Auditoría física mensual: snapshot de activos + qué se escaneó. Objetivo es
+ *  una bodega o el stock personal de un usuario (uno de los dos, no ambos). */
 data class InventarioBodega(
     val id: Int = 0,
-    val bodega_id: Int = 0,
+    val bodega_id: Int? = null,
+    val stock_usuario_id: Int? = null,
     val periodo: String = "",
     val estado: String = "abierto",
     val usuario_id: Int = 0,

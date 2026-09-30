@@ -139,9 +139,11 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onAbrirConsulta = { navController.navigate(Screen.Consulta.route) },
                 onAbrirDashboard = { navController.navigate(Screen.Dashboard.route) { launchSingleTop = true } },
                 onAbrirUsuarios = { navController.navigate(Screen.Usuarios.route) },
-                onAbrirInventarioBodega = if (moduloArg == "bodega") {
-                    { navController.navigate(Screen.InventarioBodega.route) }
-                } else null,
+                onAbrirInventario = when (moduloArg) {
+                    "bodega" -> { { navController.navigate(Screen.InventarioBodega.route) } }
+                    "mi_stock", "stock_pfs" -> { { navController.navigate(Screen.InventarioStock.route) } }
+                    else -> null
+                },
             )
         }
 
@@ -391,6 +393,15 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
         composable(Screen.InventarioBodega.route) {
             val vm: com.kernel94.inventario123.ui.bodega.InventarioBodegaViewModel = viewModel(factory = factory)
             com.kernel94.inventario123.ui.bodega.InventarioBodegaScreen(
+                viewModel = vm,
+                onVolver = { navController.popBackStack() },
+                onAbrirInventario = { id -> navController.navigate(Screen.InventarioBodegaDetalle.crear(id)) },
+            )
+        }
+
+        composable(Screen.InventarioStock.route) {
+            val vm: com.kernel94.inventario123.ui.bodega.InventarioStockViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.bodega.InventarioStockScreen(
                 viewModel = vm,
                 onVolver = { navController.popBackStack() },
                 onAbrirInventario = { id -> navController.navigate(Screen.InventarioBodegaDetalle.crear(id)) },

@@ -47,7 +47,10 @@ fun ListadoScreen(
     onAbrirConsulta: () -> Unit = {},
     onAbrirDashboard: () -> Unit = {},
     onAbrirUsuarios: () -> Unit = {},
-    onAbrirInventarioBodega: (() -> Unit)? = null,
+    // Botón de auditoría física (escaneo). Bodega: solo si moduloEditable
+    // (coordinador/admin). Mi Stock / Stock PFS: siempre visible — el
+    // backend decide a quién puede auditar cada quien (uno mismo siempre).
+    onAbrirInventario: (() -> Unit)? = null,
 ) {
     LaunchedEffect(modulo, tiendaId) { viewModel.iniciar(modulo, tiendaId) }
     var mostrarFiltros by remember { mutableStateOf(false) }
@@ -118,8 +121,13 @@ fun ListadoScreen(
                         )
                     },
                     actions = {
-                        if (onAbrirInventarioBodega != null && viewModel.moduloEditable) {
-                            IconButton(onClick = onAbrirInventarioBodega) {
+                        val puedeVerInventario = onAbrirInventario != null && when (viewModel.modulo) {
+                            "bodega" -> viewModel.moduloEditable
+                            "mi_stock", "stock_pfs" -> true
+                            else -> false
+                        }
+                        if (puedeVerInventario) {
+                            IconButton(onClick = onAbrirInventario!!) {
                                 Icon(Icons.Filled.FactCheck, contentDescription = "Inventario", tint = Color.White)
                             }
                         }

@@ -2,6 +2,7 @@ package com.kernel94.inventario123.data.repository
 
 import com.kernel94.inventario123.data.model.Bodega
 import com.kernel94.inventario123.data.model.InventarioBodega
+import com.kernel94.inventario123.data.model.Usuario
 import com.kernel94.inventario123.data.remote.ApiService
 
 /** Inventario físico de bodega: auditoría mensual por escaneo (migración 027). */
@@ -52,6 +53,28 @@ class BodegaRepository(private val api: ApiService) {
         val r = api.inventarioBodegaCerrar(mapOf("id" to inventarioId))
         if (r.success && r.inventario != null) Resultado.Exito(r.inventario)
         else Resultado.Error(r.message ?: "No se pudo cerrar el inventario.")
+    } catch (e: Exception) {
+        Resultado.Error("No se pudo conectar al servidor.")
+    }
+
+    // ── Inventario físico de stock personal (Mi Stock / Stock PFS) ──────
+    // detalle()/escanear()/guardarNota()/cerrar() de arriba ya son genéricos
+    // (el backend distingue bodega vs. stock personal por el inventario_id).
+
+    suspend fun stockUsuarios(): List<Usuario> = try {
+        api.inventarioStockUsuarios()
+    } catch (e: Exception) { emptyList() }
+
+    suspend fun historicoUsuario(stockUsuarioId: Int): Resultado<List<InventarioBodega>> = try {
+        Resultado.Exito(api.inventarioStockListar(stockUsuarioId))
+    } catch (e: Exception) {
+        Resultado.Error("No se pudo cargar el histórico de inventarios.")
+    }
+
+    suspend fun iniciarUsuario(stockUsuarioId: Int): Resultado<InventarioBodega> = try {
+        val r = api.inventarioStockIniciar(mapOf("stock_usuario_id" to stockUsuarioId))
+        if (r.success && r.inventario != null) Resultado.Exito(r.inventario)
+        else Resultado.Error(r.message ?: "No se pudo abrir el inventario.")
     } catch (e: Exception) {
         Resultado.Error("No se pudo conectar al servidor.")
     }
