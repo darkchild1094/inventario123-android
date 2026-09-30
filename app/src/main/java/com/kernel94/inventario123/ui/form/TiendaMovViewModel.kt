@@ -12,6 +12,7 @@ import com.kernel94.inventario123.data.repository.ActivoRepository
 import com.kernel94.inventario123.data.repository.AuthRepository
 import com.kernel94.inventario123.data.repository.CatalogoRepository
 import com.kernel94.inventario123.data.repository.PendientesRepository
+import com.kernel94.inventario123.data.repository.RentecRepository
 import com.kernel94.inventario123.data.repository.Resultado
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -32,6 +33,7 @@ class TiendaMovViewModel(
     private val catalogoRepository: CatalogoRepository,
     private val authRepository: AuthRepository,
     private val pendientesRepository: PendientesRepository,
+    private val rentecRepository: RentecRepository,
 ) : ViewModel() {
 
     var perfil by mutableStateOf<Perfil?>(null); private set
@@ -47,6 +49,9 @@ class TiendaMovViewModel(
     // renovación): fija motivo y etiqueta el activo/movimiento con el proyecto.
     var proyectoRentecId by mutableStateOf<Int?>(null); private set
     var proyectoRentecFolio by mutableStateOf<String?>(null); private set
+    // Equipo ya recibido en bodega bajo este proyecto — para elegirlo en vez
+    // de escribir la serie a mano (sigue siendo editable después de elegir).
+    var activosRecibidosRentec by mutableStateOf<List<RentecRecibido>>(emptyList()); private set
 
     var serie by mutableStateOf("")
     var codigoBarras by mutableStateOf("")
@@ -63,6 +68,13 @@ class TiendaMovViewModel(
     // Equipo que sale (modo reemplazo).
     var salidaSerie by mutableStateOf("")
     var salidaCodigoBarras by mutableStateOf("")
+    // N° de activo del que sale — no se edita a mano en el form (se llena
+    // solo al elegirlo de la lista); no se muestra en ningún lado de la app,
+    // pero viaja al backend y sale en el Excel de RENTEC.
+    var salidaNumActivo by mutableStateOf<String?>(null); private set
+    // Activos "en uso" en la tienda elegida, para elegir el que sale en vez
+    // de escribirlo a mano (con fallback manual si no aparece en la lista).
+    var activosEnTiendaSalida by mutableStateOf<List<Activo>>(emptyList()); private set
 
     // Estado del lookup de la serie.
     var lookup by mutableStateOf<ResolverSerieResponse?>(null); private set
@@ -136,19 +148,61 @@ class TiendaMovViewModel(
                 tiendaId = tiendaFijaId
                 tiendaFija = true
             }
+            if (proyectoRentecContexto != null) {
+                when (val r = rentecRepository.detalle(proyectoRentecContexto)) {
+                    is Resultado.Exito -> activosRecibidosRentec = r.datos.detalle_recibidos
+                    is Resultado.Error -> {}
+                }
+            }
+            if (tiendaId != null && modo == ModoMov.REEMPLAZO) cargarActivosEnTiendaSalida()
             cargando = false
         }
+    }
+
+    fun onTiendaChange(id: Int?) {
+        tiendaId = id
+        activosEnTiendaSalida = emptyList()
+        if (id != null && modo == ModoMov.REEMPLAZO) cargarActivosEnTiendaSalida()
+    }
+
+    private fun cargarActivosEnTiendaSalida() {
+        val tId = tiendaId ?: return
+        viewModelScope.launch {
+            activosEnTiendaSalida = activoRepository.activosEnTiendaPorDispositivo(tId, null, null)
+        }
+    }
+
+    /** Elige el equipo recibido (bodega, este proyecto) como el que entra —
+     *  sigue siendo editable después: solo prellena serie/código. */
+    fun onSeleccionarRecibido(item: RentecRecibido) {
+        codigoBarras = item.codigo_barras ?: ""
+        onSerieChange(item.serie ?: item.codigo_barras ?: item.num_activo ?: "")
+    }
+
+    /** Elige de la lista el equipo que sale de la tienda — prellena serie/CB/
+     *  N° de activo (este último nunca se edita a mano, solo viaja al guardar).
+     *  Si después corrige la serie a mano, onSalidaSerieChange() limpia el N°. */
+    fun onSeleccionarSalida(item: Activo) {
+        salidaSerie = item.serie ?: item.codigoBarras ?: item.numActivo ?: ""
+        salidaCodigoBarras = item.codigoBarras ?: ""
+        salidaNumActivo = item.numActivo
+        verificarSalida()
     }
 
     fun onModoChange(m: ModoMov) {
         modo = m
         lookup = null; lookupSalida = null
         necesitaAltaNueva = m != ModoMov.RETIRO
+        if (m == ModoMov.REEMPLAZO && activosEnTiendaSalida.isEmpty()) cargarActivosEnTiendaSalida()
         verificarSerie()
     }
 
     fun onSerieChange(v: String) { serie = v; verificarSerie() }
-    fun onSalidaSerieChange(v: String) { salidaSerie = v; verificarSalida() }
+    fun onSalidaSerieChange(v: String) {
+        salidaSerie = v
+        salidaNumActivo = null // tecleado a mano: ya no es el de la lista, no se adivina.
+        verificarSalida()
+    }
 
     private fun verificarSerie() {
         jSerie?.cancel()
@@ -273,6 +327,7 @@ class TiendaMovViewModel(
                             reemplazaActivoId = saleId, salidaDestino = "asignado", salidaUsuarioId = miId,
                             salidaSerie = salidaSerie.trim().ifBlank { null },
                             salidaCodigoBarras = salidaCodigoBarras.trim().ifBlank { null },
+                            salidaNumActivo = salidaNumActivo,
                             motivo = motivo.trim().ifBlank { null },
                             fotoEquipoUri = fotoEquipoUri, fotoSerieUri = null, fotoActivoUri = null,
                             fotoEquipoSalidaUri = fotoSalidaUri,
@@ -289,6 +344,7 @@ class TiendaMovViewModel(
                             reemplazaActivoId = saleId, salidaDestino = "asignado", salidaUsuarioId = miId,
                             salidaSerie = salidaSerie.trim().ifBlank { null },
                             salidaCodigoBarras = salidaCodigoBarras.trim().ifBlank { null },
+                            salidaNumActivo = salidaNumActivo,
                             motivo = motivo.trim().ifBlank { null },
                             fotoEquipoUri = fotoEquipoUri, fotoEquipoSalidaUri = fotoSalidaUri,
                             proyectoRentecId = proyectoRentecId,
@@ -316,7 +372,7 @@ class TiendaMovViewModel(
 
     private fun limpiar() {
         serie = ""; codigoBarras = ""; fotoEquipoUri = null; fotoSalidaUri = null
-        salidaSerie = ""; salidaCodigoBarras = ""
+        salidaSerie = ""; salidaCodigoBarras = ""; salidaNumActivo = null
         modeloId = null; lookup = null; lookupSalida = null
         // En un lote RENTEC el motivo se conserva entre instalaciones sucesivas.
         if (proyectoRentecId == null) motivo = ""

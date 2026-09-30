@@ -79,6 +79,14 @@ class CrearEditarActivoViewModel(
 
     var modelosFiltrados by mutableStateOf<List<Modelo>>(emptyList()); private set
     var plazasFiltradas by mutableStateOf<List<Plaza>>(emptyList()); private set
+    /** Plazas asignadas al usuario (usuario_plaza) para las pestañas del formulario. */
+    val misPlazas: List<Plaza> get() {
+        val ids = perfil?.permisos?.plazasIds.orEmpty()
+        val propias = if (ids.isNotEmpty()) catalogos.plazas.filter { it.id in ids } else emptyList()
+        return propias.ifEmpty { listOfNotNull(catalogos.plazas.find { it.id == perfil?.permisos?.plazaId }) }
+    }
+    /** "Elegir otra plaza…": revela los dropdowns completos de Unidad de negocio + Plaza. */
+    var mostrarSelectorPlazaCompleto by mutableStateOf(false)
     var usuariosAsignables by mutableStateOf<List<Usuario>>(emptyList()); private set
     var atisPlaza by mutableStateOf<List<Usuario>>(emptyList()); private set
     var reemplazosDisponibles by mutableStateOf<List<Activo>>(emptyList()); private set
@@ -188,6 +196,15 @@ class CrearEditarActivoViewModel(
 
     fun onPlazaChange(id: Int?) {
         plazaId = id
+        actualizarUsuariosAsignables()
+        cargarAtis()
+        cargarReemplazos()
+    }
+
+    /** Selección rápida desde las pestañas de "mi plaza" (fija negocio + plaza juntos). */
+    fun onPlazaTabChange(id: Int) {
+        plazaId = id
+        negocioId = catalogos.plazas.find { it.id == id }?.negocio_id
         actualizarUsuariosAsignables()
         cargarAtis()
         cargarReemplazos()

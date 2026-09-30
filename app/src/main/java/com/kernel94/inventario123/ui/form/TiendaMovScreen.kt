@@ -95,7 +95,7 @@ fun TiendaMovScreen(
                     etiqueta = "Tienda", opciones = viewModel.tiendas,
                     seleccionId = viewModel.tiendaId, idDe = { it.id },
                     nombreDe = { (it.cr_tienda?.let { c -> "$c · " } ?: "") + it.nombre },
-                    onSeleccion = { viewModel.tiendaId = it }, etiquetaNula = "Selecciona tienda...",
+                    onSeleccion = { viewModel.onTiendaChange(it) }, etiquetaNula = "Selecciona tienda...",
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -110,6 +110,19 @@ fun TiendaMovScreen(
                         shape = SegmentedButtonDefaults.itemShape(index = i, count = modos.size),
                     ) { Text(lbl) }
                 }
+            }
+
+            // RENTEC: elegir de lo ya recibido en bodega en vez de escribirlo —
+            // sigue siendo editable después (los campos de abajo no se bloquean).
+            if (proyectoRentecContexto != null && viewModel.activosRecibidosRentec.isNotEmpty()) {
+                FiltroDropdown(
+                    etiqueta = "Equipo recibido", opciones = viewModel.activosRecibidosRentec,
+                    seleccionId = null, idDe = { it.activo_id },
+                    nombreDe = { listOfNotNull(it.dispositivo_nombre, it.marca_nombre, it.modelo_nombre, it.serie).joinToString(" · ") },
+                    onSeleccion = { id -> viewModel.activosRecibidosRentec.find { it.activo_id == id }?.let(viewModel::onSeleccionarRecibido) },
+                    etiquetaNula = "Elige de lo recibido, o escribe abajo",
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             OutlinedTextField(
@@ -159,6 +172,16 @@ fun TiendaMovScreen(
             if (viewModel.modo == ModoMov.REEMPLAZO) {
                 HorizontalDivider()
                 Text("Equipo que se retira (pasa a tu stock)", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                if (viewModel.activosEnTiendaSalida.isNotEmpty()) {
+                    FiltroDropdown(
+                        etiqueta = "Equipo en esta tienda", opciones = viewModel.activosEnTiendaSalida,
+                        seleccionId = null, idDe = { it.id },
+                        nombreDe = { listOfNotNull(it.dispositivo_nombre, it.marca_nombre, it.modelo_nombre, it.serie).joinToString(" · ") },
+                        onSeleccion = { id -> viewModel.activosEnTiendaSalida.find { it.id == id }?.let(viewModel::onSeleccionarSalida) },
+                        etiquetaNula = "Elige de la tienda, o escribe abajo",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 OutlinedTextField(
                     value = viewModel.salidaSerie, onValueChange = viewModel::onSalidaSerieChange,
                     label = { Text("Serie del que sale") }, singleLine = true, modifier = Modifier.fillMaxWidth(),

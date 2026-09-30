@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kernel94.inventario123.data.remote.Urls
+import com.kernel94.inventario123.ui.common.PlazaTabs
 import com.kernel94.inventario123.ui.listado.components.FiltroDropdown
 import com.kernel94.inventario123.ui.theme.BsPrimary
 
@@ -116,8 +117,22 @@ fun CrearEditarActivoScreen(
                 }
             }
 
-            // Negocio / Plaza (solo si el rol puede elegir, igual que la web)
-            if (viewModel.perfil?.permisos?.puedeFiltrarPorPlaza == true) {
+            // Mi plaza: pestañas si el usuario tiene más de una asignada (usuario_plaza);
+            // con una sola, no hace falta preguntar nada (queda implícita).
+            val puedeElegirPlaza = viewModel.perfil?.permisos?.puedeFiltrarPorPlaza == true
+            if (viewModel.misPlazas.size > 1 && !viewModel.mostrarSelectorPlazaCompleto) {
+                PlazaTabs(
+                    opciones = viewModel.misPlazas,
+                    seleccionId = viewModel.plazaId,
+                    onSeleccion = { viewModel.onPlazaTabChange(it) },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                )
+                if (puedeElegirPlaza) {
+                    TextButton(onClick = { viewModel.mostrarSelectorPlazaCompleto = true }) {
+                        Text("Elegir otra plaza…", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            } else if (puedeElegirPlaza) {
                 FiltroDropdown(
                     etiqueta = "Unidad de negocio", opciones = viewModel.catalogos.negocios,
                     seleccionId = viewModel.negocioId, idDe = { it.id }, nombreDe = { it.nombre },
@@ -130,6 +145,11 @@ fun CrearEditarActivoScreen(
                     onSeleccion = { viewModel.onPlazaChange(it) },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                 )
+                if (viewModel.misPlazas.size > 1) {
+                    TextButton(onClick = { viewModel.mostrarSelectorPlazaCompleto = false }) {
+                        Text("Volver a mis plazas", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
 
             FiltroDropdown(
@@ -184,16 +204,19 @@ fun CrearEditarActivoScreen(
             val estatusFijoPorModulo = moduloContexto in listOf("bodega", "mi_stock", "stock_pfs", "ati") ||
                 proyectoRentecContexto != null
             if (estatusFijoPorModulo) {
+                // RENTEC: destino implícito (bodega del proyecto), no hace falta mostrarlo.
                 val txt = when {
-                    proyectoRentecContexto != null -> "Destino: En bodega (RENTEC)"
+                    proyectoRentecContexto != null -> null
                     moduloContexto == "bodega" -> "Destino: En bodega"
                     moduloContexto == "mi_stock" -> "Destino: A mi stock"
                     moduloContexto == "stock_pfs" -> "Destino: Stock de ingeniero (PFS)"
                     moduloContexto == "ati" -> "Destino: Stock de ATI"
-                    else -> ""
+                    else -> null
                 }
-                Text(txt, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = 8.dp))
+                if (txt != null) {
+                    Text(txt, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 8.dp))
+                }
             } else {
                 Text("Estatus", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 8.dp))
                 // Un ingeniero (pfs) editando un activo suyo 'asignado' NO puede mandarlo
@@ -344,12 +367,15 @@ fun CrearEditarActivoScreen(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             )
 
-            MotivoDropdown(
-                seleccion = viewModel.motivo,
-                onSeleccion = { viewModel.motivo = it },
-                etiqueta = "Motivo del movimiento",
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-            )
+            // RENTEC: motivo implícito ("Renovación tecnológica", fijado en iniciar()).
+            if (proyectoRentecContexto == null) {
+                MotivoDropdown(
+                    seleccion = viewModel.motivo,
+                    onSeleccion = { viewModel.motivo = it },
+                    etiqueta = "Motivo del movimiento",
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                )
+            }
 
             Text("Fotos (opcional)", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
             FotoActivoCampo(
