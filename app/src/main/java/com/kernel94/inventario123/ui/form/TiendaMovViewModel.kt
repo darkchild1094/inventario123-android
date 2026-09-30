@@ -79,17 +79,22 @@ class TiendaMovViewModel(
 
     private fun hintCodigoBarras(): HintCodigoBarras =
         hintsEscaner.por_dispositivo[dispositivoId?.toString()]?.codigo_barras ?: HintCodigoBarras()
-    private fun cbInvalido(v: String): Boolean {
+    // El equipo que SALE puede ser de otro tipo de dispositivo que el que entra
+    // (dispositivoId es del que entra) — validar contra su propio hint, no el
+    // del entrante, para no rechazar/aceptar formatos del dispositivo equivocado.
+    private fun hintCodigoBarrasSalida(): HintCodigoBarras {
+        val dSalida = lookupSalida?.activo?.dispositivo_id
+        return if (dSalida != null) hintsEscaner.por_dispositivo[dSalida.toString()]?.codigo_barras ?: HintCodigoBarras()
+        else hintCodigoBarras()
+    }
+    private fun cbInvalido(v: String, hint: HintCodigoBarras = hintCodigoBarras()): Boolean {
         if (v.isBlank()) return false
-        val h = hintCodigoBarras()
-        val regex = if (h.solo_digitos) Regex("^\\d{${h.longitud}}$") else Regex("^[A-Za-z0-9]{${h.longitud}}$")
+        val regex = if (hint.solo_digitos) Regex("^\\d{${hint.longitud}}$") else Regex("^[A-Za-z0-9]{${hint.longitud}}$")
         return !regex.matches(v.trim())
     }
     /** Mensaje de validación acorde al hint del dispositivo elegido (por defecto 8 dígitos). */
-    fun cbMensajeInvalido(): String {
-        val h = hintCodigoBarras()
-        return "El código de barras debe ser ${h.longitud} ${if (h.solo_digitos) "dígitos numéricos" else "caracteres"}."
-    }
+    fun cbMensajeInvalido(hint: HintCodigoBarras = hintCodigoBarras()): String =
+        "El código de barras debe ser ${hint.longitud} ${if (hint.solo_digitos) "dígitos numéricos" else "caracteres"}."
 
     private fun nombreDisp() = catalogos.dispositivos.find { it.id == dispositivoId }?.nombre?.uppercase() ?: ""
     private fun hintSerie(): HintSerie =
@@ -101,7 +106,7 @@ class TiendaMovViewModel(
     fun ocrEscanerSerie(): Boolean = hintSerie().modo_ocr ||
         (nombreDisp().contains("REGULADOR") && !nombreDisp().contains("UPS"))
     /** Código diminuto (ej. UPS): conviene arrancar con más zoom. */
-    fun zoomAltoEscanerSerie(): Boolean = hintSerie().zoom_alto || nombreDisp().contains("UPS")
+    fun zoomAltoEscanerSerie(): Boolean = hintSerie().zoom_alto || nombreDisp().contains("UPS") || hintSerie().prefijos.isNotEmpty()
     fun cbLongitudEscaner(): Int = hintCodigoBarras().longitud
     fun cbSoloDigitosEscaner(): Boolean = hintCodigoBarras().solo_digitos
 
@@ -184,8 +189,11 @@ class TiendaMovViewModel(
         val tId = tiendaId
         if (tId == null || tId <= 0) { mensaje = "Elige la tienda."; esError = true; return }
         if (serie.isBlank()) { mensaje = "La serie es obligatoria."; esError = true; return }
-        if (cbInvalido(codigoBarras) || (modo == ModoMov.REEMPLAZO && cbInvalido(salidaCodigoBarras))) {
+        if (cbInvalido(codigoBarras)) {
             mensaje = cbMensajeInvalido(); esError = true; return
+        }
+        if (modo == ModoMov.REEMPLAZO && cbInvalido(salidaCodigoBarras, hintCodigoBarrasSalida())) {
+            mensaje = cbMensajeInvalido(hintCodigoBarrasSalida()); esError = true; return
         }
         guardando = true; mensaje = null
 
@@ -218,7 +226,7 @@ class TiendaMovViewModel(
                         val a = lk!!.activo!!
                         activoRepository.actualizar(
                             context = context, id = a.id, serie = a.serie ?: serie.trim(),
-                            codigoBarras = a.codigoBarras, numActivo = a.numActivo, modeloId = a.modelo_id,
+                            codigoBarras = a.codigoBarras ?: codigoBarras.ifBlank { null }, numActivo = a.numActivo, modeloId = a.modelo_id,
                             status = "en_uso", procedenciaTiendaId = a.procedencia_tienda_id, tiendaUsoId = tId,
                             asignadoUsuarioId = null, atiUsuarioId = null,
                             reemplazaActivoId = null, salidaDestino = null, salidaUsuarioId = null,
@@ -249,11 +257,12 @@ class TiendaMovViewModel(
                         return@launch
                     }
                     val lk = lookup
-                    val yaRecibido = lk?.encontrado == true && lk.en_bodega && lk.activo != null
+                    val yaRecibido = lk?.encontrado == true && (lk.en_bodega || lk.en_mi_stock) && lk.activo != null
                     if (yaRecibido) {
-                        // El equipo que entra ya estaba recibido en bodega (p.ej. fase 1
-                        // de RENTEC): se MUEVE en vez de duplicarlo. actualizar() dispara
-                        // el mismo procesarReemplazo() que crear() para el que sale.
+                        // El equipo que entra ya existía (en bodega, p.ej. fase 1 de
+                        // RENTEC, o en mi stock personal): se MUEVE en vez de
+                        // duplicarlo. actualizar() dispara el mismo procesarReemplazo()
+                        // que crear() para el que sale.
                         val a = lk!!.activo!!
                         activoRepository.actualizar(
                             context = context, id = a.id, serie = a.serie ?: serie.trim(),
@@ -266,6 +275,7 @@ class TiendaMovViewModel(
                             salidaCodigoBarras = salidaCodigoBarras.trim().ifBlank { null },
                             motivo = motivo.trim().ifBlank { null },
                             fotoEquipoUri = fotoEquipoUri, fotoSerieUri = null, fotoActivoUri = null,
+                            fotoEquipoSalidaUri = fotoSalidaUri,
                             proyectoRentecId = proyectoRentecId ?: lk.proyecto_rentec_id,
                         )
                     } else {

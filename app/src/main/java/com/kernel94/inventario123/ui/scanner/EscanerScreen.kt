@@ -85,15 +85,20 @@ fun EscanerScreen(
     // Validación por forma del campo objetivo. El código de barras usa la
     // longitud/tipo que mande el hint del dispositivo (por defecto 8 dígitos);
     // así un dispositivo con etiquetas distintas no se valida como si fueran todas iguales.
+    // codigoLongitud <= 0: sin dispositivo objetivo fijo (p.ej. escaneo de
+    // inventario de bodega contra una lista mixta de equipos) — no se puede
+    // exigir un solo formato, así que se acepta cualquier código no vacío
+    // con forma razonable en vez de forzar 8 dígitos u otro formato ajeno.
     val regexCodigo = remember(codigoLongitud, codigoSoloDigitos) {
-        if (codigoSoloDigitos) Regex("^\\d{$codigoLongitud}$")
+        if (codigoLongitud <= 0) null
+        else if (codigoSoloDigitos) Regex("^\\d{$codigoLongitud}$")
         else Regex("^[A-Za-z0-9]{$codigoLongitud}$")
     }
     val regexSerie = remember { Regex("^[A-Za-z0-9][A-Za-z0-9\\-./]{3,29}$") }
     fun limpiar(v: String) = v.replace(Regex("[\\u202a-\\u202e\\u200e\\u200f\\s]"), "").trim()
     fun cumpleForma(v: String): Boolean {
         val c = limpiar(v)
-        return if (esCodigo) regexCodigo.matches(c) else regexSerie.matches(c)
+        return if (esCodigo) (regexCodigo?.matches(c) ?: regexSerie.matches(c)) else regexSerie.matches(c)
     }
     fun normalizarOcr(v: String): String {
         val c = limpiar(v)

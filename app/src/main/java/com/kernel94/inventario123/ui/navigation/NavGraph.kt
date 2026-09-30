@@ -406,7 +406,11 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             com.kernel94.inventario123.ui.bodega.InventarioBodegaDetalleScreen(
                 viewModel = vm, inventarioId = id,
                 onVolver = { navController.popBackStack() },
-                onAbrirEscaner = { navController.navigate(Screen.Escaner.crear("codigo")) },
+                onAbrirEscaner = {
+                    // Sin dispositivo objetivo fijo (lista mixta de equipos en bodega):
+                    // longitud 0 = aceptar cualquier código, no forzar 8 dígitos.
+                    navController.navigate(Screen.Escaner.crear("codigo", cbLongitud = 0))
+                },
                 codigoEscaneado = codigoEscaneado,
                 onCodigoConsumido = { codigoEscaneado = null },
             )

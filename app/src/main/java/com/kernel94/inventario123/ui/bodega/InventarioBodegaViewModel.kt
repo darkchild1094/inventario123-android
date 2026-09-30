@@ -9,6 +9,7 @@ import com.kernel94.inventario123.data.model.Bodega
 import com.kernel94.inventario123.data.model.InventarioBodega
 import com.kernel94.inventario123.data.repository.BodegaRepository
 import com.kernel94.inventario123.data.repository.Resultado
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -26,6 +27,8 @@ class InventarioBodegaViewModel(
     var iniciando by mutableStateOf(false); private set
     var mensaje by mutableStateOf<String?>(null); private set
 
+    private var jHistorico: Job? = null
+
     fun iniciar() {
         viewModelScope.launch {
             cargando = true
@@ -38,7 +41,13 @@ class InventarioBodegaViewModel(
 
     fun onBodegaChange(id: Int?) {
         bodegaId = id
-        viewModelScope.launch { cargarHistorico() }
+        inventarios = emptyList()
+        jHistorico?.cancel()
+        jHistorico = viewModelScope.launch {
+            cargando = true
+            cargarHistorico()
+            cargando = false
+        }
     }
 
     private suspend fun cargarHistorico() {

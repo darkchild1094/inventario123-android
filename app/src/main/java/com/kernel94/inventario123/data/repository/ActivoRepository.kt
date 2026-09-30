@@ -126,7 +126,7 @@ class ActivoRepository(private val api: ApiService, private val context: Context
         salidaUsuarioId: Int? = null, salidaAtiUsuarioId: Int? = null, motivo: String? = null,
         salidaSerie: String? = null, salidaCodigoBarras: String? = null,
         fotoEquipoUri: Uri? = null, fotoSerieUri: Uri? = null, fotoActivoUri: Uri? = null,
-        proyectoRentecId: Int? = null,
+        fotoEquipoSalidaUri: Uri? = null, proyectoRentecId: Int? = null,
     ): Resultado<ApiResultado> = try {
         val datos = mapaDatos(
             id = id, serie = serie, codigoBarras = codigoBarras, numActivo = numActivo, modeloId = modeloId,
@@ -141,6 +141,7 @@ class ActivoRepository(private val api: ApiService, private val context: Context
             ImagenUtil.parte(context, fotoEquipoUri, "foto_equipo"),
             ImagenUtil.parte(context, fotoSerieUri, "foto_serie"),
             ImagenUtil.parte(context, fotoActivoUri, "foto_activo"),
+            ImagenUtil.parte(context, fotoEquipoSalidaUri, "foto_equipo_salida"),
         )
         if (r.success) Resultado.Exito(r) else Resultado.Error(r.message ?: "No se pudo actualizar el activo.")
     } catch (e: Exception) {

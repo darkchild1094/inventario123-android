@@ -14,8 +14,10 @@ class RentecRepository(private val api: ApiService) {
 
     suspend fun crear(nombre: String): Resultado<ProyectoRentec> = try {
         val r = api.rentecCrear(mapOf("nombre" to nombre))
-        if (r.success && r.id != null && r.folio != null) {
-            Resultado.Exito(ProyectoRentec(id = r.id, folio = r.folio, nombre = nombre))
+        if (r.success && r.id != null) {
+            // Pide el registro real (usuario_nombre, creado_en, etc.) en vez de
+            // fabricarlo localmente con datos a medias.
+            Resultado.Exito(api.rentecDetalle(r.id))
         } else {
             Resultado.Error(r.message ?: "No se pudo crear el proyecto.")
         }

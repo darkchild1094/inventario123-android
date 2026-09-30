@@ -61,6 +61,10 @@ class CrearEditarActivoViewModel(
     // serie / código de barras del activo que sale — prellenados, editables para corregir
     var salidaSerie by mutableStateOf("")
     var salidaCodigoBarras by mutableStateOf("")
+    // Tipo de dispositivo del activo que SALE (puede ser distinto al que entra
+    // si "reemplazo otra categoría" está marcado) — para validar su CB contra
+    // su propio hint, no el del dispositivo entrante seleccionado en el form.
+    var salidaDispositivoId by mutableStateOf<Int?>(null); private set
     // reemplazar equipo de otra categoría (no solo el mismo dispositivo)
     var reemplazoOtraCategoria by mutableStateOf(false)
 
@@ -217,6 +221,7 @@ class CrearEditarActivoViewModel(
         val a = reemplazosDisponibles.find { it.id == id }
         salidaSerie = a?.serie ?: ""
         salidaCodigoBarras = a?.codigoBarras ?: ""
+        salidaDispositivoId = a?.dispositivo_id
     }
 
     private fun aplicarCascadaDispositivo() {
@@ -270,8 +275,7 @@ class CrearEditarActivoViewModel(
         return tipo == "admin" || tipo == "coordinador" || tipo == "ati"
     }
 
-    private fun cbValido(v: String): Boolean {
-        val h = hintCodigoBarras()
+    private fun cbValido(v: String, h: HintCodigoBarras = hintCodigoBarras()): Boolean {
         val regex = if (h.solo_digitos) Regex("^\\d{${h.longitud}}$") else Regex("^[A-Za-z0-9]{${h.longitud}}$")
         return regex.matches(v.trim())
     }
@@ -280,9 +284,10 @@ class CrearEditarActivoViewModel(
         if (serie.isBlank()) {
             mensaje = "La serie es obligatoria."; esError = true; return
         }
-        if ((codigoBarras.isNotBlank() && !cbValido(codigoBarras)) ||
-            (salidaCodigoBarras.isNotBlank() && !cbValido(salidaCodigoBarras))) {
-            val h = hintCodigoBarras()
+        val entradaInvalida = codigoBarras.isNotBlank() && !cbValido(codigoBarras)
+        val salidaInvalida = salidaCodigoBarras.isNotBlank() && !cbValido(salidaCodigoBarras, hintCodigoBarrasSalida())
+        if (entradaInvalida || salidaInvalida) {
+            val h = if (entradaInvalida) hintCodigoBarras() else hintCodigoBarrasSalida()
             mensaje = "El código de barras debe ser ${h.longitud} ${if (h.solo_digitos) "dígitos numéricos" else "caracteres"}."
             esError = true; return
         }
@@ -381,7 +386,8 @@ class CrearEditarActivoViewModel(
          nombreDispositivoSeleccionado()?.uppercase()?.contains("UPS") != true)
     /** Código diminuto (ej. UPS): conviene arrancar con más zoom. */
     fun zoomAltoEscanerSerie(): Boolean = hintSerie().zoom_alto ||
-        (nombreDispositivoSeleccionado()?.uppercase()?.contains("UPS") == true)
+        (nombreDispositivoSeleccionado()?.uppercase()?.contains("UPS") == true) ||
+        hintSerie().prefijos.isNotEmpty()
     fun cbLongitudEscaner(): Int = hintCodigoBarras().longitud
     fun cbSoloDigitosEscaner(): Boolean = hintCodigoBarras().solo_digitos
 
@@ -389,4 +395,6 @@ class CrearEditarActivoViewModel(
         hintsEscaner.por_dispositivo[dispositivoId?.toString()]?.serie ?: HintSerie()
     private fun hintCodigoBarras(): HintCodigoBarras =
         hintsEscaner.por_dispositivo[dispositivoId?.toString()]?.codigo_barras ?: HintCodigoBarras()
+    private fun hintCodigoBarrasSalida(): HintCodigoBarras =
+        salidaDispositivoId?.let { hintsEscaner.por_dispositivo[it.toString()]?.codigo_barras } ?: hintCodigoBarras()
 }

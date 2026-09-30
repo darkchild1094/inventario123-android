@@ -181,13 +181,15 @@ fun CrearEditarActivoScreen(
 
             // Módulos compactos (bodega / mi_stock / stock_pfs / ati): el estatus
             // queda fijo por el módulo, no se muestran los radios.
-            val estatusFijoPorModulo = moduloContexto in listOf("bodega", "mi_stock", "stock_pfs", "ati")
+            val estatusFijoPorModulo = moduloContexto in listOf("bodega", "mi_stock", "stock_pfs", "ati") ||
+                proyectoRentecContexto != null
             if (estatusFijoPorModulo) {
-                val txt = when (moduloContexto) {
-                    "bodega" -> "Destino: En bodega"
-                    "mi_stock" -> "Destino: A mi stock"
-                    "stock_pfs" -> "Destino: Stock de ingeniero (PFS)"
-                    "ati" -> "Destino: Stock de ATI"
+                val txt = when {
+                    proyectoRentecContexto != null -> "Destino: En bodega (RENTEC)"
+                    moduloContexto == "bodega" -> "Destino: En bodega"
+                    moduloContexto == "mi_stock" -> "Destino: A mi stock"
+                    moduloContexto == "stock_pfs" -> "Destino: Stock de ingeniero (PFS)"
+                    moduloContexto == "ati" -> "Destino: Stock de ATI"
                     else -> ""
                 }
                 Text(txt, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
