@@ -31,11 +31,13 @@ fun TiendaMovScreen(
     codigoEscaneado: String?,
     onSerieConsumida: () -> Unit,
     onCodigoConsumido: () -> Unit,
+    proyectoRentecContexto: Int? = null,
+    proyectoRentecFolioContexto: String? = null,
 ) {
     val context = LocalContext.current
     // Qué campo se está escaneando: "serie" | "codigo" | "salida_serie" | "salida_codigo"
     var objetivoEscaneo by remember { mutableStateOf("serie") }
-    LaunchedEffect(tiendaFijaId) { viewModel.iniciar(tiendaFijaId) }
+    LaunchedEffect(tiendaFijaId) { viewModel.iniciar(tiendaFijaId, proyectoRentecContexto, proyectoRentecFolioContexto) }
     LaunchedEffect(serieEscaneada) {
         if (!serieEscaneada.isNullOrBlank()) {
             if (objetivoEscaneo == "salida_serie") viewModel.onSalidaSerieChange(serieEscaneada)
@@ -64,7 +66,12 @@ fun TiendaMovScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("Movimiento en tienda", color = Color.White) },
+                title = {
+                    Text(
+                        if (proyectoRentecContexto != null) "Instalar — ${proyectoRentecFolioContexto ?: "RENTEC"}" else "Movimiento en tienda",
+                        color = Color.White,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onVolver) { Icon(Icons.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White) }
                 },

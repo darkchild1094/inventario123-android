@@ -59,4 +59,26 @@ class ExportRepository(private val api: ApiService) {
             Resultado.Error("No se pudo conectar al servidor para exportar.")
         }
     }
+
+    /** Descarga el Excel de un proyecto RENTEC (folio + activos instalados). */
+    suspend fun exportarRentec(context: Context, proyectoId: Int, folio: String): Resultado<File> {
+        return try {
+            val response = api.exportarRentec(proyectoId)
+            if (!response.isSuccessful || response.body() == null) {
+                return Resultado.Error(
+                    if (response.code() == 403) "No tienes permiso para exportar."
+                    else "No se pudo generar el archivo."
+                )
+            }
+            val carpeta = File(context.cacheDir, "exportados").apply { mkdirs() }
+            val sello = SimpleDateFormat("yyyy-MM-dd_HH-mm", Locale("es", "MX")).format(Date())
+            val archivo = File(carpeta, "${folio}_$sello.xlsx")
+            response.body()!!.byteStream().use { entrada ->
+                archivo.outputStream().use { salida -> entrada.copyTo(salida) }
+            }
+            Resultado.Exito(archivo)
+        } catch (e: Exception) {
+            Resultado.Error("No se pudo conectar al servidor para exportar.")
+        }
+    }
 }

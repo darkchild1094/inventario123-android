@@ -74,6 +74,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 "tiendas"  -> navController.navigate(Screen.Tiendas.route)
                 "usuarios" -> navController.navigate(Screen.Usuarios.route)
                 "consulta" -> navController.navigate(Screen.Consulta.route)
+                "rentec"   -> navController.navigate(Screen.Rentec.route)
                 else       -> navController.navigate(Screen.Modulo.crear(clave))
             }
         }
@@ -138,21 +139,42 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onAbrirConsulta = { navController.navigate(Screen.Consulta.route) },
                 onAbrirDashboard = { navController.navigate(Screen.Dashboard.route) { launchSingleTop = true } },
                 onAbrirUsuarios = { navController.navigate(Screen.Usuarios.route) },
+                onAbrirInventarioBodega = if (moduloArg == "bodega") {
+                    { navController.navigate(Screen.InventarioBodega.route) }
+                } else null,
             )
         }
 
         composable(
             Screen.TiendaMov.route,
-            arguments = listOf(navArgument("tiendaId") { type = NavType.IntType; defaultValue = 0 }),
+            arguments = listOf(
+                navArgument("tiendaId") { type = NavType.IntType; defaultValue = 0 },
+                navArgument("proyectoRentecId") { type = NavType.IntType; defaultValue = 0 },
+                navArgument("proyectoRentecFolio") { type = NavType.StringType; defaultValue = "" },
+            ),
         ) { backStackEntry ->
             val tId = backStackEntry.arguments?.getInt("tiendaId") ?: 0
+            val rentecId = backStackEntry.arguments?.getInt("proyectoRentecId") ?: 0
+            val rentecFolio = backStackEntry.arguments?.getString("proyectoRentecFolio").orEmpty()
             val vm: com.kernel94.inventario123.ui.form.TiendaMovViewModel = viewModel(factory = factory)
             com.kernel94.inventario123.ui.form.TiendaMovScreen(
                 viewModel = vm,
                 tiendaFijaId = tId.takeIf { it > 0 },
+                proyectoRentecContexto = rentecId.takeIf { it > 0 },
+                proyectoRentecFolioContexto = rentecFolio.takeIf { it.isNotBlank() },
                 onVolver = { navController.popBackStack() },
-                onAbrirEscanerSerie = { navController.navigate(Screen.Escaner.crear("serie", vm.prefijoEscanerSerie(), vm.ocrEscanerSerie())) },
-                onAbrirEscanerCodigo = { navController.navigate(Screen.Escaner.crear("codigo")) },
+                onAbrirEscanerSerie = { navController.navigate(Screen.Escaner.crear(
+                        "serie", vm.prefijoEscanerSerie(), vm.ocrEscanerSerie(),
+                        zoomAlto = vm.zoomAltoEscanerSerie(),
+                    )) },
+                onAbrirEscanerCodigo = {
+                    navController.navigate(
+                        Screen.Escaner.crear(
+                            "codigo",
+                            cbLongitud = vm.cbLongitudEscaner(), cbSoloDigitos = vm.cbSoloDigitosEscaner(),
+                        )
+                    )
+                },
                 serieEscaneada = serieEscaneada,
                 codigoEscaneado = codigoEscaneado,
                 onSerieConsumida = { serieEscaneada = null },
@@ -203,20 +225,36 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             arguments = listOf(
                 navArgument("modulo") { type = NavType.StringType; defaultValue = "" },
                 navArgument("tiendaUsoId") { type = NavType.IntType; defaultValue = 0 },
+                navArgument("proyectoRentecId") { type = NavType.IntType; defaultValue = 0 },
+                navArgument("proyectoRentecFolio") { type = NavType.StringType; defaultValue = "" },
             )
         ) { backStackEntry ->
             val moduloArg = backStackEntry.arguments?.getString("modulo").orEmpty()
             val tiendaUsoArg = backStackEntry.arguments?.getInt("tiendaUsoId") ?: 0
+            val rentecId = backStackEntry.arguments?.getInt("proyectoRentecId") ?: 0
+            val rentecFolio = backStackEntry.arguments?.getString("proyectoRentecFolio").orEmpty()
             val vm: CrearEditarActivoViewModel = viewModel(factory = factory)
             CrearEditarActivoScreen(
                 viewModel = vm, idActivoAEditar = null,
                 moduloContexto = moduloArg.takeIf { it.isNotBlank() },
                 tiendaUsoContexto = tiendaUsoArg.takeIf { it > 0 },
+                proyectoRentecContexto = rentecId.takeIf { it > 0 },
+                proyectoRentecFolioContexto = rentecFolio.takeIf { it.isNotBlank() },
                 onVolver = { navController.popBackStack() },
                 onAbrirEscanerSerie = {
-                    navController.navigate(Screen.Escaner.crear("serie", vm.prefijoEscanerSerie(), vm.ocrEscanerSerie()))
+                    navController.navigate(Screen.Escaner.crear(
+                        "serie", vm.prefijoEscanerSerie(), vm.ocrEscanerSerie(),
+                        zoomAlto = vm.zoomAltoEscanerSerie(),
+                    ))
                 },
-                onAbrirEscanerCodigo = { navController.navigate(Screen.Escaner.crear("codigo")) },
+                onAbrirEscanerCodigo = {
+                    navController.navigate(
+                        Screen.Escaner.crear(
+                            "codigo",
+                            cbLongitud = vm.cbLongitudEscaner(), cbSoloDigitos = vm.cbSoloDigitosEscaner(),
+                        )
+                    )
+                },
                 serieEscaneada = serieEscaneada,
                 codigoEscaneado = codigoEscaneado,
                 onSerieConsumida = { serieEscaneada = null },
@@ -234,9 +272,19 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 viewModel = vm, idActivoAEditar = id,
                 onVolver = { navController.popBackStack() },
                 onAbrirEscanerSerie = {
-                    navController.navigate(Screen.Escaner.crear("serie", vm.prefijoEscanerSerie(), vm.ocrEscanerSerie()))
+                    navController.navigate(Screen.Escaner.crear(
+                        "serie", vm.prefijoEscanerSerie(), vm.ocrEscanerSerie(),
+                        zoomAlto = vm.zoomAltoEscanerSerie(),
+                    ))
                 },
-                onAbrirEscanerCodigo = { navController.navigate(Screen.Escaner.crear("codigo")) },
+                onAbrirEscanerCodigo = {
+                    navController.navigate(
+                        Screen.Escaner.crear(
+                            "codigo",
+                            cbLongitud = vm.cbLongitudEscaner(), cbSoloDigitos = vm.cbSoloDigitosEscaner(),
+                        )
+                    )
+                },
                 serieEscaneada = serieEscaneada,
                 codigoEscaneado = codigoEscaneado,
                 onSerieConsumida = { serieEscaneada = null },
@@ -249,12 +297,18 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             arguments = listOf(
                 navArgument("target") { type = NavType.StringType },
                 navArgument("prefijo") { type = NavType.StringType; nullable = true; defaultValue = null },
-                navArgument("modoRegulador") { type = NavType.BoolType; defaultValue = false }
+                navArgument("modoRegulador") { type = NavType.BoolType; defaultValue = false },
+                navArgument("zoomAlto") { type = NavType.BoolType; defaultValue = false },
+                navArgument("cbLongitud") { type = NavType.IntType; defaultValue = 8 },
+                navArgument("cbSoloDigitos") { type = NavType.BoolType; defaultValue = true },
             )
         ) { backStackEntry ->
             val target = backStackEntry.arguments?.getString("target") ?: "serie"
             val prefijo = backStackEntry.arguments?.getString("prefijo")
             val modoRegulador = backStackEntry.arguments?.getBoolean("modoRegulador") ?: false
+            val zoomAlto = backStackEntry.arguments?.getBoolean("zoomAlto") ?: false
+            val cbLongitud = backStackEntry.arguments?.getInt("cbLongitud") ?: 8
+            val cbSoloDigitos = backStackEntry.arguments?.getBoolean("cbSoloDigitos") ?: true
 
             val instruccion = when {
                 target != "serie" -> "Apunta al CÓDIGO DE BARRAS del activo"
@@ -267,6 +321,9 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 filtroPrefijo = prefijo,
                 modoRegulador = modoRegulador,
                 target = target,
+                zoomAlto = zoomAlto,
+                codigoLongitud = cbLongitud,
+                codigoSoloDigitos = cbSoloDigitos,
                 onCodigoDetectado = { codigo ->
                     if (target == "serie") serieEscaneada = codigo
                     else codigoEscaneado = codigo
@@ -328,6 +385,57 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             com.kernel94.inventario123.ui.solicitudes.SolicitudDetalleScreen(
                 viewModel = vm, solicitudId = id,
                 onVolver = { navController.popBackStack() },
+            )
+        }
+
+        composable(Screen.InventarioBodega.route) {
+            val vm: com.kernel94.inventario123.ui.bodega.InventarioBodegaViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.bodega.InventarioBodegaScreen(
+                viewModel = vm,
+                onVolver = { navController.popBackStack() },
+                onAbrirInventario = { id -> navController.navigate(Screen.InventarioBodegaDetalle.crear(id)) },
+            )
+        }
+
+        composable(
+            Screen.InventarioBodegaDetalle.route,
+            arguments = listOf(navArgument("id") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getInt("id") ?: 0
+            val vm: com.kernel94.inventario123.ui.bodega.InventarioBodegaDetalleViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.bodega.InventarioBodegaDetalleScreen(
+                viewModel = vm, inventarioId = id,
+                onVolver = { navController.popBackStack() },
+                onAbrirEscaner = { navController.navigate(Screen.Escaner.crear("codigo")) },
+                codigoEscaneado = codigoEscaneado,
+                onCodigoConsumido = { codigoEscaneado = null },
+            )
+        }
+
+        composable(Screen.Rentec.route) {
+            val vm: com.kernel94.inventario123.ui.rentec.RentecListaViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.rentec.RentecListaScreen(
+                viewModel = vm,
+                onVolver = { navController.popBackStack() },
+                onAbrirProyecto = { id -> navController.navigate(Screen.RentecDetalle.crear(id)) },
+            )
+        }
+
+        composable(
+            Screen.RentecDetalle.route,
+            arguments = listOf(navArgument("id") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getInt("id") ?: 0
+            val vm: com.kernel94.inventario123.ui.rentec.RentecDetalleViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.rentec.RentecDetalleScreen(
+                viewModel = vm, proyectoId = id,
+                onVolver = { navController.popBackStack() },
+                onRecibirEquipo = { pid, folio ->
+                    navController.navigate(Screen.Crear.crear(proyectoRentecId = pid, proyectoRentecFolio = folio))
+                },
+                onInstalarEquipo = { pid, folio ->
+                    navController.navigate(Screen.TiendaMov.crear(proyectoRentecId = pid, proyectoRentecFolio = folio))
+                },
             )
         }
     }

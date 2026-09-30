@@ -41,8 +41,12 @@ fun CrearEditarActivoScreen(
     onCodigoConsumido: () -> Unit,
     moduloContexto: String? = null,
     tiendaUsoContexto: Int? = null,
+    proyectoRentecContexto: Int? = null,
+    proyectoRentecFolioContexto: String? = null,
 ) {
-    LaunchedEffect(idActivoAEditar) { viewModel.iniciar(idActivoAEditar, moduloContexto, tiendaUsoContexto) }
+    LaunchedEffect(idActivoAEditar) {
+        viewModel.iniciar(idActivoAEditar, moduloContexto, tiendaUsoContexto, proyectoRentecContexto, proyectoRentecFolioContexto)
+    }
 
     LaunchedEffect(serieEscaneada) {
         if (!serieEscaneada.isNullOrBlank()) {
@@ -70,7 +74,15 @@ fun CrearEditarActivoScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(if (idActivoAEditar == null) "Registrar activo" else "Editar activo") },
+                title = {
+                    Text(
+                        when {
+                            proyectoRentecContexto != null -> "Recibir equipo — ${proyectoRentecFolioContexto ?: "RENTEC"}"
+                            idActivoAEditar == null -> "Registrar activo"
+                            else -> "Editar activo"
+                        }
+                    )
+                },
                 navigationIcon = { IconButton(onClick = onVolver) { Icon(Icons.Filled.ArrowBack, contentDescription = "Volver") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BsPrimary, titleContentColor = androidx.compose.ui.graphics.Color.White, navigationIconContentColor = androidx.compose.ui.graphics.Color.White),
             )

@@ -8,11 +8,13 @@ import com.kernel94.inventario123.data.remote.NetworkModule
 import com.kernel94.inventario123.data.remote.SessionManager
 import com.kernel94.inventario123.data.repository.ActivoRepository
 import com.kernel94.inventario123.data.repository.AuthRepository
+import com.kernel94.inventario123.data.repository.BodegaRepository
 import com.kernel94.inventario123.data.repository.CatalogoRepository
 import com.kernel94.inventario123.data.repository.ExportRepository
 import com.kernel94.inventario123.data.repository.ModeloRepository
 import com.kernel94.inventario123.data.repository.MovimientoRepository
 import com.kernel94.inventario123.data.repository.PendientesRepository
+import com.kernel94.inventario123.data.repository.RentecRepository
 import com.kernel94.inventario123.data.repository.SolicitudRepository
 import com.kernel94.inventario123.data.repository.TiendaRepository
 import com.kernel94.inventario123.data.repository.UsuarioRepository
@@ -40,6 +42,8 @@ class Inventario123App : Application() {
     lateinit var tiendaRepository: TiendaRepository private set
     lateinit var modeloRepository: ModeloRepository private set
     lateinit var solicitudRepository: SolicitudRepository private set
+    lateinit var bodegaRepository: BodegaRepository private set
+    lateinit var rentecRepository: RentecRepository private set
     lateinit var pendientesRepository: PendientesRepository private set
     lateinit var connectivityObserver: ConnectivityObserver private set
 
@@ -58,6 +62,8 @@ class Inventario123App : Application() {
         tiendaRepository = TiendaRepository(apiService)
         modeloRepository = ModeloRepository(apiService)
         solicitudRepository = SolicitudRepository(apiService)
+        bodegaRepository = BodegaRepository(apiService)
+        rentecRepository = RentecRepository(apiService)
 
         connectivityObserver = ConnectivityObserver(this)
         pendientesRepository = PendientesRepository(PendientesStore(this), activoRepository, connectivityObserver)

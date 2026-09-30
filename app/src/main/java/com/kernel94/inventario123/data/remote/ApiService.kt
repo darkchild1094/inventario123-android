@@ -164,6 +164,51 @@ interface ApiService {
     @GET("index.php?controller=api&action=obtenerActivosEnBodega")
     suspend fun obtenerActivosEnBodega(@Query("bodega_id") bodegaId: Int): List<Activo>
 
+    // ── Inventario físico de bodega (auditoría por escaneo) ─────────────
+    @GET("index.php?controller=api&action=inventarioBodegaBodegas")
+    suspend fun inventarioBodegaBodegas(): List<Bodega>
+
+    @GET("index.php?controller=api&action=inventarioBodegaListar")
+    suspend fun inventarioBodegaListar(@Query("bodega_id") bodegaId: Int): List<InventarioBodega>
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=inventarioBodegaIniciar")
+    suspend fun inventarioBodegaIniciar(@Body body: Map<String, @JvmSuppressWildcards Any?>): InventarioBodegaResponse
+
+    @GET("index.php?controller=api&action=inventarioBodegaDetalle")
+    suspend fun inventarioBodegaDetalle(@Query("id") id: Int): InventarioBodega
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=inventarioBodegaEscanear")
+    suspend fun inventarioBodegaEscanear(@Body body: Map<String, @JvmSuppressWildcards Any?>): InventarioBodegaResponse
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=inventarioBodegaNota")
+    suspend fun inventarioBodegaNota(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=inventarioBodegaCerrar")
+    suspend fun inventarioBodegaCerrar(@Body body: Map<String, @JvmSuppressWildcards Any?>): InventarioBodegaResponse
+
+    // ── RENTEC: proyectos de Renovación Tecnológica ──────────────────────
+    @GET("index.php?controller=api&action=rentecListar")
+    suspend fun rentecListar(): List<ProyectoRentec>
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=rentecCrear")
+    suspend fun rentecCrear(@Body body: Map<String, @JvmSuppressWildcards Any?>): RentecCrearResponse
+
+    @GET("index.php?controller=api&action=rentecDetalle")
+    suspend fun rentecDetalle(@Query("id") id: Int): ProyectoRentec
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=rentecCerrar")
+    suspend fun rentecCerrar(@Body body: Map<String, @JvmSuppressWildcards Any?>): RentecCerrarResponse
+
+    @Streaming
+    @GET("index.php?controller=export&action=rentec")
+    suspend fun exportarRentec(@Query("id") id: Int): Response<ResponseBody>
+
     // ── Catálogo de modelos (solo admin) ────────────────────────────────
     @GET("index.php?controller=api&action=listarModelos")
     suspend fun listarModelos(): List<Modelo>

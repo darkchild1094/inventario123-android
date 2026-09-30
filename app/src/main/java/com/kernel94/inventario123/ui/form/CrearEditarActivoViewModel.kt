@@ -79,6 +79,12 @@ class CrearEditarActivoViewModel(
     var atisPlaza by mutableStateOf<List<Usuario>>(emptyList()); private set
     var reemplazosDisponibles by mutableStateOf<List<Activo>>(emptyList()); private set
 
+    // Contexto RENTEC (alta masiva de equipo recibido para un proyecto de
+    // renovación): fija status=en_bodega y motivo, y no se limpian entre
+    // altas sucesivas del mismo lote (ver guardar()).
+    var proyectoRentecId by mutableStateOf<Int?>(null); private set
+    var proyectoRentecFolio by mutableStateOf<String?>(null); private set
+
     var idEdicion by mutableStateOf<Int?>(null); private set
     var cargando by mutableStateOf(false); private set
     var guardando by mutableStateOf(false); private set
@@ -96,7 +102,16 @@ class CrearEditarActivoViewModel(
         else        -> null
     }
 
-    fun iniciar(idActivoAEditar: Int? = null, moduloContexto: String? = null, tiendaUsoContexto: Int? = null) {
+    fun iniciar(
+        idActivoAEditar: Int? = null, moduloContexto: String? = null, tiendaUsoContexto: Int? = null,
+        proyectoRentecContexto: Int? = null, proyectoRentecFolioContexto: String? = null,
+    ) {
+        proyectoRentecId = proyectoRentecContexto
+        proyectoRentecFolio = proyectoRentecFolioContexto
+        if (proyectoRentecContexto != null) {
+            status = "en_bodega"
+            motivo = "Renovación tecnológica"
+        }
         viewModelScope.launch {
             perfil = authRepository.obtenerPerfil()
             when (val r = catalogoRepository.obtenerCatalogos()) {
@@ -255,15 +270,21 @@ class CrearEditarActivoViewModel(
         return tipo == "admin" || tipo == "coordinador" || tipo == "ati"
     }
 
-    private val cbRegex = Regex("^\\d{8}$")
+    private fun cbValido(v: String): Boolean {
+        val h = hintCodigoBarras()
+        val regex = if (h.solo_digitos) Regex("^\\d{${h.longitud}}$") else Regex("^[A-Za-z0-9]{${h.longitud}}$")
+        return regex.matches(v.trim())
+    }
 
     fun guardar(context: Context, onExito: () -> Unit) {
         if (serie.isBlank()) {
             mensaje = "La serie es obligatoria."; esError = true; return
         }
-        if ((codigoBarras.isNotBlank() && !cbRegex.matches(codigoBarras.trim())) ||
-            (salidaCodigoBarras.isNotBlank() && !cbRegex.matches(salidaCodigoBarras.trim()))) {
-            mensaje = "El código de barras debe ser 8 dígitos numéricos."; esError = true; return
+        if ((codigoBarras.isNotBlank() && !cbValido(codigoBarras)) ||
+            (salidaCodigoBarras.isNotBlank() && !cbValido(salidaCodigoBarras))) {
+            val h = hintCodigoBarras()
+            mensaje = "El código de barras debe ser ${h.longitud} ${if (h.solo_digitos) "dígitos numéricos" else "caracteres"}."
+            esError = true; return
         }
         guardando = true
         mensaje = null
@@ -287,13 +308,17 @@ class CrearEditarActivoViewModel(
                     salidaAtiUsuarioId = if (hayReemplazo) salidaAtiUsuarioId else null,
                     salidaSerie = if (hayReemplazo) salidaSerie.trim().ifBlank { null } else null,
                     salidaCodigoBarras = if (hayReemplazo) salidaCodigoBarras.trim().ifBlank { null } else null,
+                    proyectoRentecId = proyectoRentecId,
                 )
                 when (val r = pendientesRepository.registrar(context, campos, fotoEquipoUri, fotoSerieUri, fotoActivoUri)) {
                     is Resultado.Exito -> {
                         guardando = false; esError = false; mensaje = r.datos
                         serie = ""; codigoBarras = ""; procedenciaTiendaId = null
                         reemplazaActivoId = null; salidaSerie = ""; salidaCodigoBarras = ""; reemplazoOtraCategoria = false
-                        motivo = ""; fotoEquipoUri = null; fotoSerieUri = null; fotoActivoUri = null
+                        // En un lote RENTEC el motivo se conserva: todas las altas del
+                        // mismo proyecto comparten "Renovación tecnológica".
+                        if (proyectoRentecId == null) motivo = ""
+                        fotoEquipoUri = null; fotoSerieUri = null; fotoActivoUri = null
                         onExito()
                     }
                     is Resultado.Error -> { guardando = false; esError = true; mensaje = r.mensaje }
@@ -319,6 +344,7 @@ class CrearEditarActivoViewModel(
                 salidaCodigoBarras = if (hayReemplazo) salidaCodigoBarras.trim().ifBlank { null } else null,
                 motivo = motivo.trim().ifBlank { null },
                 fotoEquipoUri = fotoEquipoUri, fotoSerieUri = fotoSerieUri, fotoActivoUri = fotoActivoUri,
+                proyectoRentecId = proyectoRentecId,
             )
             when (resultado) {
                 is Resultado.Exito -> {
@@ -353,7 +379,14 @@ class CrearEditarActivoViewModel(
     fun ocrEscanerSerie(): Boolean = hintSerie().modo_ocr ||
         (nombreDispositivoSeleccionado()?.uppercase()?.contains("REGULADOR") == true &&
          nombreDispositivoSeleccionado()?.uppercase()?.contains("UPS") != true)
+    /** Código diminuto (ej. UPS): conviene arrancar con más zoom. */
+    fun zoomAltoEscanerSerie(): Boolean = hintSerie().zoom_alto ||
+        (nombreDispositivoSeleccionado()?.uppercase()?.contains("UPS") == true)
+    fun cbLongitudEscaner(): Int = hintCodigoBarras().longitud
+    fun cbSoloDigitosEscaner(): Boolean = hintCodigoBarras().solo_digitos
 
     private fun hintSerie(): HintSerie =
         hintsEscaner.por_dispositivo[dispositivoId?.toString()]?.serie ?: HintSerie()
+    private fun hintCodigoBarras(): HintCodigoBarras =
+        hintsEscaner.por_dispositivo[dispositivoId?.toString()]?.codigo_barras ?: HintCodigoBarras()
 }

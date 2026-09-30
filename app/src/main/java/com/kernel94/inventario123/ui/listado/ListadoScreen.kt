@@ -47,6 +47,7 @@ fun ListadoScreen(
     onAbrirConsulta: () -> Unit = {},
     onAbrirDashboard: () -> Unit = {},
     onAbrirUsuarios: () -> Unit = {},
+    onAbrirInventarioBodega: (() -> Unit)? = null,
 ) {
     LaunchedEffect(modulo, tiendaId) { viewModel.iniciar(modulo, tiendaId) }
     var mostrarFiltros by remember { mutableStateOf(false) }
@@ -117,6 +118,11 @@ fun ListadoScreen(
                         )
                     },
                     actions = {
+                        if (onAbrirInventarioBodega != null && viewModel.moduloEditable) {
+                            IconButton(onClick = onAbrirInventarioBodega) {
+                                Icon(Icons.Filled.FactCheck, contentDescription = "Inventario", tint = Color.White)
+                            }
+                        }
                         IconButton(onClick = { mostrarFiltros = !mostrarFiltros }) {
                             Icon(Icons.Filled.FilterAlt, contentDescription = "Filtros",
                                 tint = if (mostrarFiltros) BsPrimary else Color.White)

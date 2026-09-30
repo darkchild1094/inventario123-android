@@ -95,7 +95,7 @@ class ActivoRepository(private val api: ApiService, private val context: Context
         salidaUsuarioId: Int? = null, salidaAtiUsuarioId: Int? = null, motivo: String? = null,
         salidaSerie: String? = null, salidaCodigoBarras: String? = null,
         fotoEquipoUri: Uri? = null, fotoSerieUri: Uri? = null, fotoActivoUri: Uri? = null,
-        fotoEquipoSalidaUri: Uri? = null,
+        fotoEquipoSalidaUri: Uri? = null, proyectoRentecId: Int? = null,
     ): Resultado<ApiResultado> = try {
         val datos = mapaDatos(
             serie = serie, codigoBarras = codigoBarras, numActivo = numActivo, modeloId = modeloId,
@@ -104,7 +104,7 @@ class ActivoRepository(private val api: ApiService, private val context: Context
             asignadoUsuarioId = asignadoUsuarioId, stockDestino = stockDestino, atiUsuarioId = atiUsuarioId,
             reemplazaActivoId = reemplazaActivoId, salidaDestino = salidaDestino,
             salidaUsuarioId = salidaUsuarioId, salidaAtiUsuarioId = salidaAtiUsuarioId, motivo = motivo,
-            salidaSerie = salidaSerie, salidaCodigoBarras = salidaCodigoBarras,
+            salidaSerie = salidaSerie, salidaCodigoBarras = salidaCodigoBarras, proyectoRentecId = proyectoRentecId,
         )
         val r = api.guardarActivo(
             datos,
@@ -126,6 +126,7 @@ class ActivoRepository(private val api: ApiService, private val context: Context
         salidaUsuarioId: Int? = null, salidaAtiUsuarioId: Int? = null, motivo: String? = null,
         salidaSerie: String? = null, salidaCodigoBarras: String? = null,
         fotoEquipoUri: Uri? = null, fotoSerieUri: Uri? = null, fotoActivoUri: Uri? = null,
+        proyectoRentecId: Int? = null,
     ): Resultado<ApiResultado> = try {
         val datos = mapaDatos(
             id = id, serie = serie, codigoBarras = codigoBarras, numActivo = numActivo, modeloId = modeloId,
@@ -133,7 +134,7 @@ class ActivoRepository(private val api: ApiService, private val context: Context
             asignadoUsuarioId = asignadoUsuarioId, atiUsuarioId = atiUsuarioId,
             reemplazaActivoId = reemplazaActivoId, salidaDestino = salidaDestino,
             salidaUsuarioId = salidaUsuarioId, salidaAtiUsuarioId = salidaAtiUsuarioId, motivo = motivo,
-            salidaSerie = salidaSerie, salidaCodigoBarras = salidaCodigoBarras,
+            salidaSerie = salidaSerie, salidaCodigoBarras = salidaCodigoBarras, proyectoRentecId = proyectoRentecId,
         )
         val r = api.actualizarActivo(
             datos,
@@ -164,6 +165,7 @@ class ActivoRepository(private val api: ApiService, private val context: Context
         asignadoUsuarioId: Int?, stockDestino: String?, atiUsuarioId: Int?, motivo: String?,
         reemplazaActivoId: Int? = null, salidaDestino: String? = null, salidaUsuarioId: Int? = null,
         salidaAtiUsuarioId: Int? = null, salidaSerie: String? = null, salidaCodigoBarras: String? = null,
+        proyectoRentecId: Int? = null,
     ): Map<String, String> = linkedMapOf<String, String?>(
         "serie" to serie,
         "codigo_barras" to codigoBarras,
@@ -184,6 +186,7 @@ class ActivoRepository(private val api: ApiService, private val context: Context
         "salida_ati_usuario_id" to salidaAtiUsuarioId?.toString(),
         "salida_serie" to salidaSerie,
         "salida_codigo_barras" to salidaCodigoBarras,
+        "proyecto_rentec_id" to proyectoRentecId?.toString(),
     ).mapNotNull { (k, v) -> v?.let { k to it } }.toMap()
 
     /** Reenvía un pendiente de la cola. Lanza excepción si falla la red. */
@@ -205,7 +208,7 @@ class ActivoRepository(private val api: ApiService, private val context: Context
         procedenciaTiendaId: Int?, tiendaUsoId: Int?, asignadoUsuarioId: Int?,
         stockDestino: String? = null, atiUsuarioId: Int?, reemplazaActivoId: Int?,
         salidaDestino: String?, salidaUsuarioId: Int?, salidaAtiUsuarioId: Int?, motivo: String? = null,
-        salidaSerie: String? = null, salidaCodigoBarras: String? = null,
+        salidaSerie: String? = null, salidaCodigoBarras: String? = null, proyectoRentecId: Int? = null,
     ): Map<String, okhttp3.RequestBody> {
         val campos = linkedMapOf<String, String?>(
             "id" to id?.toString(),
@@ -228,6 +231,7 @@ class ActivoRepository(private val api: ApiService, private val context: Context
             "motivo" to motivo,
             "salida_serie" to salidaSerie,
             "salida_codigo_barras" to salidaCodigoBarras,
+            "proyecto_rentec_id" to proyectoRentecId?.toString(),
         )
         return campos.mapNotNull { (k, v) -> ImagenUtil.texto(v)?.let { k to it } }.toMap()
     }

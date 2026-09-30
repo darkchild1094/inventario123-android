@@ -43,6 +43,11 @@ class TiendaMovViewModel(
     var tiendaId by mutableStateOf<Int?>(null)
     var tiendaFija by mutableStateOf(false); private set
 
+    // Contexto RENTEC (instalación de equipo recibido para un proyecto de
+    // renovación): fija motivo y etiqueta el activo/movimiento con el proyecto.
+    var proyectoRentecId by mutableStateOf<Int?>(null); private set
+    var proyectoRentecFolio by mutableStateOf<String?>(null); private set
+
     var serie by mutableStateOf("")
     var codigoBarras by mutableStateOf("")
     var motivo by mutableStateOf("")
@@ -72,8 +77,19 @@ class TiendaMovViewModel(
     val online get() = pendientesRepository.online
     private val miId get() = perfil?.usuario?.id ?: 0
 
-    private val cbRegex = Regex("^\\d{8}$")
-    private fun cbInvalido(v: String) = v.isNotBlank() && !cbRegex.matches(v.trim())
+    private fun hintCodigoBarras(): HintCodigoBarras =
+        hintsEscaner.por_dispositivo[dispositivoId?.toString()]?.codigo_barras ?: HintCodigoBarras()
+    private fun cbInvalido(v: String): Boolean {
+        if (v.isBlank()) return false
+        val h = hintCodigoBarras()
+        val regex = if (h.solo_digitos) Regex("^\\d{${h.longitud}}$") else Regex("^[A-Za-z0-9]{${h.longitud}}$")
+        return !regex.matches(v.trim())
+    }
+    /** Mensaje de validación acorde al hint del dispositivo elegido (por defecto 8 dígitos). */
+    fun cbMensajeInvalido(): String {
+        val h = hintCodigoBarras()
+        return "El código de barras debe ser ${h.longitud} ${if (h.solo_digitos) "dígitos numéricos" else "caracteres"}."
+    }
 
     private fun nombreDisp() = catalogos.dispositivos.find { it.id == dispositivoId }?.nombre?.uppercase() ?: ""
     private fun hintSerie(): HintSerie =
@@ -84,11 +100,21 @@ class TiendaMovViewModel(
     }
     fun ocrEscanerSerie(): Boolean = hintSerie().modo_ocr ||
         (nombreDisp().contains("REGULADOR") && !nombreDisp().contains("UPS"))
+    /** Código diminuto (ej. UPS): conviene arrancar con más zoom. */
+    fun zoomAltoEscanerSerie(): Boolean = hintSerie().zoom_alto || nombreDisp().contains("UPS")
+    fun cbLongitudEscaner(): Int = hintCodigoBarras().longitud
+    fun cbSoloDigitosEscaner(): Boolean = hintCodigoBarras().solo_digitos
 
     private var jSerie: Job? = null
     private var jSalida: Job? = null
 
-    fun iniciar(tiendaFijaId: Int?) {
+    fun iniciar(tiendaFijaId: Int?, proyectoRentecContexto: Int? = null, proyectoRentecFolioContexto: String? = null) {
+        proyectoRentecId = proyectoRentecContexto
+        proyectoRentecFolio = proyectoRentecFolioContexto
+        if (proyectoRentecContexto != null) {
+            modo = ModoMov.REEMPLAZO
+            motivo = "Renovación tecnológica"
+        }
         viewModelScope.launch {
             cargando = true
             perfil = authRepository.obtenerPerfil()
@@ -130,7 +156,10 @@ class TiendaMovViewModel(
                     lookup = r.datos
                     necesitaAltaNueva = when (modo) {
                         ModoMov.RETIRO -> false
-                        else -> !(r.datos.encontrado && r.datos.en_mi_stock)
+                        // En mi stock, o ya recibido en bodega (p.ej. bajo un proyecto
+                        // RENTEC): en ambos casos se MUEVE el activo existente en vez
+                        // de darlo de alta otra vez.
+                        else -> !(r.datos.encontrado && (r.datos.en_mi_stock || r.datos.en_bodega))
                     }
                 }
                 is Resultado.Error -> {}
@@ -156,7 +185,7 @@ class TiendaMovViewModel(
         if (tId == null || tId <= 0) { mensaje = "Elige la tienda."; esError = true; return }
         if (serie.isBlank()) { mensaje = "La serie es obligatoria."; esError = true; return }
         if (cbInvalido(codigoBarras) || (modo == ModoMov.REEMPLAZO && cbInvalido(salidaCodigoBarras))) {
-            mensaje = "El código de barras debe ser 8 dígitos numéricos."; esError = true; return
+            mensaje = cbMensajeInvalido(); esError = true; return
         }
         guardando = true; mensaje = null
 
@@ -183,9 +212,10 @@ class TiendaMovViewModel(
                 }
                 ModoMov.INSTALACION -> {
                     val lk = lookup
-                    if (lk?.encontrado == true && lk.en_mi_stock && lk.activo != null) {
-                        // mover mi activo a la tienda
-                        val a = lk.activo!!
+                    val yaExiste = lk?.encontrado == true && (lk.en_mi_stock || lk.en_bodega) && lk.activo != null
+                    if (yaExiste) {
+                        // mover el activo existente (mi stock, o ya recibido en bodega) a la tienda
+                        val a = lk!!.activo!!
                         activoRepository.actualizar(
                             context = context, id = a.id, serie = a.serie ?: serie.trim(),
                             codigoBarras = a.codigoBarras, numActivo = a.numActivo, modeloId = a.modelo_id,
@@ -195,6 +225,7 @@ class TiendaMovViewModel(
                             salidaAtiUsuarioId = null, salidaSerie = null, salidaCodigoBarras = null,
                             motivo = motivo.trim().ifBlank { null },
                             fotoEquipoUri = fotoEquipoUri, fotoSerieUri = null, fotoActivoUri = null,
+                            proyectoRentecId = proyectoRentecId ?: lk.proyecto_rentec_id,
                         )
                     } else {
                         // alta nueva en_uso (encolable offline)
@@ -204,6 +235,7 @@ class TiendaMovViewModel(
                             negocioId = null, plazaId = null, procedenciaTiendaId = null,
                             tiendaUsoId = tId, asignadoUsuarioId = null, stockDestino = null,
                             atiUsuarioId = null, motivo = motivo.trim().ifBlank { null },
+                            proyectoRentecId = proyectoRentecId,
                         )
                         pendientesRepository.registrar(context, campos, fotoEquipoUri, null, null)
                     }
@@ -216,19 +248,42 @@ class TiendaMovViewModel(
                         mensaje = "El equipo que sale no está instalado en esta tienda."
                         return@launch
                     }
-                    // Online: lleva 2 fotos (instalado + retirado); no pasa por la cola.
-                    activoRepository.crear(
-                        context = context,
-                        serie = serie.trim(), codigoBarras = codigoBarras.ifBlank { null },
-                        numActivo = null, modeloId = modeloId, status = "en_uso",
-                        negocioId = null, plazaId = null, procedenciaTiendaId = null, tiendaUsoId = tId,
-                        asignadoUsuarioId = null, stockDestino = null, atiUsuarioId = null,
-                        reemplazaActivoId = saleId, salidaDestino = "asignado", salidaUsuarioId = miId,
-                        salidaSerie = salidaSerie.trim().ifBlank { null },
-                        salidaCodigoBarras = salidaCodigoBarras.trim().ifBlank { null },
-                        motivo = motivo.trim().ifBlank { null },
-                        fotoEquipoUri = fotoEquipoUri, fotoEquipoSalidaUri = fotoSalidaUri,
-                    )
+                    val lk = lookup
+                    val yaRecibido = lk?.encontrado == true && lk.en_bodega && lk.activo != null
+                    if (yaRecibido) {
+                        // El equipo que entra ya estaba recibido en bodega (p.ej. fase 1
+                        // de RENTEC): se MUEVE en vez de duplicarlo. actualizar() dispara
+                        // el mismo procesarReemplazo() que crear() para el que sale.
+                        val a = lk!!.activo!!
+                        activoRepository.actualizar(
+                            context = context, id = a.id, serie = a.serie ?: serie.trim(),
+                            codigoBarras = a.codigoBarras ?: codigoBarras.ifBlank { null }, numActivo = a.numActivo,
+                            modeloId = a.modelo_id, status = "en_uso",
+                            procedenciaTiendaId = a.procedencia_tienda_id, tiendaUsoId = tId,
+                            asignadoUsuarioId = null, atiUsuarioId = null,
+                            reemplazaActivoId = saleId, salidaDestino = "asignado", salidaUsuarioId = miId,
+                            salidaSerie = salidaSerie.trim().ifBlank { null },
+                            salidaCodigoBarras = salidaCodigoBarras.trim().ifBlank { null },
+                            motivo = motivo.trim().ifBlank { null },
+                            fotoEquipoUri = fotoEquipoUri, fotoSerieUri = null, fotoActivoUri = null,
+                            proyectoRentecId = proyectoRentecId ?: lk.proyecto_rentec_id,
+                        )
+                    } else {
+                        // Online: lleva 2 fotos (instalado + retirado); no pasa por la cola.
+                        activoRepository.crear(
+                            context = context,
+                            serie = serie.trim(), codigoBarras = codigoBarras.ifBlank { null },
+                            numActivo = null, modeloId = modeloId, status = "en_uso",
+                            negocioId = null, plazaId = null, procedenciaTiendaId = null, tiendaUsoId = tId,
+                            asignadoUsuarioId = null, stockDestino = null, atiUsuarioId = null,
+                            reemplazaActivoId = saleId, salidaDestino = "asignado", salidaUsuarioId = miId,
+                            salidaSerie = salidaSerie.trim().ifBlank { null },
+                            salidaCodigoBarras = salidaCodigoBarras.trim().ifBlank { null },
+                            motivo = motivo.trim().ifBlank { null },
+                            fotoEquipoUri = fotoEquipoUri, fotoEquipoSalidaUri = fotoSalidaUri,
+                            proyectoRentecId = proyectoRentecId,
+                        )
+                    }
                 }
             }
 
@@ -250,9 +305,11 @@ class TiendaMovViewModel(
     }
 
     private fun limpiar() {
-        serie = ""; codigoBarras = ""; motivo = ""; fotoEquipoUri = null; fotoSalidaUri = null
+        serie = ""; codigoBarras = ""; fotoEquipoUri = null; fotoSalidaUri = null
         salidaSerie = ""; salidaCodigoBarras = ""
         modeloId = null; lookup = null; lookupSalida = null
+        // En un lote RENTEC el motivo se conserva entre instalaciones sucesivas.
+        if (proyectoRentecId == null) motivo = ""
     }
 
     fun limpiarMensaje() { mensaje = null }

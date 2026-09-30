@@ -59,10 +59,12 @@ import java.util.concurrent.TimeUnit
  *    versión con las confusiones típicas corregidas (O→0, I/l→1, S→5, B→8, Z→2).
  *  - **Formatos de inventario priorizados** en el lector de códigos.
  *
- * Modos (según el dispositivo elegido en el formulario):
- *  - UPS (`filtroPrefijo` != null): código diminuto; más zoom, enfoque al centro.
+ * Modos (según el dispositivo elegido en el formulario, vía hints del backend):
+ *  - UPS (`filtroPrefijo` != null, `zoomAlto` = true): código diminuto; más zoom, enfoque al centro.
  *  - Regulador (`modoRegulador` = true): sin código útil; OCR tras "SERIE:"/"S/N:".
  *  - Genérico: barcode y, si no hay, líneas de OCR tocables.
+ * `codigoLongitud`/`codigoSoloDigitos` fijan la forma válida del código de barras
+ * (por defecto 8 dígitos); vienen del hint del dispositivo, no están fijos en código.
  */
 @Composable
 fun EscanerScreen(
@@ -72,15 +74,21 @@ fun EscanerScreen(
     filtroPrefijo: String? = null,
     modoRegulador: Boolean = false,
     target: String = "serie",
+    zoomAlto: Boolean = false,
+    codigoLongitud: Int = 8,
+    codigoSoloDigitos: Boolean = true,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val esUps = filtroPrefijo != null
     val esCodigo = target == "codigo" || target == "codigo_barras"
 
-    // Validación por forma del campo objetivo.
-    // Código de barras de inventario: 8 dígitos numéricos exactos.
-    val regexCodigo = remember { Regex("^\\d{8}$") }
+    // Validación por forma del campo objetivo. El código de barras usa la
+    // longitud/tipo que mande el hint del dispositivo (por defecto 8 dígitos);
+    // así un dispositivo con etiquetas distintas no se valida como si fueran todas iguales.
+    val regexCodigo = remember(codigoLongitud, codigoSoloDigitos) {
+        if (codigoSoloDigitos) Regex("^\\d{$codigoLongitud}$")
+        else Regex("^[A-Za-z0-9]{$codigoLongitud}$")
+    }
     val regexSerie = remember { Regex("^[A-Za-z0-9][A-Za-z0-9\\-./]{3,29}$") }
     fun limpiar(v: String) = v.replace(Regex("[\\u202a-\\u202e\\u200e\\u200f\\s]"), "").trim()
     fun cumpleForma(v: String): Boolean {
@@ -106,7 +114,7 @@ fun EscanerScreen(
     var textosDetectados by remember { mutableStateOf<List<String>>(emptyList()) }
     var yaSeleccionado by remember { mutableStateOf(false) }
     var linternaEncendida by remember { mutableStateOf(false) }
-    var zoomActual by remember { mutableStateOf(if (esUps) 0.45f else 0f) }
+    var zoomActual by remember { mutableStateOf(if (zoomAlto) 0.45f else 0f) }
     var controlCamara by remember { mutableStateOf<androidx.camera.core.CameraControl?>(null) }
 
     // ── Confirmación por lecturas repetidas (todos los modos) ────────────
@@ -322,7 +330,7 @@ fun EscanerScreen(
                 modifier = Modifier.align(Alignment.TopCenter).padding(top = 90.dp)
             )
 
-            if (esUps) {
+            if (zoomAlto) {
                 Text(
                     "Pellizca la pantalla para acercar el zoom",
                     color = Color.White,

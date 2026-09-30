@@ -255,6 +255,10 @@ data class ResolverSerieResponse(
     val activo: Activo? = null,
     val en_mi_stock: Boolean = false,
     val en_esta_tienda: Boolean = false,
+    // En bodega bajo un proyecto RENTEC: la instalación debe MOVER este
+    // activo (actualizar) en vez de darlo de alta otra vez (evita duplicarlo).
+    val en_bodega: Boolean = false,
+    val proyecto_rentec_id: Int? = null,
     val ubicacion_corta: String? = null,
     val coincidencias: List<ConsultaCoincidencia> = emptyList(),
 )

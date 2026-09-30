@@ -48,6 +48,9 @@ class TiendasViewModel(
                 is Resultado.Exito -> plazas = r.datos.plazas
                 is Resultado.Error -> {}
             }
+            // El backend ya devuelve solo las plazas del usuario; si es una sola, se
+            // preselecciona en vez de dejar "Todas mis plazas" (ambiguo cuando no lo es).
+            if (plazaId == null && plazas.size == 1) plazaId = plazas.first().id
             cargar()
         }
     }

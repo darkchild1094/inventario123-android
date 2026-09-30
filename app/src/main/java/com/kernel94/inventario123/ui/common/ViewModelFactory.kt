@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.kernel94.inventario123.Inventario123App
 import com.kernel94.inventario123.ui.auth.LoginViewModel
+import com.kernel94.inventario123.ui.bodega.InventarioBodegaDetalleViewModel
+import com.kernel94.inventario123.ui.bodega.InventarioBodegaViewModel
 import com.kernel94.inventario123.ui.consulta.ConsultaViewModel
 import com.kernel94.inventario123.ui.dashboard.DashboardViewModel
 import com.kernel94.inventario123.ui.detalle.DetalleViewModel
@@ -13,6 +15,8 @@ import com.kernel94.inventario123.ui.historial.HistorialViewModel
 import com.kernel94.inventario123.ui.listado.ListadoViewModel
 import com.kernel94.inventario123.ui.modelos.ModelosViewModel
 import com.kernel94.inventario123.ui.pendientes.PendientesViewModel
+import com.kernel94.inventario123.ui.rentec.RentecDetalleViewModel
+import com.kernel94.inventario123.ui.rentec.RentecListaViewModel
 import com.kernel94.inventario123.ui.solicitudes.SolicitudesViewModel
 import com.kernel94.inventario123.ui.tiendas.TiendasViewModel
 import com.kernel94.inventario123.ui.usuarios.UsuariosViewModel
@@ -48,6 +52,14 @@ class ViewModelFactory(private val app: Inventario123App) : ViewModelProvider.Fa
                 ModelosViewModel(app.modeloRepository, app.catalogoRepository) as T
             modelClass.isAssignableFrom(SolicitudesViewModel::class.java) ->
                 SolicitudesViewModel(app.solicitudRepository, app.activoRepository, app.catalogoRepository, app.authRepository) as T
+            modelClass.isAssignableFrom(InventarioBodegaDetalleViewModel::class.java) ->
+                InventarioBodegaDetalleViewModel(app.bodegaRepository) as T
+            modelClass.isAssignableFrom(InventarioBodegaViewModel::class.java) ->
+                InventarioBodegaViewModel(app.bodegaRepository) as T
+            modelClass.isAssignableFrom(RentecDetalleViewModel::class.java) ->
+                RentecDetalleViewModel(app.rentecRepository, app.exportRepository) as T
+            modelClass.isAssignableFrom(RentecListaViewModel::class.java) ->
+                RentecListaViewModel(app.rentecRepository) as T
             else -> throw IllegalArgumentException("ViewModel desconocido: ${modelClass.name}")
         }
     }
