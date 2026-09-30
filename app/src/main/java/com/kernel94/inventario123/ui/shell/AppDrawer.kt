@@ -2,7 +2,9 @@ package com.kernel94.inventario123.ui.shell
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -54,76 +56,81 @@ fun AppDrawerContent(
 ) {
     val permisos = perfil?.permisos
     ModalDrawerSheet(drawerContainerColor = Color.White) {
-        Column(Modifier.fillMaxWidth().background(BsDark).padding(20.dp)) {
-            AsyncImage(
-                model = perfil?.usuario?.foto?.let { Urls.usuarioFoto(it) } ?: "file:///android_asset/logo_login.png",
-                contentDescription = null,
-                modifier = Modifier.size(52.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.15f)),
-            )
-            Spacer(Modifier.height(10.dp))
-            Text(perfil?.usuario?.nombre ?: "Usuario", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold, color = Color.White)
-            Text(perfil?.usuario?.plaza_nombre ?: "Inventario123", style = MaterialTheme.typography.labelMedium,
-                color = Color.White.copy(alpha = 0.75f))
-            permisos?.tipo?.takeIf { it.isNotBlank() }?.let {
-                Text(rolLabel(it), style = MaterialTheme.typography.labelSmall, color = BsPrimary)
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-
-        perfil?.modulos.orEmpty().forEach { m ->
-            NavigationDrawerItem(
-                icon = { Icon(iconoModulo(m.clave), contentDescription = null) },
-                label = { Text(m.etiqueta) },
-                selected = moduloActivo == m.clave,
-                onClick = {
-                    when (m.clave) {
-                        "dashboard" -> onDashboard()
-                        "consulta"  -> onConsulta()
-                        "usuarios"  -> onUsuarios()
-                        else        -> onModulo(m.clave)
+        Column(Modifier.fillMaxSize()) {
+            // Encabezado + módulos + accesos secundarios: si no caben en pantalla
+            // (p. ej. rol admin con muchos módulos), esta parte hace scroll propio
+            // en vez de recortar elementos — "Cerrar sesión" queda siempre fijo abajo.
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                Column(Modifier.fillMaxWidth().background(BsDark).padding(20.dp)) {
+                    AsyncImage(
+                        model = perfil?.usuario?.foto?.let { Urls.usuarioFoto(it) } ?: "file:///android_asset/logo_login.png",
+                        contentDescription = null,
+                        modifier = Modifier.size(52.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.15f)),
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(perfil?.usuario?.nombre ?: "Usuario", style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(perfil?.usuario?.plaza_nombre ?: "Inventario123", style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.75f))
+                    permisos?.tipo?.takeIf { it.isNotBlank() }?.let {
+                        Text(rolLabel(it), style = MaterialTheme.typography.labelSmall, color = BsPrimary)
                     }
-                },
-                modifier = Modifier.padding(horizontal = 12.dp),
-            )
-        }
-        HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                }
+                Spacer(Modifier.height(8.dp))
 
-        if (permisos?.puedeVerHistorial == true) {
-            NavigationDrawerItem(
-                icon = { Icon(Icons.Filled.History, contentDescription = null) },
-                label = { Text("Historial") }, selected = false,
-                onClick = onHistorial, modifier = Modifier.padding(horizontal = 12.dp),
-            )
-        }
-        if (permisos?.puedeVerTraslados == true) {
-            NavigationDrawerItem(
-                icon = { Icon(Icons.Filled.SwapHoriz, contentDescription = null) },
-                label = { Text("Traslados a bodega") },
-                badge = { if (solicitudesPendientes > 0) Text(solicitudesPendientes.toString(), fontWeight = FontWeight.Bold, color = BsPrimary) },
-                selected = false, onClick = onTraslados, modifier = Modifier.padding(horizontal = 12.dp),
-            )
-        }
-        NavigationDrawerItem(
-            icon = { Icon(Icons.Filled.CloudUpload, contentDescription = null) },
-            label = { Text("Altas pendientes de envío") }, selected = false,
-            onClick = onPendientes, modifier = Modifier.padding(horizontal = 12.dp),
-        )
-        if (permisos?.puedeGestionarModelos == true) {
-            NavigationDrawerItem(
-                icon = { Icon(Icons.Filled.Category, contentDescription = null) },
-                label = { Text("Catálogo de modelos") }, selected = false,
-                onClick = onModelos, modifier = Modifier.padding(horizontal = 12.dp),
-            )
-        }
+                perfil?.modulos.orEmpty().forEach { m ->
+                    NavigationDrawerItem(
+                        icon = { Icon(iconoModulo(m.clave), contentDescription = null) },
+                        label = { Text(m.etiqueta) },
+                        selected = moduloActivo == m.clave,
+                        onClick = {
+                            when (m.clave) {
+                                "dashboard" -> onDashboard()
+                                "consulta"  -> onConsulta()
+                                "usuarios"  -> onUsuarios()
+                                else        -> onModulo(m.clave)
+                            }
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                    )
+                }
+                HorizontalDivider(Modifier.padding(vertical = 6.dp))
 
-        Spacer(Modifier.weight(1f))
-        HorizontalDivider()
-        NavigationDrawerItem(
-            icon = { Icon(Icons.Filled.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-            label = { Text("Cerrar sesión", color = MaterialTheme.colorScheme.error) },
-            selected = false, onClick = onCerrarSesion,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-        )
+                if (permisos?.puedeVerHistorial == true) {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Filled.History, contentDescription = null) },
+                        label = { Text("Historial") }, selected = false,
+                        onClick = onHistorial, modifier = Modifier.padding(horizontal = 12.dp),
+                    )
+                }
+                if (permisos?.puedeVerTraslados == true) {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Filled.SwapHoriz, contentDescription = null) },
+                        label = { Text("Traslados a bodega") },
+                        badge = { if (solicitudesPendientes > 0) Text(solicitudesPendientes.toString(), fontWeight = FontWeight.Bold, color = BsPrimary) },
+                        selected = false, onClick = onTraslados, modifier = Modifier.padding(horizontal = 12.dp),
+                    )
+                }
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Filled.CloudUpload, contentDescription = null) },
+                    label = { Text("Altas pendientes de envío") }, selected = false,
+                    onClick = onPendientes, modifier = Modifier.padding(horizontal = 12.dp),
+                )
+                if (permisos?.puedeGestionarModelos == true) {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Filled.Category, contentDescription = null) },
+                        label = { Text("Catálogo de modelos") }, selected = false,
+                        onClick = onModelos, modifier = Modifier.padding(horizontal = 12.dp),
+                    )
+                }
+            }
+            HorizontalDivider()
+            NavigationDrawerItem(
+                icon = { Icon(Icons.Filled.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                label = { Text("Cerrar sesión", color = MaterialTheme.colorScheme.error) },
+                selected = false, onClick = onCerrarSesion,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+        }
     }
 }
