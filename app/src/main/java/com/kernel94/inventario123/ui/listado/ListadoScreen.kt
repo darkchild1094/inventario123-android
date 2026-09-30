@@ -38,6 +38,7 @@ fun ListadoScreen(
     onCerrarSesion: () -> Unit,
     modulo: String? = null,
     tiendaId: Int? = null,
+    usuarioId: Int? = null,
     onAbrirHistorial: () -> Unit = {},
     onAbrirTiendas: () -> Unit = {},
     onAbrirModelos: () -> Unit = {},
@@ -52,7 +53,7 @@ fun ListadoScreen(
     // backend decide a quién puede auditar cada quien (uno mismo siempre).
     onAbrirInventario: (() -> Unit)? = null,
 ) {
-    LaunchedEffect(modulo, tiendaId) { viewModel.iniciar(modulo, tiendaId) }
+    LaunchedEffect(modulo, tiendaId, usuarioId) { viewModel.iniciar(modulo, tiendaId, usuarioId) }
     var mostrarFiltros by remember { mutableStateOf(false) }
     var activoAEliminar by remember { mutableStateOf<Int?>(null) }
     val vistasDisponibles = viewModel.perfil?.vistasDisponibles ?: listOf("todos")

@@ -71,11 +71,12 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
         // Enrutado de un módulo a su pantalla (Tiendas tiene lista propia).
         val abrirModulo: (String) -> Unit = { clave ->
             when (clave) {
-                "tiendas"  -> navController.navigate(Screen.Tiendas.route)
-                "usuarios" -> navController.navigate(Screen.Usuarios.route)
-                "consulta" -> navController.navigate(Screen.Consulta.route)
-                "rentec"   -> navController.navigate(Screen.Rentec.route)
-                else       -> navController.navigate(Screen.Modulo.crear(clave))
+                "tiendas"   -> navController.navigate(Screen.Tiendas.route)
+                "usuarios"  -> navController.navigate(Screen.Usuarios.route)
+                "consulta"  -> navController.navigate(Screen.Consulta.route)
+                "rentec"    -> navController.navigate(Screen.Rentec.route)
+                "stock_pfs" -> navController.navigate(Screen.StockPfsLista.route)
+                else        -> navController.navigate(Screen.Modulo.crear(clave))
             }
         }
         // FAB "crear" según módulo: tiendas -> form de 3 modos; resto -> alta.
@@ -112,20 +113,32 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             )
         }
 
+        composable(Screen.StockPfsLista.route) {
+            val vm: com.kernel94.inventario123.ui.bodega.StockPfsListaViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.bodega.StockPfsListaScreen(
+                viewModel = vm,
+                onVolver = { navController.popBackStack() },
+                onSeleccionarUsuario = { u -> navController.navigate(Screen.Modulo.crear("stock_pfs", usuarioId = u.id)) },
+            )
+        }
+
         composable(
             Screen.Modulo.route,
             arguments = listOf(
                 navArgument("modulo") { type = NavType.StringType },
                 navArgument("tiendaId") { type = NavType.IntType; defaultValue = 0 },
+                navArgument("usuarioId") { type = NavType.IntType; defaultValue = 0 },
             )
         ) { backStackEntry ->
             val moduloArg = backStackEntry.arguments?.getString("modulo") ?: ""
             val tiendaArg = backStackEntry.arguments?.getInt("tiendaId") ?: 0
+            val usuarioArg = backStackEntry.arguments?.getInt("usuarioId") ?: 0
             val vm: ListadoViewModel = viewModel(factory = factory)
             ListadoScreen(
                 viewModel = vm,
                 modulo = moduloArg,
                 tiendaId = tiendaArg.takeIf { it > 0 },
+                usuarioId = usuarioArg.takeIf { it > 0 },
                 onAbrirDetalle = { id -> navController.navigate(Screen.Detalle.crear(id)) },
                 onEditar = { id -> navController.navigate(Screen.Editar.crear(id)) },
                 onCrearNuevo = { abrirCrear(moduloArg, tiendaArg.takeIf { it > 0 }) },

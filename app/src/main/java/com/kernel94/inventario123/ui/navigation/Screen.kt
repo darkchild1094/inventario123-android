@@ -5,10 +5,12 @@ sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard")
     object Listado : Screen("listado")
     // Listado de un módulo (Bodega, Mi Stock, Stock PFS, ATI, Tiendas con tienda_id).
-    object Modulo : Screen("modulo/{modulo}?tiendaId={tiendaId}") {
-        fun crear(modulo: String, tiendaId: Int? = null) =
-            "modulo/$modulo?tiendaId=${tiendaId ?: 0}"
+    object Modulo : Screen("modulo/{modulo}?tiendaId={tiendaId}&usuarioId={usuarioId}") {
+        fun crear(modulo: String, tiendaId: Int? = null, usuarioId: Int? = null) =
+            "modulo/$modulo?tiendaId=${tiendaId ?: 0}&usuarioId=${usuarioId ?: 0}"
     }
+    // Landing de "Stock PFS": lista de ingenieros con 1+ activos a su nombre.
+    object StockPfsLista : Screen("stock_pfs_lista")
     object Consulta : Screen("consulta")
     // Form simple del módulo Tiendas: Instalación / Retiro / Reemplazo.
     object TiendaMov : Screen(

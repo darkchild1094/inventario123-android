@@ -65,6 +65,11 @@ class BodegaRepository(private val api: ApiService) {
         api.inventarioStockUsuarios()
     } catch (e: Exception) { emptyList() }
 
+    /** Landing de "Stock PFS": ingenieros con 1+ activos a su nombre. */
+    suspend fun stockPfsUsuarios(): List<Usuario> = try {
+        api.stockPfsUsuarios()
+    } catch (e: Exception) { emptyList() }
+
     suspend fun historicoUsuario(stockUsuarioId: Int): Resultado<List<InventarioBodega>> = try {
         Resultado.Exito(api.inventarioStockListar(stockUsuarioId))
     } catch (e: Exception) {

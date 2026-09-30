@@ -191,13 +191,8 @@ fun CrearEditarActivoScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             )
-            OutlinedTextField(
-                value = viewModel.numActivo,
-                onValueChange = { viewModel.numActivo = it },
-                label = { Text("N° de activo") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-            )
+            // N° de activo NO se pide aquí: es un dato que se agrega solo desde
+            // la BD manualmente, nunca visible ni editable en el formulario.
 
             // Módulos compactos (bodega / mi_stock / stock_pfs / ati): el estatus
             // queda fijo por el módulo, no se muestran los radios.

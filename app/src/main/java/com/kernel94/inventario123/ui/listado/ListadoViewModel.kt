@@ -54,10 +54,12 @@ class ListadoViewModel(
 
     private var debounceJob: Job? = null
 
-    /** @param moduloArg si viene, la pantalla lista ese módulo; @param tiendaArg acota a una tienda. */
-    fun iniciar(moduloArg: String? = null, tiendaArg: Int? = null) {
+    /** @param moduloArg si viene, la pantalla lista ese módulo; @param tiendaArg acota a
+     *  una tienda; @param usuarioArg acota a un usuario (p. ej. desde la lista de Stock PFS). */
+    fun iniciar(moduloArg: String? = null, tiendaArg: Int? = null, usuarioArg: Int? = null) {
         modulo = moduloArg?.takeIf { it.isNotBlank() }
         tiendaId = tiendaArg?.takeIf { it > 0 }
+        usuarioId = usuarioArg?.takeIf { it > 0 }
         viewModelScope.launch {
             perfil = authRepository.obtenerPerfil()
             val vistas = perfil?.vistasDisponibles ?: emptyList()

@@ -21,8 +21,10 @@ import kotlinx.coroutines.launch
  *   · asignado          → "Asignado a" (usuario)
  *   · en_uso            → "Tienda en uso" + "¿Reemplaza a?" (y destino del que sale)
  *   · garantia / baja   → "ATI responsable"
- * Solo serie / código de barras / procedencia se limpian entre un registro y el
- * siguiente; el resto de la configuración se conserva para agilizar altas en serie.
+ * Solo serie / código de barras / fotos se limpian entre un registro y el
+ * siguiente; el resto de la configuración (incluida procedencia) se conserva
+ * para agilizar altas en serie — solo hace falta volver a llenar serie,
+ * código de barras y foto.
  */
 class CrearEditarActivoViewModel(
     private val activoRepository: ActivoRepository,
@@ -335,7 +337,10 @@ class CrearEditarActivoViewModel(
                 when (val r = pendientesRepository.registrar(context, campos, fotoEquipoUri, fotoSerieUri, fotoActivoUri)) {
                     is Resultado.Exito -> {
                         guardando = false; esError = false; mensaje = r.datos
-                        serie = ""; codigoBarras = ""; procedenciaTiendaId = null
+                        // Solo serie/código/fotos se limpian: el resto (incluida
+                        // procedencia) se conserva para agilizar altas en serie —
+                        // solo hace falta volver a llenar serie, código y foto.
+                        serie = ""; codigoBarras = ""
                         reemplazaActivoId = null; salidaSerie = ""; salidaCodigoBarras = ""; reemplazoOtraCategoria = false
                         // En un lote RENTEC el motivo se conserva: todas las altas del
                         // mismo proyecto comparten "Renovación tecnológica".

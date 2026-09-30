@@ -190,6 +190,10 @@ interface ApiService {
     @POST("index.php?controller=api&action=inventarioBodegaCerrar")
     suspend fun inventarioBodegaCerrar(@Body body: Map<String, @JvmSuppressWildcards Any?>): InventarioBodegaResponse
 
+    // Landing del módulo "Stock PFS": ingenieros PFS con 1+ activos a su nombre.
+    @GET("index.php?controller=api&action=stockPfsUsuarios")
+    suspend fun stockPfsUsuarios(): List<Usuario>
+
     // ── Inventario físico de stock personal (Mi Stock / Stock PFS) ──────
     @GET("index.php?controller=api&action=inventarioStockUsuarios")
     suspend fun inventarioStockUsuarios(): List<Usuario>

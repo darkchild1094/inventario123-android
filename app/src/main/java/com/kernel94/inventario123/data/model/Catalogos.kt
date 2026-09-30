@@ -4,6 +4,8 @@ data class Usuario(
     val id: Int = 0, val nombre: String = "", val email: String? = null,
     val foto: String? = null, val plaza_id: Int? = null, val plaza_nombre: String? = null,
     val tipo: String = "pfs",
+    // Solo viene poblado por stockPfsUsuarios() (landing de "Stock PFS").
+    val activos_count: Int = 0,
 )
 
 /** Etiqueta legible para un rol de usuario. */
