@@ -20,14 +20,19 @@ class SessionManager(private val context: Context) {
         private val KEY_USUARIO_TIPO = stringPreferencesKey("usuario_tipo")
         private val KEY_USUARIO_ID = stringPreferencesKey("usuario_id")
         private val KEY_CUENTAS_GUARDADAS = stringPreferencesKey("cuentas_guardadas")
-        // Contraseñas recordadas por correo (solo en este dispositivo; mismo nivel
-        // de exposición que el session_id que ya se guarda aquí).
-        private val KEY_PASSWORDS = stringPreferencesKey("passwords_recordadas")
+
+        /**
+         * Aquí se guardaban las contraseñas en claro. Ya no se escribe: DataStore
+         * Preferences no está cifrado y una contraseña, al contrario que un
+         * session_id, no se puede revocar en el servidor y se suele reutilizar
+         * en otros sistemas. Sólo se conserva la clave para poder BORRAR lo que
+         * quedó en los teléfonos (ver purgarPasswordsLegado).
+         */
+        private val KEY_PASSWORDS_LEGADO = stringPreferencesKey("passwords_recordadas")
     }
 
     private val gson = Gson()
     private val listaType = object : TypeToken<MutableList<CuentaGuardada>>() {}.type
-    private val mapaType = object : TypeToken<MutableMap<String, String>>() {}.type
 
     val sessionIdFlow: Flow<String?> = context.dataStore.data.map { it[KEY_SESSION_ID] }
     val tipoFlow: Flow<String?> = context.dataStore.data.map { it[KEY_USUARIO_TIPO] }
@@ -38,18 +43,20 @@ class SessionManager(private val context: Context) {
         if (json.isNullOrBlank()) emptyList() else gson.fromJson(json, listaType)
     }
 
-    /** Correos que tienen una contraseña recordada en este dispositivo. */
-    val correosConPasswordFlow: Flow<Set<String>> = context.dataStore.data.map { prefs ->
-        val json = prefs[KEY_PASSWORDS]
-        if (json.isNullOrBlank()) emptySet()
-        else gson.fromJson<MutableMap<String, String>>(json, mapaType).keys
-    }
-
     suspend fun sessionIdActual(): String? = sessionIdFlow.first()
+
+    /**
+     * Borra las contraseñas que versiones anteriores dejaron guardadas en claro.
+     * Se llama al arrancar: quitar el código que las escribía no basta, las que
+     * ya están en el dispositivo seguirían ahí.
+     */
+    suspend fun purgarPasswordsLegado() {
+        context.dataStore.edit { prefs -> prefs.remove(KEY_PASSWORDS_LEGADO) }
+    }
 
     suspend fun guardarSesion(
         sessionId: String, usuarioId: Int, nombre: String, tipo: String,
-        email: String, foto: String?, password: String? = null, recordarPassword: Boolean = false,
+        email: String, foto: String?,
     ) {
         context.dataStore.edit { prefs ->
             prefs[KEY_SESSION_ID] = sessionId
@@ -62,17 +69,7 @@ class SessionManager(private val context: Context) {
             lista.removeAll { it.email == email }
             lista.add(0, CuentaGuardada(usuarioId, nombre, email, foto))
             prefs[KEY_CUENTAS_GUARDADAS] = gson.toJson(lista.take(5))
-
-            val mapa: MutableMap<String, String> = prefs[KEY_PASSWORDS]?.takeIf { it.isNotBlank() }
-                ?.let { gson.fromJson(it, mapaType) } ?: mutableMapOf()
-            if (recordarPassword && !password.isNullOrEmpty()) mapa[email] = password else mapa.remove(email)
-            prefs[KEY_PASSWORDS] = gson.toJson(mapa)
         }
-    }
-
-    suspend fun passwordRecordada(email: String): String? {
-        val json = context.dataStore.data.first()[KEY_PASSWORDS] ?: return null
-        return gson.fromJson<MutableMap<String, String>>(json, mapaType)[email]
     }
 
     suspend fun eliminarCuentaGuardada(email: String) {
@@ -82,15 +79,10 @@ class SessionManager(private val context: Context) {
                 lista.removeAll { c -> c.email == email }
                 prefs[KEY_CUENTAS_GUARDADAS] = gson.toJson(lista)
             }
-            prefs[KEY_PASSWORDS]?.takeIf { it.isNotBlank() }?.let {
-                val mapa: MutableMap<String, String> = gson.fromJson(it, mapaType)
-                mapa.remove(email)
-                prefs[KEY_PASSWORDS] = gson.toJson(mapa)
-            }
         }
     }
 
-    /** Cierra la sesión activa. Conserva las cuentas y contraseñas recordadas. */
+    /** Cierra la sesión activa. Conserva la lista de cuentas recientes. */
     suspend fun cerrarSesion() {
         context.dataStore.edit { prefs ->
             prefs.remove(KEY_SESSION_ID)

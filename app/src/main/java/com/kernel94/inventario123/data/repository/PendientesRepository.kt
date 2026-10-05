@@ -96,6 +96,10 @@ class PendientesRepository(
                 )
                 if (r.success) {
                     store.actualizar(p.copy(estado = "enviado", serverId = r.id, error = null))
+                    // Ya llegó al servidor: las fotos locales no se volverán a
+                    // usar. Antes se quedaban en disco hasta que el usuario
+                    // tocaba "limpiar enviados".
+                    borrarFotos(p)
                     enviados++
                 } else {
                     store.actualizar(p.copy(estado = "error", error = r.message ?: "Rechazado por el servidor."))

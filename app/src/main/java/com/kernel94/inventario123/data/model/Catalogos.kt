@@ -46,7 +46,6 @@ data class Tienda(
     val plaza_nombre: String? = null,
 )
 data class Bodega(val id: Int = 0, val nombre: String = "", val usuario_id: Int? = null, val plazas_ids: String? = null)
-data class Area(val id: Int = 0, val nombre: String = "")
 data class StatusOpcion(val value: String = "", val label: String = "")
 
 data class Catalogos(
@@ -58,7 +57,6 @@ data class Catalogos(
     val negocios: List<Negocio> = emptyList(),
     val usuarios: List<Usuario> = emptyList(),
     val bodegas: List<Bodega> = emptyList(),
-    val areas: List<Area> = emptyList(),
     val status_opts: List<StatusOpcion> = emptyList(),
 )
 

@@ -11,13 +11,12 @@ sealed class ResultadoLogin {
 }
 
 class AuthRepository(private val api: ApiService, private val sessionManager: SessionManager) {
-    suspend fun login(email: String, password: String, recordarPassword: Boolean = false): ResultadoLogin = try {
+    suspend fun login(email: String, password: String): ResultadoLogin = try {
         val resp = api.login(LoginRequest(email, password))
         if (resp.success && !resp.session_id.isNullOrBlank() && resp.usuario != null) {
             sessionManager.guardarSesion(
                 resp.session_id, resp.usuario.id, resp.usuario.nombre,
                 resp.usuario.tipo, email, resp.usuario.foto,
-                password = password, recordarPassword = recordarPassword,
             )
             ResultadoLogin.Exito(resp.usuario.nombre, resp.usuario.tipo)
         } else {
@@ -36,7 +35,8 @@ class AuthRepository(private val api: ApiService, private val sessionManager: Se
     suspend fun obtenerPerfil(): Perfil? = try { api.obtenerPerfil() } catch (e: Exception) { null }
 
     val cuentasGuardadas = sessionManager.cuentasGuardadasFlow
-    val correosConPassword = sessionManager.correosConPasswordFlow
-    suspend fun passwordRecordada(email: String): String? = sessionManager.passwordRecordada(email)
     suspend fun eliminarCuentaGuardada(email: String) = sessionManager.eliminarCuentaGuardada(email)
+
+    /** Borra contraseñas que dejaron en claro versiones anteriores de la app. */
+    suspend fun purgarPasswordsLegado() = sessionManager.purgarPasswordsLegado()
 }

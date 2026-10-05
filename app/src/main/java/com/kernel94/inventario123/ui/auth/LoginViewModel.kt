@@ -12,24 +12,22 @@ import kotlinx.coroutines.launch
 class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
     var email by mutableStateOf("")
     var password by mutableStateOf("")
-    var recordarPassword by mutableStateOf(false)
     var cargando by mutableStateOf(false)
         private set
     var error by mutableStateOf<String?>(null)
         private set
 
     val cuentasGuardadas = authRepository.cuentasGuardadas
-    val correosConPassword = authRepository.correosConPassword
 
-    /** Al tocar una cuenta reciente: rellena el correo y, si la hay, la contraseña recordada. */
+    /**
+     * Al tocar una cuenta reciente sólo se rellena el correo. La app ya no
+     * guarda contraseñas: DataStore no está cifrado y una contraseña no se
+     * puede revocar en el servidor como sí se revoca una sesión.
+     */
     fun usarCuenta(correo: String) {
         email = correo
+        password = ""
         error = null
-        viewModelScope.launch {
-            val pw = authRepository.passwordRecordada(correo)
-            password = pw ?: ""
-            recordarPassword = pw != null
-        }
     }
 
     fun login(onExito: () -> Unit) {
@@ -40,7 +38,7 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
         cargando = true
         error = null
         viewModelScope.launch {
-            when (val r = authRepository.login(email.trim(), password, recordarPassword)) {
+            when (val r = authRepository.login(email.trim(), password)) {
                 is ResultadoLogin.Exito -> { cargando = false; onExito() }
                 is ResultadoLogin.Error -> { cargando = false; error = r.mensaje }
             }

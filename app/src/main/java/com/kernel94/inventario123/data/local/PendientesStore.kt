@@ -22,21 +22,38 @@ class PendientesStore(private val context: Context) {
         if (archivo.exists()) gson.fromJson(archivo.readText(), tipo) ?: emptyList() else emptyList()
     } catch (e: Exception) { emptyList() }
 
-    @Synchronized
     private fun guardar(lista: List<ActivoPendiente>) {
         try { archivo.writeText(gson.toJson(lista)) } catch (_: Exception) {}
         _flow.value = lista
     }
 
-    fun agregar(p: ActivoPendiente) = guardar(_flow.value + p)
-    fun actualizar(p: ActivoPendiente) = guardar(_flow.value.map { if (it.localId == p.localId) p else it })
+    /**
+     * Leer-modificar-escribir tiene que ser atómico de principio a fin: antes
+     * sólo guardar() estaba sincronizado y agregar()/actualizar() calculaban la
+     * lista nueva fuera del candado, así que un alta concurrente con el worker
+     * podía perder una entrada.
+     */
+    @Synchronized
+    private fun mutar(transformar: (List<ActivoPendiente>) -> List<ActivoPendiente>) {
+        guardar(transformar(_flow.value))
+    }
+
+    fun agregar(p: ActivoPendiente) = mutar { it + p }
+    fun actualizar(p: ActivoPendiente) = mutar { lista -> lista.map { if (it.localId == p.localId) p else it } }
+
+    @Synchronized
     fun eliminar(localId: String) {
         _flow.value.find { it.localId == localId }?.let { borrarFotos(it) }
         guardar(_flow.value.filter { it.localId != localId })
     }
 
-    /** Los que aún no llegaron al servidor (pendiente / error). */
-    fun porEnviar(): List<ActivoPendiente> = _flow.value.filter { it.estado == "pendiente" || it.estado == "error" }
+    /**
+     * Los que toca reintentar solos: sólo "pendiente" (fallo de red). Antes
+     * incluía "error", de modo que un alta rechazada por validación se
+     * reenviaba en cada cambio de conectividad para siempre, y dejaba sin
+     * sentido el botón de reintentar manual.
+     */
+    fun porEnviar(): List<ActivoPendiente> = _flow.value.filter { it.estado == "pendiente" }
 
     fun guardarFotoLocal(localId: String, campo: String, bytes: ByteArray): String? = try {
         val f = File(context.filesDir, "pend_${localId}_$campo.jpg")

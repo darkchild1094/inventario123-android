@@ -134,19 +134,6 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginExitoso: () -> Unit) {
                             )
                         )
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(top = 4.dp).clickable {
-                                viewModel.recordarPassword = !viewModel.recordarPassword
-                            }
-                        ) {
-                            Checkbox(
-                                checked = viewModel.recordarPassword,
-                                onCheckedChange = { viewModel.recordarPassword = it },
-                            )
-                            Text("Recordar contraseña en este dispositivo", style = MaterialTheme.typography.bodySmall)
-                        }
-
                         if (viewModel.error != null) {
                             Spacer(Modifier.height(8.dp))
                             Text(

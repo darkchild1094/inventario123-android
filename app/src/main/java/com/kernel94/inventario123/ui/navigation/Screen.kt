@@ -3,7 +3,8 @@ package com.kernel94.inventario123.ui.navigation
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Dashboard : Screen("dashboard")
-    object Listado : Screen("listado")
+    // Todo listado pasa por Modulo. La ruta "listado" (navegación vieja por
+    // `vista=`, con reglas de permiso distintas a las de `modulo=`) se eliminó.
     // Listado de un módulo (Bodega, Mi Stock, Stock PFS, ATI, Tiendas con tienda_id).
     object Modulo : Screen("modulo/{modulo}?tiendaId={tiendaId}&usuarioId={usuarioId}") {
         fun crear(modulo: String, tiendaId: Int? = null, usuarioId: Int? = null) =

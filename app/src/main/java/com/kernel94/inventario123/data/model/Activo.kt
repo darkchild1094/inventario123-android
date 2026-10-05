@@ -18,13 +18,15 @@ data class Activo(
     val procedencia_tienda_id: Int? = null,
     val tienda_uso_id: Int? = null,
     val stock_id: Int? = null,
+    // Proyecto RENTEC del que vino este activo, si aplica. El backend lo manda
+    // también en el listado (antes sólo venía en el detalle).
+    val proyecto_rentec_id: Int? = null,
     val fecha_alta: String? = null,
     val fecha_modificacion: String? = null,
     val modelo_nombre: String? = null,
     val marca_nombre: String? = null,
     val dispositivo_id: Int? = null,
     val dispositivo_nombre: String? = null,
-    val area_nombre: String? = null,
     val stock_tipo: String? = null,
     val usuario_stock_id: Int? = null,
     val usuario_nombre: String? = null,
@@ -64,10 +66,6 @@ data class Activo(
             else -> bodega_nombre ?: "—"
         }
 
-    @Deprecated("Renombrado a codigoBarras", ReplaceWith("codigoBarras"))
-    val placa: String? get() = codigoBarras
-
-    val asignadoOBodega: String get() = ubicacionValor
 }
 
 data class Paginacion(

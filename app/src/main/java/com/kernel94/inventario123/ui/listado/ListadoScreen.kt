@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -278,18 +279,59 @@ fun ListadoScreen(
                     viewModel.cargando -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = BsPrimary) }
                     viewModel.error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(viewModel.error!!, color = Color.Gray) }
                     viewModel.activos.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No hay activos para mostrar", color = Color.Gray) }
-                    else -> LazyColumn(
-                        Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(bottom = 80.dp)
-                    ) {
-                        items(viewModel.activos) { activo ->
-                            ActivoCard(
-                                activo = activo,
-                                onClick = { onAbrirDetalle(activo.id) },
-                                onEditar = { onEditar(activo.id) },
-                                onEliminar = { activoAEliminar = activo.id },
-                            )
+                    else -> {
+                        val listState = rememberLazyListState()
+
+                        // Paginación: cuando quedan pocas tarjetas por delante,
+                        // se pide la página siguiente. El ViewModel ignora la
+                        // llamada si ya está cargando o si no hay más páginas.
+                        val alFinal by remember {
+                            derivedStateOf {
+                                val ultimoVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                                ultimoVisible >= viewModel.activos.lastIndex - 5
+                            }
+                        }
+                        LaunchedEffect(alFinal, viewModel.activos.size) {
+                            if (alFinal) viewModel.cargarMas()
+                        }
+
+                        LazyColumn(
+                            Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                            state = listState,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(bottom = 80.dp)
+                        ) {
+                            items(viewModel.activos, key = { it.id }) { activo ->
+                                ActivoCard(
+                                    activo = activo,
+                                    onClick = { onAbrirDetalle(activo.id) },
+                                    onEditar = { onEditar(activo.id) },
+                                    onEliminar = { activoAEliminar = activo.id },
+                                )
+                            }
+
+                            // Pie: deja ver que hay más y cuánto falta, en vez de
+                            // cortar la lista en silencio como hacía el tope de 5000.
+                            item(key = "pie_paginacion") {
+                                Box(
+                                    Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (viewModel.cargandoMas) {
+                                        CircularProgressIndicator(
+                                            color = BsPrimary,
+                                            modifier = Modifier.size(28.dp),
+                                            strokeWidth = 3.dp,
+                                        )
+                                    } else {
+                                        Text(
+                                            "${viewModel.activos.size} de ${viewModel.totalResultados}",
+                                            color = Color.Gray,
+                                            fontSize = 12.sp,
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

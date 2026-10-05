@@ -68,6 +68,11 @@ class Inventario123App : Application() {
         connectivityObserver = ConnectivityObserver(this)
         pendientesRepository = PendientesRepository(PendientesStore(this), activoRepository, connectivityObserver)
 
+        // Borra las contraseñas que versiones anteriores guardaron en claro.
+        // Quitar el código que las escribía no basta: las que ya están en el
+        // teléfono seguirían ahí hasta que alguien borre los datos de la app.
+        appScope.launch { runCatching { authRepository.purgarPasswordsLegado() } }
+
         // Vaciar la cola al arrancar y cada vez que vuelva la señal.
         appScope.launch { runCatching { pendientesRepository.sincronizar() } }
         connectivityObserver.alRecuperarSeñal {

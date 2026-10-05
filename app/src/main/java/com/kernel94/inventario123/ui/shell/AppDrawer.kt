@@ -22,6 +22,12 @@ import com.kernel94.inventario123.data.remote.Urls
 import com.kernel94.inventario123.ui.theme.BsDark
 import com.kernel94.inventario123.ui.theme.BsPrimary
 
+/**
+ * Icono por clave de módulo. El servidor manda además un `icono` con nombres de
+ * Font Awesome (fa-warehouse, fa-arrows-rotate…) que aquí no sirven: Compose usa
+ * su propio set. Se mapea por clave a propósito; hay que cubrir todas las claves
+ * de Permisos::MODULOS_POR_ROL — faltaba "rentec" y caía al icono genérico.
+ */
 fun iconoModulo(clave: String): ImageVector = when (clave) {
     "dashboard" -> Icons.Filled.Dashboard
     "consulta"  -> Icons.Filled.QrCodeScanner
@@ -31,6 +37,7 @@ fun iconoModulo(clave: String): ImageVector = when (clave) {
     "stock_pfs" -> Icons.Filled.Groups
     "ati"       -> Icons.Filled.ManageAccounts
     "usuarios"  -> Icons.Filled.People
+    "rentec"    -> Icons.Filled.Autorenew
     else        -> Icons.Filled.Inventory2
 }
 

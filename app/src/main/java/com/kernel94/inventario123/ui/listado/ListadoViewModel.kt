@@ -49,10 +49,26 @@ class ListadoViewModel(
     var conteosVistas by mutableStateOf<Map<String, Int>>(emptyMap()); private set
     var paginaActual by mutableStateOf(1); private set
     var totalPaginas by mutableStateOf(1); private set
+    var totalResultados by mutableStateOf(0); private set
     var cargando by mutableStateOf(false); private set
+    var cargandoMas by mutableStateOf(false); private set
     var error by mutableStateOf<String?>(null); private set
 
+    /** ¿Queda al menos una página más por traer? */
+    val puedeCargarMas: Boolean get() = paginaActual < totalPaginas
+
     private var debounceJob: Job? = null
+    private var cargaJob: Job? = null
+
+    private companion object {
+        /**
+         * Tamaño de página. Antes se pedían 5000 "para no paginar", y como
+         * ninguna plaza baja de 5,956 activos en tienda el listado mostraba
+         * ~5000 y el resto quedaba invisible, sin aviso. Ahora se pagina de
+         * verdad y la pantalla va trayendo páginas al llegar al final.
+         */
+        const val POR_PAGINA = 50
+    }
 
     /** @param moduloArg si viene, la pantalla lista ese módulo; @param tiendaArg acota a
      *  una tienda; @param usuarioArg acota a un usuario (p. ej. desde la lista de Stock PFS). */
@@ -109,26 +125,16 @@ class ListadoViewModel(
         }
     }
 
+    /** Carga la primera página y reemplaza la lista. Cualquier cambio de filtro entra por aquí. */
     fun cargar(pagina: Int = 1) {
+        cargaJob?.cancel()
         cargando = true
         error = null
-        viewModelScope.launch {
-            when (val r = activoRepository.listar(
-                modulo = modulo,
-                vista = if (modulo == null) vistaActual else null,
-                negocioId = negocioId, regionId = regionId,
-                plazaId = plazaId, tiendaId = tiendaId, usuarioId = usuarioId, status = status,
-                busqueda = busqueda.ifBlank { null }, pagina = pagina,
-                porPagina = 5000 // Aumentamos el límite para mostrar prácticamente todo sin paginación manual
-            )) {
+        cargaJob = viewModelScope.launch {
+            when (val r = pedirPagina(pagina)) {
                 is Resultado.Exito -> {
                     activos = r.datos.activos
-                    paginaActual = r.datos.paginacion.pagina_actual
-                    totalPaginas = r.datos.paginacion.total_paginas
-                    moduloEditable = r.datos.moduloEditable
-
-                    conteosVistas = conteosVistas + ((modulo ?: vistaActual) to r.datos.paginacion.total_resultados)
-
+                    aplicarPaginacion(r.datos)
                     cargando = false
                 }
                 is Resultado.Error -> {
@@ -137,6 +143,50 @@ class ListadoViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Trae la página siguiente y la añade al final. La llama la pantalla cuando
+     * el usuario se acerca al final de la lista.
+     */
+    fun cargarMas() {
+        if (cargando || cargandoMas || !puedeCargarMas) return
+        val siguiente = paginaActual + 1
+        cargandoMas = true
+        viewModelScope.launch {
+            when (val r = pedirPagina(siguiente)) {
+                is Resultado.Exito -> {
+                    // Por si llegó una recarga desde cero mientras esta petición
+                    // viajaba: sólo se concatena si sigue siendo la continuación.
+                    if (r.datos.paginacion.pagina_actual == paginaActual + 1) {
+                        activos = activos + r.datos.activos
+                        aplicarPaginacion(r.datos)
+                    }
+                    cargandoMas = false
+                }
+                is Resultado.Error -> {
+                    error = r.mensaje
+                    cargandoMas = false
+                }
+            }
+        }
+    }
+
+    private suspend fun pedirPagina(pagina: Int) = activoRepository.listar(
+        modulo = modulo,
+        vista = if (modulo == null) vistaActual else null,
+        negocioId = negocioId, regionId = regionId,
+        plazaId = plazaId, tiendaId = tiendaId, usuarioId = usuarioId, status = status,
+        busqueda = busqueda.ifBlank { null }, pagina = pagina,
+        porPagina = POR_PAGINA,
+    )
+
+    private fun aplicarPaginacion(datos: com.kernel94.inventario123.data.model.ListadoActivosResponse) {
+        paginaActual = datos.paginacion.pagina_actual
+        totalPaginas = datos.paginacion.total_paginas
+        totalResultados = datos.paginacion.total_resultados
+        moduloEditable = datos.moduloEditable
+        conteosVistas = conteosVistas + ((modulo ?: vistaActual) to datos.paginacion.total_resultados)
     }
 
     var exportando by mutableStateOf(false); private set
@@ -162,7 +212,9 @@ class ListadoViewModel(
         viewModelScope.launch {
             when (val r = activoRepository.eliminar(id)) {
                 is Resultado.Exito -> {
-                    cargar(paginaActual)
+                    // Desde la primera página: al paginar de verdad, recargar
+                    // sólo la página actual descartaría las anteriores.
+                    cargar()
                     onListo(true, r.datos.message ?: "Activo eliminado")
                 }
                 is Resultado.Error -> onListo(false, r.mensaje)

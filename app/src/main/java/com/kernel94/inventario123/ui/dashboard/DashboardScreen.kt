@@ -31,7 +31,6 @@ private val EVENTOS = mapOf(
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
-    onAbrirInventario: () -> Unit,
     onAbrirHistorial: () -> Unit,
     onAbrirTraslados: () -> Unit,
     onAbrirPendientes: () -> Unit,
@@ -211,11 +210,10 @@ fun DashboardScreen(
                         }
                     }
 
-                    Button(onClick = onAbrirInventario, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.Inventory2, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Ver inventario")
-                    }
+                    // Sin botón "Ver inventario": era la única entrada al listado
+                    // por `vista=` (la navegación vieja, con reglas de permiso
+                    // distintas a las de `modulo=`). Las tarjetas de módulo de
+                    // arriba dan el mismo acceso con el alcance correcto.
                     OutlinedButton(onClick = onAbrirPendientes, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Filled.CloudUpload, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
