@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -149,6 +150,7 @@ fun TiendaMovScreen(
                     else -> "Serie nueva — captura dispositivo y modelo." to Color.Gray
                 }
                 Text(txt, color = color, style = MaterialTheme.typography.bodySmall)
+                PlacaActivoFijo(lk.activo?.numActivo)
             }
 
             // Alta nueva: dispositivo + modelo (instalación/reemplazo cuando no está en mi stock)
@@ -200,6 +202,7 @@ fun TiendaMovScreen(
                         color = if (ok) Color(0xFF198754) else Color(0xFFDC3545),
                         style = MaterialTheme.typography.bodySmall,
                     )
+                    PlacaActivoFijo(lk.activo?.numActivo ?: viewModel.salidaNumActivo)
                 }
             }
 
@@ -238,4 +241,33 @@ fun TiendaMovScreen(
             }
         }
     }
+}
+
+/**
+ * N° de activo (placa de activo fijo) en SOLO LECTURA. Se muestra para que el
+ * técnico la coteje con la etiqueta del equipo; no se edita desde la app: la
+ * asigna activo fijo y el servidor nunca deja cambiar una placa ya puesta.
+ * No se dibuja nada si el equipo todavía no tiene placa.
+ */
+@Composable
+private fun PlacaActivoFijo(numActivo: String?) {
+    val valor = numActivo?.trim().orEmpty()
+    if (valor.isEmpty()) return
+    OutlinedTextField(
+        value = valor,
+        onValueChange = { },
+        readOnly = true,
+        enabled = false,
+        label = { Text("N° de activo") },
+        supportingText = { Text("Asignado por activo fijo; no se edita aquí") },
+        leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(18.dp)) },
+        singleLine = true,
+        colors = OutlinedTextFieldDefaults.colors(
+            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    )
 }

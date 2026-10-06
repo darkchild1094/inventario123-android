@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -191,8 +192,32 @@ fun CrearEditarActivoScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             )
-            // N° de activo NO se pide aquí: es un dato que se agrega solo desde
-            // la BD manualmente, nunca visible ni editable en el formulario.
+            // N° de activo: la placa de activo fijo. Se MUESTRA para que el
+            // técnico la vea y pueda cotejarla con la etiqueta del equipo, pero
+            // es de SOLO LECTURA: se asigna a mano en la base de datos y el
+            // servidor nunca deja cambiar una placa ya puesta. En un alta nueva
+            // todavía no hay placa, así que el campo no aparece.
+            if (viewModel.numActivo.isNotBlank()) {
+                OutlinedTextField(
+                    value = viewModel.numActivo,
+                    onValueChange = { },
+                    readOnly = true,
+                    enabled = false,
+                    label = { Text("N° de activo") },
+                    supportingText = { Text("Asignado por activo fijo; no se edita aquí") },
+                    leadingIcon = {
+                        Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+                    },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                )
+            }
 
             // Módulos compactos (bodega / mi_stock / stock_pfs / ati): el estatus
             // queda fijo por el módulo, no se muestran los radios.
