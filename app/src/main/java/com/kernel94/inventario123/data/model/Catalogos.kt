@@ -67,6 +67,9 @@ data class Permisos(
     val puedeExportar: Boolean = false, val puedeVerBodega: Boolean = false,
     val puedeVerHistorial: Boolean = false, val puedeGestionarTiendas: Boolean = false,
     val puedeGestionarModelos: Boolean = false,
+    // Recibir equipo nuevo bajo un folio RENTEC: solo coordinador y admin.
+    // Instalar lo ya recibido lo hace cualquier rol del modulo.
+    val puedeRecibirRentec: Boolean = false,
     val puedeCrearSolicitudTraslado: Boolean = false,
     val puedeAprobarTraslados: Boolean = false,
     val puedeVerTraslados: Boolean = false,

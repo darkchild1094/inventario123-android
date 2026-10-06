@@ -1,7 +1,10 @@
 package com.kernel94.inventario123.data.repository
 
+import com.google.gson.Gson
+import com.kernel94.inventario123.data.model.ApiResultado
 import com.kernel94.inventario123.data.model.ProyectoRentec
 import com.kernel94.inventario123.data.remote.ApiService
+import retrofit2.HttpException
 
 /** Proyectos de Renovación Tecnológica (RENTEC): folio, activos recibidos/instalados. */
 class RentecRepository(private val api: ApiService) {
@@ -35,6 +38,23 @@ class RentecRepository(private val api: ApiService) {
         val r = api.rentecCerrar(mapOf("id" to id))
         if (r.success && r.proyecto != null) Resultado.Exito(r.proyecto)
         else Resultado.Error(r.message ?: "No se pudo cerrar el proyecto.")
+    } catch (e: Exception) {
+        Resultado.Error("No se pudo conectar al servidor.")
+    }
+
+    /**
+     * Borra el folio. El servidor sólo deja borrar los que no tienen huella; si
+     * ya tiene equipo o bitácora responde 409, y ese mensaje se muestra tal cual
+     * porque explica cuánto tiene y qué hacer en su lugar (cerrarlo).
+     */
+    suspend fun eliminar(id: Int): Resultado<String> = try {
+        val r = api.rentecEliminar(mapOf("id" to id))
+        if (r.success) Resultado.Exito(r.message ?: "Proyecto borrado.")
+        else Resultado.Error(r.message ?: "No se pudo borrar el proyecto.")
+    } catch (e: HttpException) {
+        val cuerpo = runCatching { e.response()?.errorBody()?.string() }.getOrNull()
+        val msg = runCatching { Gson().fromJson(cuerpo, ApiResultado::class.java) }.getOrNull()?.message
+        Resultado.Error(msg ?: "No se pudo borrar el proyecto.")
     } catch (e: Exception) {
         Resultado.Error("No se pudo conectar al servidor.")
     }

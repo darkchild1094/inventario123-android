@@ -140,6 +140,28 @@ fun TiendaMovScreen(
                             else "Queda instalado y funcionando en la tienda.",
                 acento = if (esRetiro) VERDE_RETIRO else AZUL_INSTALA,
             ) {
+                // Instalar algo que ya traes contigo: se elige de tu propio stock
+                // en vez de teclear la serie. Sólo el tuyo — no bodega ni el de
+                // otro ingeniero — porque no puedes instalar lo que no cargas.
+                if (!esRetiro && viewModel.activosEnMiStock.isNotEmpty()) {
+                    FiltroDropdown(
+                        etiqueta = "Elígelo de tu stock (${viewModel.activosEnMiStock.size})",
+                        opciones = viewModel.activosEnMiStock,
+                        seleccionId = null, idDe = { it.id },
+                        nombreDe = {
+                            listOfNotNull(
+                                it.dispositivo_nombre, it.marca_nombre, it.modelo_nombre,
+                                it.serie?.takeIf { s -> s.isNotBlank() && s != "NO VISIBLE" }
+                                    ?: it.codigoBarras?.let { c -> "CB $c" },
+                            ).joinToString(" · ")
+                        },
+                        onSeleccion = { id ->
+                            viewModel.activosEnMiStock.find { it.id == id }?.let(viewModel::onSeleccionarDeMiStock)
+                        },
+                        etiquetaNula = "Elige de tu stock, o escanea abajo",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 OutlinedTextField(
                     value = viewModel.serie, onValueChange = viewModel::onSerieChange,
                     label = { Text(if (esRetiro) "Serie del equipo a retirar" else "Serie del equipo a instalar") },

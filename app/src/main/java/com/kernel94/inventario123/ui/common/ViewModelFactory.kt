@@ -63,7 +63,7 @@ class ViewModelFactory(private val app: Inventario123App) : ViewModelProvider.Fa
             modelClass.isAssignableFrom(StockPfsListaViewModel::class.java) ->
                 StockPfsListaViewModel(app.bodegaRepository) as T
             modelClass.isAssignableFrom(RentecDetalleViewModel::class.java) ->
-                RentecDetalleViewModel(app.rentecRepository, app.exportRepository) as T
+                RentecDetalleViewModel(app.rentecRepository, app.exportRepository, app.authRepository) as T
             modelClass.isAssignableFrom(RentecListaViewModel::class.java) ->
                 RentecListaViewModel(app.rentecRepository) as T
             else -> throw IllegalArgumentException("ViewModel desconocido: ${modelClass.name}")

@@ -221,6 +221,12 @@ interface ApiService {
     @GET("index.php?controller=api&action=rentecDetalle")
     suspend fun rentecDetalle(@Query("id") id: Int): ProyectoRentec
 
+    // Borra un folio RENTEC. Sólo folios sin huella: si ya tiene activos o
+    // movimientos el servidor responde 409 y sugiere cerrarlo en vez de borrarlo.
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=rentecEliminar")
+    suspend fun rentecEliminar(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
     @Headers("Content-Type: application/json")
     @POST("index.php?controller=api&action=rentecCerrar")
     suspend fun rentecCerrar(@Body body: Map<String, @JvmSuppressWildcards Any?>): RentecCerrarResponse

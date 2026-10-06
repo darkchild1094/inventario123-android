@@ -84,6 +84,14 @@ class TiendaMovViewModel(
     // de escribirlo a mano (con fallback manual si no aparece en la lista).
     var activosEnTiendaSalida by mutableStateOf<List<Activo>>(emptyList()); private set
 
+    /**
+     * Lo que el propio usuario trae a su nombre, para instalarlo eligiéndolo de
+     * una lista en vez de teclear la serie. Es su stock personal y nada más: no
+     * bodega ni el de otro ingeniero, porque instalar algo que no traes encima
+     * no tiene sentido. Aplica a cualquier rol — todos tienen stock propio.
+     */
+    var activosEnMiStock by mutableStateOf<List<Activo>>(emptyList()); private set
+
     // Estado del lookup de la serie.
     var lookup by mutableStateOf<ResolverSerieResponse?>(null); private set
     var lookupSalida by mutableStateOf<ResolverSerieResponse?>(null); private set
@@ -163,8 +171,29 @@ class TiendaMovViewModel(
                 }
             }
             if (tiendaId != null && modo == ModoMov.REEMPLAZO) cargarActivosEnTiendaSalida()
+            cargarMiStock()
             cargando = false
         }
+    }
+
+    /**
+     * Trae el stock personal del usuario en sesión. Se pide por el módulo
+     * 'mi_stock', que el backend acota a stock_usuario_id = quien pregunta, así
+     * que no hace falta mandar ningún id y no hay forma de ver el de otro.
+     */
+    private suspend fun cargarMiStock() {
+        when (val r = activoRepository.listar(modulo = "mi_stock", porPagina = 200)) {
+            is Resultado.Exito -> activosEnMiStock = r.datos.activos
+            is Resultado.Error -> {}
+        }
+    }
+
+    /** Elige de mi stock el equipo a instalar: llena serie/CB y dispara el lookup. */
+    fun onSeleccionarDeMiStock(a: Activo) {
+        codigoBarras = a.codigoBarras ?: ""
+        dispositivoId = a.dispositivo_id
+        modeloId = a.modelo_id
+        onSerieChange(a.serie ?: a.codigoBarras ?: a.numActivo ?: "")
     }
 
     fun onTiendaChange(id: Int?) {

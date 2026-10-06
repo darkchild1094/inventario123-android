@@ -33,12 +33,14 @@ fun RentecDetalleScreen(
     onVolver: () -> Unit,
     onRecibirEquipo: (Int, String) -> Unit,
     onInstalarEquipo: (Int, String) -> Unit,
+    onBorrado: () -> Unit = onVolver,
 ) {
     LaunchedEffect(proyectoId) { viewModel.cargar(proyectoId) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var confirmarCierre by remember { mutableStateOf(false) }
+    var confirmarBorrado by remember { mutableStateOf(false) }
     LaunchedEffect(viewModel.mensaje) {
         viewModel.mensaje?.let {
             snackbarHostState.showSnackbar(it)
@@ -97,13 +99,18 @@ fun RentecDetalleScreen(
                 if (p.abierto) {
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = { onRecibirEquipo(p.id, p.folio) },
-                                colors = ButtonDefaults.buttonColors(containerColor = BsPrimary),
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Icon(Icons.Filled.Inventory2, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp)); Text("Recibir equipo")
+                            // Recibir es la entrada del material: sólo coordinador
+                            // y admin. Instalar lo ve cualquiera, porque el folio
+                            // es de toda la plaza y el trabajo se reparte.
+                            if (viewModel.puedeRecibir) {
+                                Button(
+                                    onClick = { onRecibirEquipo(p.id, p.folio) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = BsPrimary),
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(Icons.Filled.Inventory2, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp)); Text("Recibir equipo")
+                                }
                             }
                             Button(
                                 onClick = { onInstalarEquipo(p.id, p.folio) },
@@ -115,8 +122,25 @@ fun RentecDetalleScreen(
                             }
                         }
                     }
+                    if (!viewModel.puedeRecibir) {
+                        item {
+                            Text(
+                                "Recibir equipo en bodega lo hace un coordinador. Tú puedes instalar lo que ya esté recibido.",
+                                style = MaterialTheme.typography.bodySmall, color = Color.Gray,
+                            )
+                        }
+                    }
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            // Borrar sólo lo ofrecemos a quien lo creó o a un
+                            // coordinador; el servidor además exige que el folio
+                            // esté vacío.
+                            if (viewModel.puedeRecibir || p.usuario_id == viewModel.miUsuarioId) {
+                                TextButton(
+                                    onClick = { confirmarBorrado = true },
+                                    enabled = !viewModel.borrando,
+                                ) { Text("Borrar proyecto", color = MaterialTheme.colorScheme.error) }
+                            }
                             TextButton(onClick = { confirmarCierre = true }) { Text("Cerrar proyecto") }
                         }
                     }
@@ -155,6 +179,30 @@ fun RentecDetalleScreen(
                 }) { Text("Cerrar proyecto") }
             },
             dismissButton = { TextButton(onClick = { confirmarCierre = false }) { Text("Cancelar") } },
+        )
+    }
+
+    if (confirmarBorrado) {
+        AlertDialog(
+            onDismissRequest = { confirmarBorrado = false },
+            title = { Text("¿Borrar este proyecto?") },
+            text = {
+                Text(
+                    "Se elimina el folio ${p?.folio ?: ""} y no se puede recuperar.\n\n" +
+                    "Si ya tiene equipo recibido o instalado, el sistema no lo va a dejar borrar: " +
+                    "en ese caso ciérralo, así se conserva el rastro de lo que se movió."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmarBorrado = false
+                    viewModel.eliminar {
+                        scope.launch { snackbarHostState.showSnackbar("Proyecto borrado.") }
+                        onBorrado()
+                    }
+                }) { Text("Borrar", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmarBorrado = false }) { Text("Cancelar") } },
         )
     }
 }
