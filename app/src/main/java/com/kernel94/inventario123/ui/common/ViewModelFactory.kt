@@ -18,6 +18,7 @@ import com.kernel94.inventario123.ui.pendientes.PendientesViewModel
 import com.kernel94.inventario123.ui.bodega.InventarioStockViewModel
 import com.kernel94.inventario123.ui.bodega.StockPfsListaViewModel
 import com.kernel94.inventario123.ui.rentec.RentecDetalleViewModel
+import com.kernel94.inventario123.ui.transferencias.TransferenciasViewModel
 import com.kernel94.inventario123.ui.rentec.RentecListaViewModel
 import com.kernel94.inventario123.ui.solicitudes.SolicitudesViewModel
 import com.kernel94.inventario123.ui.tiendas.TiendasViewModel
@@ -35,7 +36,7 @@ class ViewModelFactory(private val app: Inventario123App) : ViewModelProvider.Fa
             modelClass.isAssignableFrom(ConsultaViewModel::class.java) ->
                 ConsultaViewModel(app.activoRepository) as T
             modelClass.isAssignableFrom(ListadoViewModel::class.java) ->
-                ListadoViewModel(app.activoRepository, app.catalogoRepository, app.authRepository, app.exportRepository, app.solicitudRepository) as T
+                ListadoViewModel(app.activoRepository, app.catalogoRepository, app.authRepository, app.exportRepository, app.solicitudRepository, app.transferenciaRepository) as T
             modelClass.isAssignableFrom(DetalleViewModel::class.java) ->
                 DetalleViewModel(app.activoRepository, app.movimientoRepository) as T
             modelClass.isAssignableFrom(CrearEditarActivoViewModel::class.java) ->
@@ -62,6 +63,9 @@ class ViewModelFactory(private val app: Inventario123App) : ViewModelProvider.Fa
                 InventarioStockViewModel(app.bodegaRepository) as T
             modelClass.isAssignableFrom(StockPfsListaViewModel::class.java) ->
                 StockPfsListaViewModel(app.bodegaRepository) as T
+            modelClass.isAssignableFrom(TransferenciasViewModel::class.java) ->
+                TransferenciasViewModel(app.transferenciaRepository) as T
+
             modelClass.isAssignableFrom(RentecDetalleViewModel::class.java) ->
                 RentecDetalleViewModel(app.rentecRepository, app.exportRepository, app.authRepository) as T
             modelClass.isAssignableFrom(RentecListaViewModel::class.java) ->

@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.kernel94.inventario123.data.repository.Resultado
+import com.kernel94.inventario123.ui.common.PlazaTabs
 import com.kernel94.inventario123.ui.listado.components.ActivoCard
 import com.kernel94.inventario123.ui.listado.components.FiltroDropdown
 import com.kernel94.inventario123.ui.theme.BsDark
@@ -57,6 +58,7 @@ fun ListadoScreen(
     LaunchedEffect(modulo, tiendaId, usuarioId) { viewModel.iniciar(modulo, tiendaId, usuarioId) }
     var mostrarFiltros by remember { mutableStateOf(false) }
     var activoAEliminar by remember { mutableStateOf<Int?>(null) }
+    var mostrarTransferir by remember { mutableStateOf(false) }
     val vistasDisponibles = viewModel.perfil?.vistasDisponibles ?: listOf("todos")
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -118,11 +120,23 @@ fun ListadoScreen(
                     title = {
                         val m = viewModel.modulo
                         Text(
-                            m?.replaceFirstChar { it.uppercase() } ?: (viewModel.perfil?.usuario?.plaza_nombre ?: "Inventario123"),
+                            if (viewModel.modoSeleccion) "${viewModel.seleccion.size} seleccionado(s)"
+                            else m?.replaceFirstChar { it.uppercase() }
+                                ?: (viewModel.perfil?.usuario?.plaza_nombre ?: "Inventario123"),
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White,
                         )
                     },
                     actions = {
+                        // En modo selección sólo tienen sentido estas dos.
+                        if (viewModel.modoSeleccion) {
+                            IconButton(onClick = { viewModel.seleccionarTodos() }) {
+                                Icon(Icons.Filled.SelectAll, contentDescription = "Seleccionar todos", tint = Color.White)
+                            }
+                            IconButton(onClick = { viewModel.salirDeSeleccion() }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Salir de selección", tint = Color.White)
+                            }
+                            return@TopAppBar
+                        }
                         val puedeVerInventario = onAbrirInventario != null && when (viewModel.modulo) {
                             "bodega" -> viewModel.moduloEditable
                             "mi_stock", "stock_pfs" -> true
@@ -148,16 +162,46 @@ fun ListadoScreen(
                 )
             },
             floatingActionButton = {
-                val puedeCrearAqui = permisos?.puedeCrearActivo == true &&
-                    (viewModel.modulo == null || viewModel.moduloEditable)
-                if (puedeCrearAqui) {
-                    FloatingActionButton(onClick = onCrearNuevo, containerColor = BsPrimary) {
-                        Icon(Icons.Filled.Add, contentDescription = "Nuevo", tint = Color.White)
+                // En modo selección el FAB de "nuevo" estorba: lo que toca es
+                // entregar lo marcado.
+                if (viewModel.modoSeleccion) {
+                    ExtendedFloatingActionButton(
+                        onClick = { mostrarTransferir = true },
+                        containerColor = BsPrimary,
+                        contentColor = Color.White,
+                    ) {
+                        Icon(Icons.Filled.SwapHoriz, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Transferir ${viewModel.seleccion.size}")
+                    }
+                } else {
+                    val puedeCrearAqui = permisos?.puedeCrearActivo == true &&
+                        (viewModel.modulo == null || viewModel.moduloEditable)
+                    if (puedeCrearAqui) {
+                        FloatingActionButton(onClick = onCrearNuevo, containerColor = BsPrimary) {
+                            Icon(Icons.Filled.Add, contentDescription = "Nuevo", tint = Color.White)
+                        }
                     }
                 }
             }
         ) { padding ->
             Column(Modifier.padding(padding).fillMaxSize().background(Color(0xFFF1F3F5))) {
+
+                // Una pestaña por plaza en los módulos acotados por plaza. Sin
+                // esto un coordinador con dos plazas veía las dos bodegas
+                // revueltas en una sola lista.
+                if (viewModel.mostrarPestanasPlaza) {
+                    PlazaTabs(
+                        opciones = viewModel.misPlazas,
+                        seleccionId = viewModel.plazaId,
+                        onSeleccion = {
+                            viewModel.salirDeSeleccion()
+                            viewModel.plazaId = it
+                            viewModel.onFiltroChange()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
 
                 if (viewModel.modulo == null && vistasDisponibles.size > 1) {
                     TabRow(
@@ -302,12 +346,31 @@ fun ListadoScreen(
                             contentPadding = PaddingValues(bottom = 80.dp)
                         ) {
                             items(viewModel.activos, key = { it.id }) { activo ->
-                                ActivoCard(
-                                    activo = activo,
-                                    onClick = { onAbrirDetalle(activo.id) },
-                                    onEditar = { onEditar(activo.id) },
-                                    onEliminar = { activoAEliminar = activo.id },
-                                )
+                                val marcado = activo.id in viewModel.seleccion
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (viewModel.modoSeleccion) {
+                                        Checkbox(
+                                            checked = marcado,
+                                            onCheckedChange = { viewModel.alternarSeleccion(activo.id) },
+                                        )
+                                    }
+                                    Box(Modifier.weight(1f)) {
+                                        ActivoCard(
+                                            activo = activo,
+                                            // En modo selección, tocar la tarjeta marca
+                                            // en vez de abrir el detalle.
+                                            onClick = {
+                                                if (viewModel.modoSeleccion) viewModel.alternarSeleccion(activo.id)
+                                                else onAbrirDetalle(activo.id)
+                                            },
+                                            onEditar = { onEditar(activo.id) },
+                                            onEliminar = { activoAEliminar = activo.id },
+                                            onMantenerPresionado = if (viewModel.puedeTransferirAqui) {
+                                                { viewModel.activarSeleccion(activo.id) }
+                                            } else null,
+                                        )
+                                    }
+                                }
                             }
 
                             // Pie: deja ver que hay más y cuánto falta, en vez de
@@ -335,6 +398,56 @@ fun ListadoScreen(
                         }
                     }
                 }
+            }
+
+            // Entregar lo seleccionado a otra persona de la plaza. El equipo no
+            // cambia de manos aquí: queda pendiente hasta que el otro acepta.
+            if (mostrarTransferir) {
+                var destino by remember { mutableStateOf<Int?>(null) }
+                var nota by remember { mutableStateOf("") }
+                AlertDialog(
+                    onDismissRequest = { mostrarTransferir = false },
+                    icon = { Icon(Icons.Filled.SwapHoriz, contentDescription = null) },
+                    title = { Text("Transferir ${viewModel.seleccion.size} equipo(s)") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                "El equipo cambia de manos cuando la otra persona acepte la transferencia. " +
+                                "Mientras tanto sigue siendo tu responsabilidad.",
+                                style = MaterialTheme.typography.bodySmall, color = Color.Gray,
+                            )
+                            FiltroDropdown(
+                                etiqueta = "¿A quién se lo entregas? *",
+                                opciones = viewModel.destinatarios,
+                                seleccionId = destino, idDe = { it.id },
+                                nombreDe = { "${it.nombre} · ${com.kernel94.inventario123.data.model.rolLabel(it.tipo)}" },
+                                onSeleccion = { destino = it },
+                                etiquetaNula = "Elige a la persona...",
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            OutlinedTextField(
+                                value = nota, onValueChange = { nota = it },
+                                label = { Text("Motivo (opcional)") },
+                                singleLine = true, modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            enabled = destino != null && !viewModel.transfiriendo,
+                            onClick = {
+                                val d = destino ?: return@TextButton
+                                mostrarTransferir = false
+                                viewModel.transferir(d, nota) { _, msg ->
+                                    scope.launch { snackbarHostState.showSnackbar(msg) }
+                                }
+                            },
+                        ) { Text("Enviar") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { mostrarTransferir = false }) { Text("Cancelar") }
+                    },
+                )
             }
 
             if (activoAEliminar != null) {

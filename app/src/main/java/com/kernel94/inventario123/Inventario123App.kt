@@ -17,6 +17,7 @@ import com.kernel94.inventario123.data.repository.PendientesRepository
 import com.kernel94.inventario123.data.repository.RentecRepository
 import com.kernel94.inventario123.data.repository.SolicitudRepository
 import com.kernel94.inventario123.data.repository.TiendaRepository
+import com.kernel94.inventario123.data.repository.TransferenciaRepository
 import com.kernel94.inventario123.data.repository.UsuarioRepository
 import com.kernel94.inventario123.data.work.SyncPendientesWorker
 import androidx.work.Constraints
@@ -44,6 +45,7 @@ class Inventario123App : Application() {
     lateinit var solicitudRepository: SolicitudRepository private set
     lateinit var bodegaRepository: BodegaRepository private set
     lateinit var rentecRepository: RentecRepository private set
+    lateinit var transferenciaRepository: TransferenciaRepository private set
     lateinit var pendientesRepository: PendientesRepository private set
     lateinit var connectivityObserver: ConnectivityObserver private set
 
@@ -64,6 +66,7 @@ class Inventario123App : Application() {
         solicitudRepository = SolicitudRepository(apiService)
         bodegaRepository = BodegaRepository(apiService)
         rentecRepository = RentecRepository(apiService)
+        transferenciaRepository = TransferenciaRepository(apiService)
 
         connectivityObserver = ConnectivityObserver(this)
         pendientesRepository = PendientesRepository(PendientesStore(this), activoRepository, connectivityObserver)

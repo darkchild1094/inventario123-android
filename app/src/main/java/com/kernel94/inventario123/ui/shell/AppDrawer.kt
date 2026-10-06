@@ -110,10 +110,10 @@ fun AppDrawerContent(
                         onClick = onHistorial, modifier = Modifier.padding(horizontal = 12.dp),
                     )
                 }
-                if (permisos?.puedeVerTraslados == true) {
+                if (permisos?.puedeTransferir == true) {
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Filled.SwapHoriz, contentDescription = null) },
-                        label = { Text("Traslados a bodega") },
+                        label = { Text("Transferencias") },
                         badge = { if (solicitudesPendientes > 0) Text(solicitudesPendientes.toString(), fontWeight = FontWeight.Bold, color = BsPrimary) },
                         selected = false, onClick = onTraslados, modifier = Modifier.padding(horizontal = 12.dp),
                     )

@@ -15,6 +15,7 @@ import com.kernel94.inventario123.data.repository.CatalogoRepository
 import com.kernel94.inventario123.data.repository.ExportRepository
 import com.kernel94.inventario123.data.repository.Resultado
 import com.kernel94.inventario123.data.repository.SolicitudRepository
+import com.kernel94.inventario123.data.repository.TransferenciaRepository
 import kotlinx.coroutines.Job
 import java.io.File
 import kotlinx.coroutines.delay
@@ -26,7 +27,19 @@ class ListadoViewModel(
     private val authRepository: AuthRepository,
     private val exportRepository: ExportRepository,
     private val solicitudRepository: SolicitudRepository,
+    private val transferenciaRepository: TransferenciaRepository,
 ) : ViewModel() {
+
+    /**
+     * Plazas del usuario, para las pestañas de los módulos acotados por plaza.
+     * Sin ellas un coordinador con dos plazas veía las dos bodegas revueltas en
+     * una sola lista, que es justo lo que no debe pasar con el inventario.
+     */
+    var misPlazas by mutableStateOf<List<com.kernel94.inventario123.data.model.Plaza>>(emptyList()); private set
+
+    /** ¿Este módulo se acota por plaza y el usuario tiene más de una? */
+    val mostrarPestanasPlaza: Boolean
+        get() = misPlazas.size > 1 && modulo in listOf("bodega", "tiendas", "stock_pfs", "ati")
 
     var solicitudesPendientes by mutableStateOf(0); private set
 
@@ -57,6 +70,70 @@ class ListadoViewModel(
     /** ¿Queda al menos una página más por traer? */
     val puedeCargarMas: Boolean get() = paginaActual < totalPaginas
 
+    // ── Selección múltiple para transferir ───────────────────────────────────
+    // Sólo tiene sentido donde el equipo tiene un dueño que lo puede entregar:
+    // Mi Stock (lo mío) y Bodega (lo que reparte el coordinador). En Tiendas no:
+    // ahí el equipo está instalado y se mueve con el formulario de la tienda.
+    var seleccion by mutableStateOf<Set<Int>>(emptySet()); private set
+    var modoSeleccion by mutableStateOf(false); private set
+    var transfiriendo by mutableStateOf(false); private set
+
+    val puedeTransferirAqui: Boolean
+        get() = perfil?.permisos?.puedeTransferir == true &&
+            (modulo == "mi_stock" || (modulo == "bodega" && moduloEditable))
+
+    fun activarSeleccion(id: Int) {
+        if (!puedeTransferirAqui) return
+        modoSeleccion = true
+        seleccion = seleccion + id
+    }
+
+    fun alternarSeleccion(id: Int) {
+        seleccion = if (id in seleccion) seleccion - id else seleccion + id
+        if (seleccion.isEmpty()) modoSeleccion = false
+    }
+
+    fun salirDeSeleccion() { seleccion = emptySet(); modoSeleccion = false }
+
+    fun seleccionarTodos() { seleccion = activos.map { it.id }.toSet() }
+
+    /** Personas de la plaza a las que se les puede entregar (menos uno mismo). */
+    val destinatarios: List<com.kernel94.inventario123.data.model.Usuario>
+        get() {
+            val yo = perfil?.usuario?.id
+            val plaza = plazaId ?: perfil?.permisos?.plazaId
+            return catalogos.usuarios.filter { it.id != yo && (plaza == null || it.plaza_id == null || it.plaza_id == plaza) }
+        }
+
+    /**
+     * Entrega lo seleccionado. En Bodega hace falta saber de qué bodega sale, y
+     * se deduce del propio activo (todos los seleccionados comparten bodega
+     * porque la lista ya viene acotada a una plaza).
+     */
+    fun transferir(destinoUsuarioId: Int, nota: String, onListo: (Boolean, String) -> Unit) {
+        if (seleccion.isEmpty() || transfiriendo) return
+        val esBodega = modulo == "bodega"
+        val bodegaId = if (esBodega) activos.firstOrNull { it.id in seleccion }?.bodega_stock_id else null
+        if (esBodega && bodegaId == null) {
+            onListo(false, "No se pudo determinar la bodega de origen."); return
+        }
+        transfiriendo = true
+        viewModelScope.launch {
+            val r = transferenciaRepository.transferir(
+                activos = seleccion.toList(),
+                destinoUsuarioId = destinoUsuarioId,
+                nota = nota.ifBlank { null },
+                origen = if (esBodega) "bodega" else "mi_stock",
+                bodegaId = bodegaId,
+            )
+            transfiriendo = false
+            when (r) {
+                is Resultado.Exito -> { salirDeSeleccion(); cargar(); onListo(true, r.datos) }
+                is Resultado.Error -> onListo(false, r.mensaje)
+            }
+        }
+    }
+
     private var debounceJob: Job? = null
     private var cargaJob: Job? = null
 
@@ -86,8 +163,16 @@ class ListadoViewModel(
                 is Resultado.Exito -> catalogos = r.datos
                 is Resultado.Error -> {}
             }
-            if (perfil?.permisos?.puedeAprobarTraslados == true) {
-                solicitudesPendientes = solicitudRepository.contarPendientes()
+            // Pestañas por plaza: el catálogo ya viene acotado al alcance del
+            // rol, así que sus plazas son exactamente las que puede ver.
+            misPlazas = catalogos.plazas
+            if (mostrarPestanasPlaza && plazaId == null) {
+                plazaId = perfil?.permisos?.plazaId?.takeIf { it > 0 } ?: misPlazas.firstOrNull()?.id
+            }
+            // Badge del menú: equipo que alguien me mandó y espera respuesta.
+            // Antes contaba solicitudes por firmar, que ya no existen.
+            if (perfil?.permisos?.puedeTransferir == true) {
+                solicitudesPendientes = transferenciaRepository.contarPendientes()
             }
             cargar()
 

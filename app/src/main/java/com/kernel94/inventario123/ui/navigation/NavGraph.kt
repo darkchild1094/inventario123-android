@@ -118,7 +118,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             com.kernel94.inventario123.ui.dashboard.DashboardScreen(
                 viewModel = vm,
                 onAbrirHistorial = { navController.navigate(Screen.Historial.route) },
-                onAbrirTraslados = { navController.navigate(Screen.Solicitudes.route) },
+                onAbrirTraslados = { navController.navigate(Screen.Transferencias.route) },
                 onAbrirPendientes = { navController.navigate(Screen.Pendientes.route) },
                 onCerrarSesion = irALogin,
                 onAbrirModulo = abrirModulo,
@@ -174,7 +174,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onAbrirHistorial = { navController.navigate(Screen.Historial.route) },
                 onAbrirTiendas = { navController.navigate(Screen.Tiendas.route) },
                 onAbrirModelos = { navController.navigate(Screen.Modelos.route) },
-                onAbrirSolicitudes = { navController.navigate(Screen.Solicitudes.route) },
+                onAbrirSolicitudes = { navController.navigate(Screen.Transferencias.route) },
                 onAbrirPendientes = { navController.navigate(Screen.Pendientes.route) },
                 onAbrirModulo = abrirModulo,
                 onAbrirConsulta = { navController.navigate(Screen.Consulta.route) },
@@ -387,6 +387,14 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
         composable(Screen.Modelos.route) {
             val vm: com.kernel94.inventario123.ui.modelos.ModelosViewModel = viewModel(factory = factory)
             com.kernel94.inventario123.ui.modelos.ModelosScreen(viewModel = vm, onVolver = { navController.popBackStack() })
+        }
+
+        composable(Screen.Transferencias.route) {
+            val vm: com.kernel94.inventario123.ui.transferencias.TransferenciasViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.transferencias.TransferenciasScreen(
+                viewModel = vm,
+                onVolver = { navController.popBackStack() },
+            )
         }
 
         composable(Screen.Solicitudes.route) {

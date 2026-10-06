@@ -47,6 +47,8 @@ sealed class Screen(val route: String) {
     object Modelos : Screen("modelos")
     object Pendientes : Screen("pendientes")
     object Solicitudes : Screen("solicitudes")
+    // Equipo que alguien te mando y espera que lo aceptes (reemplaza Traslados).
+    object Transferencias : Screen("transferencias")
     object CrearSolicitud : Screen("crear_solicitud")
     object SolicitudDetalle : Screen("solicitud/{id}") { fun crear(id: Int) = "solicitud/$id" }
     // Inventario físico de bodega (auditoría por escaneo, migración 027).

@@ -70,6 +70,9 @@ data class Permisos(
     // Recibir equipo nuevo bajo un folio RENTEC: solo coordinador y admin.
     // Instalar lo ya recibido lo hace cualquier rol del modulo.
     val puedeRecibirRentec: Boolean = false,
+    // Entregar equipo a otra persona (de mi stock, o de bodega si la tengo
+    // editable). El que recibe lo acepta: ahí cambia de manos.
+    val puedeTransferir: Boolean = false,
     val puedeCrearSolicitudTraslado: Boolean = false,
     val puedeAprobarTraslados: Boolean = false,
     val puedeVerTraslados: Boolean = false,
@@ -139,6 +142,39 @@ data class ListaSolicitudesResponse(
 )
 
 data class ConteoPendientes(val pendientes: Int = 0)
+
+// ── Transferencia de equipo entre personas ───────────────────────────────────
+// Reusa la forma de SolicitudTraslado porque el servidor se apoya en la misma
+// tabla; lo que cambia es que no hay firmas y que la acepta quien recibe.
+
+data class Transferencia(
+    val id: Int = 0,
+    val estado: String = "pendiente",       // pendiente | aprobada | rechazada | cancelada
+    val plaza_nombre: String? = null,
+    val origen_nombre: String? = null,
+    val origen_bodega_nombre: String? = null,
+    val destino_usuario_nombre: String? = null,
+    val solicitante_nombre: String? = null,
+    val nota: String? = null,
+    val motivo_rechazo: String? = null,
+    val creado_en: String? = null,
+    val resuelto_en: String? = null,
+    val activos: List<SolicitudActivo> = emptyList(),
+    val puedeAceptar: Boolean = false,
+    val puedeCancelar: Boolean = false,
+) {
+    /** De dónde salió: el stock de una persona o una bodega. */
+    val desdeLabel: String get() = origen_nombre
+        ?: origen_bodega_nombre?.let { "Bodega $it" }
+        ?: solicitante_nombre
+        ?: "—"
+}
+
+data class ListaTransferencias(
+    val por_aceptar: List<Transferencia> = emptyList(),
+    val enviadas: List<Transferencia> = emptyList(),
+    val pendientes: Int = 0,
+)
 
 // ── Dashboard ───────────────────────────────────────────────────────────────
 

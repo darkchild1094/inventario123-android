@@ -21,8 +21,8 @@ android {
         applicationId = "com.kernel94.inventario123"
         minSdk = 26
         targetSdk = 37
-        versionCode = 7
-        versionName = "1.5.0"
+        versionCode = 8
+        versionName = "1.6.0"
 
         // Servidor productivo (alwaysdata). El path es case-sensitive: /Inventario123/ con "I" mayúscula.
         // Para pruebas locales contra XAMPP: "http://10.0.2.2/inventario123/public/" (emulador).

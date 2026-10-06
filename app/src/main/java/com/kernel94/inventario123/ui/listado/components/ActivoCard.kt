@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,18 +27,21 @@ import coil.compose.AsyncImage
 import com.kernel94.inventario123.data.model.Activo
 import com.kernel94.inventario123.ui.theme.*
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ActivoCard(
     activo: Activo,
     onClick: () -> Unit,
     onEditar: () -> Unit,
     onEliminar: () -> Unit,
+    /** Dejar presionado entra en modo selección, para transferir varios de golpe. */
+    onMantenerPresionado: (() -> Unit)? = null,
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 6.dp)
-            .clickable { onClick() },
+            .combinedClickable(onClick = onClick, onLongClick = onMantenerPresionado),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)

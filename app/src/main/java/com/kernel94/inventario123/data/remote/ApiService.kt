@@ -221,6 +221,30 @@ interface ApiService {
     @GET("index.php?controller=api&action=rentecDetalle")
     suspend fun rentecDetalle(@Query("id") id: Int): ProyectoRentec
 
+    // ── Transferencia de equipo entre personas ──────────────────────────────
+    // Reemplaza las solicitudes con firma: se manda y el que recibe lo acepta.
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=transferirActivo")
+    suspend fun transferirActivo(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
+    @GET("index.php?controller=api&action=listarTransferencias")
+    suspend fun listarTransferencias(): ListaTransferencias
+
+    @GET("index.php?controller=api&action=contarTransferenciasPendientes")
+    suspend fun contarTransferenciasPendientes(): ConteoPendientes
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=aceptarTransferencia")
+    suspend fun aceptarTransferencia(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=rechazarTransferencia")
+    suspend fun rechazarTransferencia(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=cancelarTransferencia")
+    suspend fun cancelarTransferencia(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
     // Borra un folio RENTEC. Sólo folios sin huella: si ya tiene activos o
     // movimientos el servidor responde 409 y sugiere cerrarlo en vez de borrarlo.
     @Headers("Content-Type: application/json")
