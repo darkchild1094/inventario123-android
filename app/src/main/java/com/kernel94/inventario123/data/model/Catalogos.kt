@@ -4,6 +4,13 @@ data class Usuario(
     val id: Int = 0, val nombre: String = "", val email: String? = null,
     val foto: String? = null, val plaza_id: Int? = null, val plaza_nombre: String? = null,
     val tipo: String = "pfs",
+    /**
+     * TODAS las plazas asignadas (usuario_plaza), no sólo la principal. El
+     * formulario de edición debe premarcarlas desde aquí: el servidor borra y
+     * reinserta la lista completa, así que guardar con una lista incompleta le
+     * quita al usuario el resto de sus plazas sin avisar.
+     */
+    val plaza_ids: List<Int> = emptyList(),
     // Solo viene poblado por stockPfsUsuarios() (landing de "Stock PFS").
     val activos_count: Int = 0,
 )

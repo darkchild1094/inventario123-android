@@ -21,13 +21,20 @@ private val TIPOS_USUARIO = listOf("admin", "coordinador", "pfs", "ati")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UsuariosScreen(viewModel: UsuariosViewModel, onVolver: () -> Unit) {
+fun UsuariosScreen(
+    viewModel: UsuariosViewModel,
+    onVolver: () -> Unit,
+    /** Abre el formulario en pantalla completa; null = alta nueva. */
+    onEditarUsuario: (Int?) -> Unit = {},
+    mensajeInicial: String? = null,
+) {
     LaunchedEffect(Unit) { viewModel.cargar() }
-    var usuarioEnEdicion by remember { mutableStateOf<Usuario?>(null) }
-    var mostrarFormulario by remember { mutableStateOf(false) }
     var confirmarEliminarId by remember { mutableStateOf<Int?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(mensajeInicial) {
+        mensajeInicial?.let { snackbarHostState.showSnackbar(it); viewModel.cargar() }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -39,7 +46,7 @@ fun UsuariosScreen(viewModel: UsuariosViewModel, onVolver: () -> Unit) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { usuarioEnEdicion = null; mostrarFormulario = true }, containerColor = BsPrimary) {
+            FloatingActionButton(onClick = { onEditarUsuario(null) }, containerColor = BsPrimary) {
                 Icon(Icons.Filled.Add, contentDescription = "Nuevo usuario", tint = androidx.compose.ui.graphics.Color.White)
             }
         }
@@ -57,7 +64,7 @@ fun UsuariosScreen(viewModel: UsuariosViewModel, onVolver: () -> Unit) {
                                     Text(usuario.email ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
                                     Text(usuario.tipo.uppercase(), style = MaterialTheme.typography.labelSmall, color = BsPrimary)
                                 }
-                                IconButton(onClick = { usuarioEnEdicion = usuario; mostrarFormulario = true }) { Icon(Icons.Filled.Edit, contentDescription = "Editar") }
+                                IconButton(onClick = { onEditarUsuario(usuario.id) }) { Icon(Icons.Filled.Edit, contentDescription = "Editar") }
                                 IconButton(onClick = { confirmarEliminarId = usuario.id }) { Icon(Icons.Filled.Delete, contentDescription = "Eliminar") }
                             }
                         }
@@ -67,17 +74,6 @@ fun UsuariosScreen(viewModel: UsuariosViewModel, onVolver: () -> Unit) {
         }
     }
 
-    if (mostrarFormulario) {
-        FormularioUsuarioDialog(
-            viewModel = viewModel,
-            usuario = usuarioEnEdicion,
-            onCerrar = { mostrarFormulario = false },
-            onGuardado = { ok, msg ->
-                mostrarFormulario = false
-                scope.launch { snackbarHostState.showSnackbar(msg) }
-            }
-        )
-    }
 
     if (confirmarEliminarId != null) {
         AlertDialog(
@@ -93,69 +89,4 @@ fun UsuariosScreen(viewModel: UsuariosViewModel, onVolver: () -> Unit) {
             dismissButton = { TextButton(onClick = { confirmarEliminarId = null }) { Text("Cancelar") } }
         )
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FormularioUsuarioDialog(
-    viewModel: UsuariosViewModel,
-    usuario: Usuario?,
-    onCerrar: () -> Unit,
-    onGuardado: (Boolean, String) -> Unit,
-) {
-    var nombre by remember { mutableStateOf(usuario?.nombre ?: "") }
-    var email by remember { mutableStateOf(usuario?.email ?: "") }
-    var password by remember { mutableStateOf("") }
-    var tipo by remember { mutableStateOf(usuario?.tipo ?: "pfs") }
-    val plazasSeleccionadas = remember { mutableStateListOf<Int>().apply { usuario?.plaza_id?.let { add(it) } } }
-
-    AlertDialog(
-        onDismissRequest = onCerrar,
-        title = { Text(if (usuario == null) "Nuevo usuario" else "Editar usuario") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                OutlinedTextField(value = nombre, onValueChange = { nombre = it }, label = { Text("Nombre") }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
-                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
-                OutlinedTextField(
-                    value = password, onValueChange = { password = it },
-                    label = { Text(if (usuario == null) "Contraseña" else "Nueva contraseña (opcional)") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                )
-
-                Text("Tipo de usuario", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 8.dp))
-                Row {
-                    TIPOS_USUARIO.forEach { t ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 8.dp)) {
-                            RadioButton(selected = tipo == t, onClick = { tipo = t })
-                            Text(t)
-                        }
-                    }
-                }
-
-                Text("Plazas (marca todas las que apliquen, puede ser más de una y de negocios distintos)", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 8.dp))
-                viewModel.catalogos.plazas.forEach { plaza ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = plazasSeleccionadas.contains(plaza.id),
-                            onCheckedChange = { marcado ->
-                                if (marcado) plazasSeleccionadas.add(plaza.id) else plazasSeleccionadas.remove(plaza.id)
-                            }
-                        )
-                        Text("${plaza.nombre} (${plaza.negocio_nombre ?: ""})")
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                viewModel.guardarUsuario(
-                    id = usuario?.id, nombre = nombre, email = email,
-                    password = password.ifBlank { null }, tipo = tipo,
-                    plazaIds = plazasSeleccionadas.toList(), onListo = onGuardado,
-                )
-            }) { Text("Guardar") }
-        },
-        dismissButton = { TextButton(onClick = onCerrar) { Text("Cancelar") } }
-    )
 }

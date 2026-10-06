@@ -379,9 +379,36 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
             )
         }
 
-        composable(Screen.Usuarios.route) {
+        composable(Screen.Usuarios.route) { entry ->
             val vm: UsuariosViewModel = viewModel(factory = factory)
-            UsuariosScreen(viewModel = vm, onVolver = { navController.popBackStack() })
+            // El formulario avisa del resultado por el savedStateHandle de ESTA
+            // pantalla, igual que hace el escáner con lo que escanea.
+            val handle = entry.savedStateHandle
+            val aviso by handle.getStateFlow<String?>("usuario_guardado", null).collectAsState()
+            LaunchedEffect(aviso) { if (aviso != null) handle["usuario_guardado"] = null }
+            UsuariosScreen(
+                viewModel = vm,
+                onVolver = { navController.popBackStack() },
+                onEditarUsuario = { id -> navController.navigate(Screen.UsuarioForm.crear(id)) },
+                mensajeInicial = aviso,
+            )
+        }
+
+        composable(
+            Screen.UsuarioForm.route,
+            arguments = listOf(navArgument("id") { type = NavType.IntType }),
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getInt("id") ?: 0
+            val vm: UsuariosViewModel = viewModel(factory = factory)
+            com.kernel94.inventario123.ui.usuarios.UsuarioFormScreen(
+                viewModel = vm,
+                usuarioId = id.takeIf { it > 0 },
+                onVolver = { navController.popBackStack() },
+                onGuardado = { msg ->
+                    navController.previousBackStackEntry?.savedStateHandle?.set("usuario_guardado", msg)
+                    navController.popBackStack()
+                },
+            )
         }
 
         composable(Screen.Modelos.route) {

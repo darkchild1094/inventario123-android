@@ -42,6 +42,9 @@ sealed class Screen(val route: String) {
             "&zoomAlto=$zoomAlto&cbLongitud=$cbLongitud&cbSoloDigitos=$cbSoloDigitos"
     }
     object Usuarios : Screen("usuarios")
+    // Alta/edicion de usuario en pantalla completa (antes era un dialogo
+    // donde el contenido no cabia). id=0 -> alta nueva.
+    object UsuarioForm : Screen("usuario_form/{id}") { fun crear(id: Int?) = "usuario_form/${id ?: 0}" }
     object Historial : Screen("historial")
     object Tiendas : Screen("tiendas")
     object Modelos : Screen("modelos")
