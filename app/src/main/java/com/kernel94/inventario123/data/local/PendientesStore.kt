@@ -62,8 +62,12 @@ class PendientesStore(private val context: Context) {
     } catch (e: Exception) { null }
 
     private fun borrarFotos(p: ActivoPendiente) {
-        listOfNotNull(p.fotoEquipoPath, p.fotoSeriePath, p.fotoActivoPath).forEach {
-            runCatching { File(it).delete() }
-        }
+        rutasDeFotos(p).forEach { runCatching { File(it).delete() } }
     }
+
+    /** Todas las rutas de foto de un pendiente: las del que entra y las del que sale. */
+    fun rutasDeFotos(p: ActivoPendiente): List<String> = listOfNotNull(
+        p.fotoEquipoPath, p.fotoSeriePath, p.fotoActivoPath,
+        p.fotoSalidaEquipoPath, p.fotoSalidaSeriePath, p.fotoSalidaActivoPath,
+    )
 }

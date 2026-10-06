@@ -56,8 +56,16 @@ class TiendaMovViewModel(
     var serie by mutableStateOf("")
     var codigoBarras by mutableStateOf("")
     var motivo by mutableStateOf("")
-    var fotoEquipoUri by mutableStateOf<Uri?>(null)   // equipo instalado / entrante
-    var fotoSalidaUri by mutableStateOf<Uri?>(null)   // equipo retirado (modo reemplazo)
+    // Tres fotos por equipo (las mismas columnas que lleva cualquier activo):
+    // el aparato, su etiqueta de serie y su código de barras. Un juego para el
+    // equipo que ENTRA y otro para el que SALE.
+    var fotoEquipoUri by mutableStateOf<Uri?>(null)
+    var fotoSerieUri by mutableStateOf<Uri?>(null)
+    var fotoActivoUri by mutableStateOf<Uri?>(null)
+
+    var fotoSalidaUri by mutableStateOf<Uri?>(null)        // equipo retirado
+    var fotoSalidaSerieUri by mutableStateOf<Uri?>(null)
+    var fotoSalidaActivoUri by mutableStateOf<Uri?>(null)
 
     // Sólo cuando la instalación/reemplazo es un alta nueva.
     var dispositivoId by mutableStateOf<Int?>(null)
@@ -269,7 +277,7 @@ class TiendaMovViewModel(
                         reemplazaActivoId = null, salidaDestino = null, salidaUsuarioId = null,
                         salidaAtiUsuarioId = null, salidaSerie = null, salidaCodigoBarras = null,
                         motivo = motivo.trim().ifBlank { null },
-                        fotoEquipoUri = fotoEquipoUri, fotoSerieUri = null, fotoActivoUri = null,
+                        fotoEquipoUri = fotoEquipoUri, fotoSerieUri = fotoSerieUri, fotoActivoUri = fotoActivoUri,
                     )
                 }
                 ModoMov.INSTALACION -> {
@@ -286,7 +294,7 @@ class TiendaMovViewModel(
                             reemplazaActivoId = null, salidaDestino = null, salidaUsuarioId = null,
                             salidaAtiUsuarioId = null, salidaSerie = null, salidaCodigoBarras = null,
                             motivo = motivo.trim().ifBlank { null },
-                            fotoEquipoUri = fotoEquipoUri, fotoSerieUri = null, fotoActivoUri = null,
+                            fotoEquipoUri = fotoEquipoUri, fotoSerieUri = fotoSerieUri, fotoActivoUri = fotoActivoUri,
                             proyectoRentecId = proyectoRentecId ?: lk.proyecto_rentec_id,
                         )
                     } else {
@@ -299,7 +307,7 @@ class TiendaMovViewModel(
                             atiUsuarioId = null, motivo = motivo.trim().ifBlank { null },
                             proyectoRentecId = proyectoRentecId,
                         )
-                        pendientesRepository.registrar(context, campos, fotoEquipoUri, null, null)
+                        pendientesRepository.registrar(context, campos, fotoEquipoUri, fotoSerieUri, fotoActivoUri)
                     }
                 }
                 ModoMov.REEMPLAZO -> {
@@ -329,8 +337,9 @@ class TiendaMovViewModel(
                             salidaCodigoBarras = salidaCodigoBarras.trim().ifBlank { null },
                             salidaNumActivo = salidaNumActivo,
                             motivo = motivo.trim().ifBlank { null },
-                            fotoEquipoUri = fotoEquipoUri, fotoSerieUri = null, fotoActivoUri = null,
-                            fotoEquipoSalidaUri = fotoSalidaUri,
+                            fotoEquipoUri = fotoEquipoUri, fotoSerieUri = fotoSerieUri, fotoActivoUri = fotoActivoUri,
+                            fotoEquipoSalidaUri = fotoSalidaUri, fotoSerieSalidaUri = fotoSalidaSerieUri,
+                            fotoActivoSalidaUri = fotoSalidaActivoUri,
                             proyectoRentecId = proyectoRentecId ?: lk.proyecto_rentec_id,
                         )
                     } else {
@@ -346,7 +355,9 @@ class TiendaMovViewModel(
                             salidaCodigoBarras = salidaCodigoBarras.trim().ifBlank { null },
                             salidaNumActivo = salidaNumActivo,
                             motivo = motivo.trim().ifBlank { null },
-                            fotoEquipoUri = fotoEquipoUri, fotoEquipoSalidaUri = fotoSalidaUri,
+                            fotoEquipoUri = fotoEquipoUri, fotoSerieUri = fotoSerieUri, fotoActivoUri = fotoActivoUri,
+                            fotoEquipoSalidaUri = fotoSalidaUri, fotoSerieSalidaUri = fotoSalidaSerieUri,
+                            fotoActivoSalidaUri = fotoSalidaActivoUri,
                             proyectoRentecId = proyectoRentecId,
                         )
                     }
@@ -371,7 +382,9 @@ class TiendaMovViewModel(
     }
 
     private fun limpiar() {
-        serie = ""; codigoBarras = ""; fotoEquipoUri = null; fotoSalidaUri = null
+        serie = ""; codigoBarras = ""
+        fotoEquipoUri = null; fotoSerieUri = null; fotoActivoUri = null
+        fotoSalidaUri = null; fotoSalidaSerieUri = null; fotoSalidaActivoUri = null
         salidaSerie = ""; salidaCodigoBarras = ""; salidaNumActivo = null
         modeloId = null; lookup = null; lookupSalida = null
         // En un lote RENTEC el motivo se conserva entre instalaciones sucesivas.

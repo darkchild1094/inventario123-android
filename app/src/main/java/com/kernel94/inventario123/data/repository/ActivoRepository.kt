@@ -96,7 +96,8 @@ class ActivoRepository(private val api: ApiService, private val context: Context
         salidaUsuarioId: Int? = null, salidaAtiUsuarioId: Int? = null, motivo: String? = null,
         salidaSerie: String? = null, salidaCodigoBarras: String? = null, salidaNumActivo: String? = null,
         fotoEquipoUri: Uri? = null, fotoSerieUri: Uri? = null, fotoActivoUri: Uri? = null,
-        fotoEquipoSalidaUri: Uri? = null, proyectoRentecId: Int? = null,
+        fotoEquipoSalidaUri: Uri? = null, fotoSerieSalidaUri: Uri? = null,
+        fotoActivoSalidaUri: Uri? = null, proyectoRentecId: Int? = null,
         /** true = el equipo ya existía y el usuario confirmó moverlo en vez de duplicarlo. */
         moverExistente: Boolean = false,
     ): Resultado<ApiResultado> = try {
@@ -117,6 +118,8 @@ class ActivoRepository(private val api: ApiService, private val context: Context
                 ImagenUtil.parte(context, fotoSerieUri, "foto_serie"),
                 ImagenUtil.parte(context, fotoActivoUri, "foto_activo"),
                 ImagenUtil.parte(context, fotoEquipoSalidaUri, "foto_equipo_salida"),
+                ImagenUtil.parte(context, fotoSerieSalidaUri, "foto_serie_salida"),
+                ImagenUtil.parte(context, fotoActivoSalidaUri, "foto_activo_salida"),
             )
         }
         // Un 409 "ya existe" viaja como Exito con success=false y ya_existe=true,
@@ -136,7 +139,8 @@ class ActivoRepository(private val api: ApiService, private val context: Context
         salidaUsuarioId: Int? = null, salidaAtiUsuarioId: Int? = null, motivo: String? = null,
         salidaSerie: String? = null, salidaCodigoBarras: String? = null, salidaNumActivo: String? = null,
         fotoEquipoUri: Uri? = null, fotoSerieUri: Uri? = null, fotoActivoUri: Uri? = null,
-        fotoEquipoSalidaUri: Uri? = null, proyectoRentecId: Int? = null,
+        fotoEquipoSalidaUri: Uri? = null, fotoSerieSalidaUri: Uri? = null,
+        fotoActivoSalidaUri: Uri? = null, proyectoRentecId: Int? = null,
     ): Resultado<ApiResultado> = try {
         val datos = mapaDatos(
             id = id, serie = serie, codigoBarras = codigoBarras, numActivo = numActivo, modeloId = modeloId,
@@ -153,6 +157,8 @@ class ActivoRepository(private val api: ApiService, private val context: Context
             ImagenUtil.parte(context, fotoSerieUri, "foto_serie"),
             ImagenUtil.parte(context, fotoActivoUri, "foto_activo"),
             ImagenUtil.parte(context, fotoEquipoSalidaUri, "foto_equipo_salida"),
+            ImagenUtil.parte(context, fotoSerieSalidaUri, "foto_serie_salida"),
+            ImagenUtil.parte(context, fotoActivoSalidaUri, "foto_activo_salida"),
         )
         if (r.success) Resultado.Exito(r) else Resultado.Error(r.message ?: "No se pudo actualizar el activo.")
     } catch (e: Exception) {
@@ -205,12 +211,21 @@ class ActivoRepository(private val api: ApiService, private val context: Context
     suspend fun enviarPendiente(
         campos: Map<String, String>,
         fotoEquipoBytes: ByteArray?, fotoSerieBytes: ByteArray?, fotoActivoBytes: ByteArray?,
+        // Las tres del equipo que sale, cuando el alta encolada es un reemplazo.
+        fotoSalidaEquipoBytes: ByteArray? = null,
+        fotoSalidaSerieBytes: ByteArray? = null,
+        fotoSalidaActivoBytes: ByteArray? = null,
     ): ApiResultado = sinExcepcionPorConflicto {
+        fun parte(bytes: ByteArray?, campo: String) =
+            bytes?.let { ImagenUtil.parteBytes(it, campo, "$campo.jpg", "image/jpeg") }
         api.guardarActivo(
             campos.mapNotNull { (k, v) -> ImagenUtil.texto(v)?.let { k to it } }.toMap(),
-            fotoEquipoBytes?.let { ImagenUtil.parteBytes(it, "foto_equipo", "foto_equipo.jpg", "image/jpeg") },
-            fotoSerieBytes?.let { ImagenUtil.parteBytes(it, "foto_serie", "foto_serie.jpg", "image/jpeg") },
-            fotoActivoBytes?.let { ImagenUtil.parteBytes(it, "foto_activo", "foto_activo.jpg", "image/jpeg") },
+            parte(fotoEquipoBytes, "foto_equipo"),
+            parte(fotoSerieBytes, "foto_serie"),
+            parte(fotoActivoBytes, "foto_activo"),
+            parte(fotoSalidaEquipoBytes, "foto_equipo_salida"),
+            parte(fotoSalidaSerieBytes, "foto_serie_salida"),
+            parte(fotoSalidaActivoBytes, "foto_activo_salida"),
         )
     }
 

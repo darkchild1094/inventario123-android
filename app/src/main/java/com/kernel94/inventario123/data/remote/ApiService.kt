@@ -84,8 +84,11 @@ interface ApiService {
         @Part fotoEquipo: MultipartBody.Part?,
         @Part fotoSerie: MultipartBody.Part?,
         @Part fotoActivo: MultipartBody.Part?,
-        // Reemplazo: foto del equipo que sale (parte "foto_equipo_salida").
+        // Reemplazo: las tres fotos del equipo que SALE, con los mismos nombres
+        // de parte que espera ApiController::FOTOS_SALIDA.
         @Part fotoEquipoSalida: MultipartBody.Part? = null,
+        @Part fotoSerieSalida: MultipartBody.Part? = null,
+        @Part fotoActivoSalida: MultipartBody.Part? = null,
     ): ApiResultado
 
     @Multipart
@@ -96,6 +99,8 @@ interface ApiService {
         @Part fotoSerie: MultipartBody.Part?,
         @Part fotoActivo: MultipartBody.Part?,
         @Part fotoEquipoSalida: MultipartBody.Part? = null,
+        @Part fotoSerieSalida: MultipartBody.Part? = null,
+        @Part fotoActivoSalida: MultipartBody.Part? = null,
     ): ApiResultado
 
     @FormUrlEncoded

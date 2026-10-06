@@ -198,27 +198,7 @@ fun CrearEditarActivoScreen(
             // es de SOLO LECTURA: se asigna a mano en la base de datos y el
             // servidor nunca deja cambiar una placa ya puesta. En un alta nueva
             // todavía no hay placa, así que el campo no aparece.
-            if (viewModel.numActivo.isNotBlank()) {
-                OutlinedTextField(
-                    value = viewModel.numActivo,
-                    onValueChange = { },
-                    readOnly = true,
-                    enabled = false,
-                    label = { Text("N° de activo") },
-                    supportingText = { Text("Asignado por activo fijo; no se edita aquí") },
-                    leadingIcon = {
-                        Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
-                    },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        disabledSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                )
-            }
+            PlacaActivoFijo(viewModel.numActivo)
 
             // Módulos compactos (bodega / mi_stock / stock_pfs / ati): el estatus
             // queda fijo por el módulo, no se muestran los radios.
@@ -313,53 +293,62 @@ fun CrearEditarActivoScreen(
                     )
 
                     if (viewModel.reemplazaActivoId != null) {
-                        Text(
-                            "Equipo que sale — destino",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                        OutlinedTextField(
-                            value = viewModel.salidaSerie,
-                            onValueChange = { viewModel.salidaSerie = it },
-                            label = { Text("Serie del equipo que sale") },
-                            supportingText = { Text("Corrige si está mal.") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                        )
-                        OutlinedTextField(
-                            value = viewModel.salidaCodigoBarras,
-                            onValueChange = { viewModel.salidaCodigoBarras = it.filter(Char::isDigit).take(8) },
-                            label = { Text("Código de barras del que sale (8 dígitos)") },
-                            isError = viewModel.salidaCodigoBarras.isNotBlank() && viewModel.salidaCodigoBarras.length != 8,
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                        )
-                        Column {
-                            SALIDA_OPCIONES.forEach { (valor, etiqueta) ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(
-                                        selected = viewModel.salidaDestino == valor,
-                                        onClick = { viewModel.salidaDestino = valor }
-                                    )
-                                    Text(etiqueta)
+                        Spacer(Modifier.height(8.dp))
+                        SeccionEquipo(
+                            titulo = "Equipo que se RETIRA",
+                            subtitulo = "El viejo: sale de la tienda. Abajo eliges a dónde va.",
+                            acento = VERDE_RETIRO,
+                        ) {
+                            OutlinedTextField(
+                                value = viewModel.salidaSerie,
+                                onValueChange = { viewModel.salidaSerie = it },
+                                label = { Text("Serie del equipo que sale") },
+                                supportingText = { Text("Corrige si está mal.") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = viewModel.salidaCodigoBarras,
+                                onValueChange = { viewModel.salidaCodigoBarras = it.filter(Char::isDigit).take(8) },
+                                label = { Text("Código de barras del que sale (8 dígitos)") },
+                                isError = viewModel.salidaCodigoBarras.isNotBlank() && viewModel.salidaCodigoBarras.length != 8,
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text("¿A dónde va el que sale?", style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold)
+                            Column {
+                                SALIDA_OPCIONES.forEach { (valor, etiqueta) ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        RadioButton(
+                                            selected = viewModel.salidaDestino == valor,
+                                            onClick = { viewModel.salidaDestino = valor }
+                                        )
+                                        Text(etiqueta)
+                                    }
                                 }
                             }
-                        }
-                        when (viewModel.salidaDestino) {
-                            "asignado" -> FiltroDropdown(
-                                etiqueta = "Usuario que recibe", opciones = viewModel.usuariosAsignables,
-                                seleccionId = viewModel.salidaUsuarioId, idDe = { it.id }, nombreDe = { it.nombre },
-                                onSeleccion = { viewModel.salidaUsuarioId = it },
-                                etiquetaNula = "Yo mismo",
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                            )
-                            "garantia", "baja" -> FiltroDropdown(
-                                etiqueta = "ATI responsable del que sale", opciones = viewModel.atisPlaza,
-                                seleccionId = viewModel.salidaAtiUsuarioId, idDe = { it.id }, nombreDe = { it.nombre },
-                                onSeleccion = { viewModel.salidaAtiUsuarioId = it },
-                                etiquetaNula = "ATI de la tienda (automático)",
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                            when (viewModel.salidaDestino) {
+                                "asignado" -> FiltroDropdown(
+                                    etiqueta = "Usuario que recibe", opciones = viewModel.usuariosAsignables,
+                                    seleccionId = viewModel.salidaUsuarioId, idDe = { it.id }, nombreDe = { it.nombre },
+                                    onSeleccion = { viewModel.salidaUsuarioId = it },
+                                    etiquetaNula = "Yo mismo",
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                "garantia", "baja" -> FiltroDropdown(
+                                    etiqueta = "ATI responsable del que sale", opciones = viewModel.atisPlaza,
+                                    seleccionId = viewModel.salidaAtiUsuarioId, idDe = { it.id }, nombreDe = { it.nombre },
+                                    onSeleccion = { viewModel.salidaAtiUsuarioId = it },
+                                    etiquetaNula = "ATI de la tienda (automático)",
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+
+                            FotosDelEquipo(
+                                equipoUri = viewModel.fotoSalidaEquipoUri, onEquipo = { viewModel.fotoSalidaEquipoUri = it },
+                                serieUri = viewModel.fotoSalidaSerieUri, onSerie = { viewModel.fotoSalidaSerieUri = it },
+                                codigoUri = viewModel.fotoSalidaActivoUri, onCodigo = { viewModel.fotoSalidaActivoUri = it },
                             )
                         }
                     }
@@ -398,28 +387,21 @@ fun CrearEditarActivoScreen(
                 )
             }
 
-            Text("Fotos (opcional)", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-            FotoActivoCampo(
-                etiqueta = "Foto del equipo",
-                urlActual = viewModel.fotoEquipoActual?.let { Urls.activoFotoThumb(it) },
-                uriSeleccionada = viewModel.fotoEquipoUri,
-                onCambio = { viewModel.fotoEquipoUri = it },
-                modifier = Modifier.fillMaxWidth()
-            )
-            FotoActivoCampo(
-                etiqueta = "Foto de la serie",
-                urlActual = viewModel.fotoSerieActual?.let { Urls.activoFotoThumb(it) },
-                uriSeleccionada = viewModel.fotoSerieUri,
-                onCambio = { viewModel.fotoSerieUri = it },
-                modifier = Modifier.fillMaxWidth()
-            )
-            FotoActivoCampo(
-                etiqueta = "Foto del código de barras",
-                urlActual = viewModel.fotoActivoActual?.let { Urls.activoFotoThumb(it) },
-                uriSeleccionada = viewModel.fotoActivoUri,
-                onCambio = { viewModel.fotoActivoUri = it },
-                modifier = Modifier.fillMaxWidth()
-            )
+            Spacer(Modifier.height(8.dp))
+            SeccionEquipo(
+                titulo = if (viewModel.status == "en_uso") "Fotos del equipo que se INSTALA" else "Fotos de este equipo",
+                subtitulo = "Las tres ayudan a que nadie tenga que desmontarlo después para leer la serie.",
+                acento = AZUL_INSTALA,
+            ) {
+                FotosDelEquipo(
+                    equipoUri = viewModel.fotoEquipoUri, onEquipo = { viewModel.fotoEquipoUri = it },
+                    serieUri = viewModel.fotoSerieUri, onSerie = { viewModel.fotoSerieUri = it },
+                    codigoUri = viewModel.fotoActivoUri, onCodigo = { viewModel.fotoActivoUri = it },
+                    equipoUrlActual = viewModel.fotoEquipoActual?.let { Urls.activoFotoThumb(it) },
+                    serieUrlActual = viewModel.fotoSerieActual?.let { Urls.activoFotoThumb(it) },
+                    codigoUrlActual = viewModel.fotoActivoActual?.let { Urls.activoFotoThumb(it) },
+                )
+            }
 
             val context = LocalContext.current
 

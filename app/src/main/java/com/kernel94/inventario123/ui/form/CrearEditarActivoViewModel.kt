@@ -79,6 +79,13 @@ class CrearEditarActivoViewModel(
     var fotoSerieUri by mutableStateOf<Uri?>(null)
     var fotoActivoUri by mutableStateOf<Uri?>(null)
 
+    // Las mismas tres fotos para el equipo que SALE en un reemplazo. Antes el
+    // que salía no admitía ninguna, así que el equipo retirado se iba sin
+    // evidencia de su serie ni de su código.
+    var fotoSalidaEquipoUri by mutableStateOf<Uri?>(null)
+    var fotoSalidaSerieUri by mutableStateOf<Uri?>(null)
+    var fotoSalidaActivoUri by mutableStateOf<Uri?>(null)
+
     var modelosFiltrados by mutableStateOf<List<Modelo>>(emptyList()); private set
     var plazasFiltradas by mutableStateOf<List<Plaza>>(emptyList()); private set
     /** Plazas asignadas al usuario (usuario_plaza) para las pestañas del formulario. */
@@ -351,6 +358,9 @@ class CrearEditarActivoViewModel(
                 ).let { if (moverExistente) it + ("mover_existente" to "1") else it }
                 when (val r = pendientesRepository.registrar(
                     context, campos, fotoEquipoUri, fotoSerieUri, fotoActivoUri,
+                    fotoSalidaEquipoUri = if (hayReemplazo) fotoSalidaEquipoUri else null,
+                    fotoSalidaSerieUri = if (hayReemplazo) fotoSalidaSerieUri else null,
+                    fotoSalidaActivoUri = if (hayReemplazo) fotoSalidaActivoUri else null,
                     onYaExiste = { conflicto -> conflictoYaExiste = conflicto },
                 )) {
                     is Resultado.Exito -> {
@@ -368,6 +378,7 @@ class CrearEditarActivoViewModel(
                             // mismo proyecto comparten "Renovación tecnológica".
                             if (proyectoRentecId == null) motivo = ""
                             fotoEquipoUri = null; fotoSerieUri = null; fotoActivoUri = null
+                            fotoSalidaEquipoUri = null; fotoSalidaSerieUri = null; fotoSalidaActivoUri = null
                             onExito()
                         }
                     }
@@ -394,6 +405,9 @@ class CrearEditarActivoViewModel(
                 salidaCodigoBarras = if (hayReemplazo) salidaCodigoBarras.trim().ifBlank { null } else null,
                 motivo = motivo.trim().ifBlank { null },
                 fotoEquipoUri = fotoEquipoUri, fotoSerieUri = fotoSerieUri, fotoActivoUri = fotoActivoUri,
+                fotoEquipoSalidaUri = if (hayReemplazo) fotoSalidaEquipoUri else null,
+                fotoSerieSalidaUri = if (hayReemplazo) fotoSalidaSerieUri else null,
+                fotoActivoSalidaUri = if (hayReemplazo) fotoSalidaActivoUri else null,
                 proyectoRentecId = proyectoRentecId,
             )
             when (resultado) {

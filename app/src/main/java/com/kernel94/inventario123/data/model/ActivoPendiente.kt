@@ -15,6 +15,12 @@ data class ActivoPendiente(
     val fotoEquipoPath: String? = null,
     val fotoSeriePath: String? = null,
     val fotoActivoPath: String? = null,
+    // Las tres del equipo que SALE, cuando el alta es un reemplazo. Nullables y
+    // al final a propósito: un JSON ya encolado por una versión anterior se
+    // sigue leyendo igual, con estas en null.
+    val fotoSalidaEquipoPath: String? = null,
+    val fotoSalidaSeriePath: String? = null,
+    val fotoSalidaActivoPath: String? = null,
     val estado: String = "pendiente",
     val serverId: Int? = null,
     val error: String? = null,

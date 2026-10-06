@@ -46,6 +46,10 @@ class PendientesRepository(
         context: Context,
         campos: Map<String, String>,
         fotoEquipoUri: Uri?, fotoSerieUri: Uri?, fotoActivoUri: Uri?,
+        // Las tres del equipo que SALE, cuando el alta es un reemplazo.
+        fotoSalidaEquipoUri: Uri? = null,
+        fotoSalidaSerieUri: Uri? = null,
+        fotoSalidaActivoUri: Uri? = null,
         /**
          * Lo llama el repositorio cuando el servidor avisa que el equipo YA
          * estaba registrado (409). En ese caso el alta NO se encola: no es algo
@@ -66,6 +70,9 @@ class PendientesRepository(
             fotoEquipoPath = guardar(fotoEquipoUri, "equipo"),
             fotoSeriePath = guardar(fotoSerieUri, "serie"),
             fotoActivoPath = guardar(fotoActivoUri, "activo"),
+            fotoSalidaEquipoPath = guardar(fotoSalidaEquipoUri, "salida_equipo"),
+            fotoSalidaSeriePath = guardar(fotoSalidaSerieUri, "salida_serie"),
+            fotoSalidaActivoPath = guardar(fotoSalidaActivoUri, "salida_activo"),
         )
 
         // 2) si hay señal, intentar enviarlo ya
@@ -73,6 +80,7 @@ class PendientesRepository(
             try {
                 val r = activoRepository.enviarPendiente(
                     camposConClave(p), leer(p.fotoEquipoPath), leer(p.fotoSeriePath), leer(p.fotoActivoPath),
+                    leer(p.fotoSalidaEquipoPath), leer(p.fotoSalidaSeriePath), leer(p.fotoSalidaActivoPath),
                 )
                 if (r.success) {
                     borrarFotos(p)
@@ -111,6 +119,7 @@ class PendientesRepository(
             try {
                 val r = activoRepository.enviarPendiente(
                     camposConClave(p), leer(p.fotoEquipoPath), leer(p.fotoSeriePath), leer(p.fotoActivoPath),
+                    leer(p.fotoSalidaEquipoPath), leer(p.fotoSalidaSeriePath), leer(p.fotoSalidaActivoPath),
                 )
                 if (r.success) {
                     store.actualizar(p.copy(estado = "enviado", serverId = r.id, error = null))
@@ -142,6 +151,6 @@ class PendientesRepository(
         runCatching { File(it).readBytes() }.getOrNull()
     }
     private fun borrarFotos(p: ActivoPendiente) {
-        listOfNotNull(p.fotoEquipoPath, p.fotoSeriePath, p.fotoActivoPath).forEach { runCatching { File(it).delete() } }
+        store.rutasDeFotos(p).forEach { runCatching { File(it).delete() } }
     }
 }

@@ -1,8 +1,11 @@
 package com.kernel94.inventario123.ui.form
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -16,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.kernel94.inventario123.ui.listado.components.FiltroDropdown
 import com.kernel94.inventario123.ui.theme.BsDark
 import com.kernel94.inventario123.ui.theme.BsPrimary
@@ -126,83 +130,113 @@ fun TiendaMovScreen(
                 )
             }
 
-            OutlinedTextField(
-                value = viewModel.serie, onValueChange = viewModel::onSerieChange,
-                label = { Text(if (viewModel.modo == ModoMov.RETIRO) "Serie del equipo a retirar" else "Serie") },
-                singleLine = true, modifier = Modifier.fillMaxWidth(),
-                trailingIcon = { IconButton(onClick = { abrirSerie("serie") }) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear serie") } },
-            )
-            OutlinedTextField(
-                value = viewModel.codigoBarras, onValueChange = { viewModel.codigoBarras = it.filter(Char::isDigit).take(8) },
-                label = { Text("Código de barras (8 dígitos)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                isError = viewModel.codigoBarras.isNotBlank() && viewModel.codigoBarras.length != 8,
-                supportingText = { if (viewModel.codigoBarras.isNotBlank() && viewModel.codigoBarras.length != 8) Text("Deben ser 8 dígitos numéricos") },
-                trailingIcon = { IconButton(onClick = { abrirCodigo("codigo") }) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear código") } },
-            )
+            // ── Sección del equipo que ENTRA ─────────────────────────────────
+            // En modo Retiro no entra nada: la única sección es la del que sale,
+            // así que esta cambia de título y recoge los datos del que se retira.
+            val esRetiro = viewModel.modo == ModoMov.RETIRO
+            SeccionEquipo(
+                titulo = if (esRetiro) "Equipo que se RETIRA" else "Equipo que se INSTALA",
+                subtitulo = if (esRetiro) "Sale de la tienda y pasa a tu stock."
+                            else "Queda instalado y funcionando en la tienda.",
+                acento = if (esRetiro) VERDE_RETIRO else AZUL_INSTALA,
+            ) {
+                OutlinedTextField(
+                    value = viewModel.serie, onValueChange = viewModel::onSerieChange,
+                    label = { Text(if (esRetiro) "Serie del equipo a retirar" else "Serie del equipo a instalar") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = { IconButton(onClick = { abrirSerie("serie") }) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear serie") } },
+                )
+                OutlinedTextField(
+                    value = viewModel.codigoBarras, onValueChange = { viewModel.codigoBarras = it.filter(Char::isDigit).take(8) },
+                    label = { Text("Código de barras (8 dígitos)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    isError = viewModel.codigoBarras.isNotBlank() && viewModel.codigoBarras.length != 8,
+                    supportingText = { if (viewModel.codigoBarras.isNotBlank() && viewModel.codigoBarras.length != 8) Text("Deben ser 8 dígitos numéricos") },
+                    trailingIcon = { IconButton(onClick = { abrirCodigo("codigo") }) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear código") } },
+                )
 
-            // Hint del lookup
-            viewModel.lookup?.let { lk ->
-                val (txt, color) = when {
-                    viewModel.modo == ModoMov.RETIRO && lk.encontrado && lk.en_esta_tienda -> "Instalado aquí — se retirará a tu stock." to Color(0xFF198754)
-                    viewModel.modo == ModoMov.RETIRO -> "Esa serie no está instalada en esta tienda." to Color(0xFFDC3545)
-                    lk.encontrado && lk.en_mi_stock -> "Está en tu stock — se moverá ese equipo a la tienda." to Color(0xFF198754)
-                    lk.encontrado -> "Serie ya existe en otra ubicación (${lk.ubicacion_corta ?: ""})." to Color.Gray
-                    else -> "Serie nueva — captura dispositivo y modelo." to Color.Gray
+                viewModel.lookup?.let { lk ->
+                    val (txt, color) = when {
+                        esRetiro && lk.encontrado && lk.en_esta_tienda -> "Instalado aquí — se retirará a tu stock." to VERDE_RETIRO
+                        esRetiro -> "Esa serie no está instalada en esta tienda." to ROJO_AVISO
+                        lk.encontrado && lk.en_mi_stock -> "Está en tu stock — se moverá ese equipo a la tienda." to VERDE_RETIRO
+                        lk.encontrado -> "Serie ya existe en otra ubicación (${lk.ubicacion_corta ?: ""})." to Color.Gray
+                        else -> "Serie nueva — captura dispositivo y modelo." to Color.Gray
+                    }
+                    Text(txt, color = color, style = MaterialTheme.typography.bodySmall)
+                    PlacaActivoFijo(lk.activo?.numActivo)
                 }
-                Text(txt, color = color, style = MaterialTheme.typography.bodySmall)
-                PlacaActivoFijo(lk.activo?.numActivo)
-            }
 
-            // Alta nueva: dispositivo + modelo (instalación/reemplazo cuando no está en mi stock)
-            if (viewModel.modo != ModoMov.RETIRO && viewModel.necesitaAltaNueva) {
-                FiltroDropdown(
-                    etiqueta = "Dispositivo", opciones = viewModel.catalogos.dispositivos,
-                    seleccionId = viewModel.dispositivoId, idDe = { it.id }, nombreDe = { it.nombre },
-                    onSeleccion = { viewModel.dispositivoId = it; viewModel.modeloId = null }, etiquetaNula = "—",
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                FiltroDropdown(
-                    etiqueta = "Modelo", opciones = viewModel.modelosFiltrados,
-                    seleccionId = viewModel.modeloId, idDe = { it.id },
-                    nombreDe = { (it.marca_nombre?.let { m -> "$m " } ?: "") + it.nombre },
-                    onSeleccion = { viewModel.modeloId = it }, etiquetaNula = "—",
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            // Reemplazo: equipo que sale
-            if (viewModel.modo == ModoMov.REEMPLAZO) {
-                HorizontalDivider()
-                Text("Equipo que se retira (pasa a tu stock)", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-                if (viewModel.activosEnTiendaSalida.isNotEmpty()) {
+                // Alta nueva: dispositivo + modelo (sólo si la serie no existe ya).
+                if (!esRetiro && viewModel.necesitaAltaNueva) {
                     FiltroDropdown(
-                        etiqueta = "Equipo en esta tienda", opciones = viewModel.activosEnTiendaSalida,
-                        seleccionId = null, idDe = { it.id },
-                        nombreDe = { listOfNotNull(it.dispositivo_nombre, it.marca_nombre, it.modelo_nombre, it.serie).joinToString(" · ") },
-                        onSeleccion = { id -> viewModel.activosEnTiendaSalida.find { it.id == id }?.let(viewModel::onSeleccionarSalida) },
-                        etiquetaNula = "Elige de la tienda, o escribe abajo",
+                        etiqueta = "Dispositivo", opciones = viewModel.catalogos.dispositivos,
+                        seleccionId = viewModel.dispositivoId, idDe = { it.id }, nombreDe = { it.nombre },
+                        onSeleccion = { viewModel.dispositivoId = it; viewModel.modeloId = null }, etiquetaNula = "—",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    FiltroDropdown(
+                        etiqueta = "Modelo", opciones = viewModel.modelosFiltrados,
+                        seleccionId = viewModel.modeloId, idDe = { it.id },
+                        nombreDe = { (it.marca_nombre?.let { m -> "$m " } ?: "") + it.nombre },
+                        onSeleccion = { viewModel.modeloId = it }, etiquetaNula = "—",
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                OutlinedTextField(
-                    value = viewModel.salidaSerie, onValueChange = viewModel::onSalidaSerieChange,
-                    label = { Text("Serie del que sale") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                    trailingIcon = { IconButton(onClick = { abrirSerie("salida_serie") }) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear serie del que sale") } },
+
+                FotosDelEquipo(
+                    equipoUri = viewModel.fotoEquipoUri, onEquipo = { viewModel.fotoEquipoUri = it },
+                    serieUri = viewModel.fotoSerieUri, onSerie = { viewModel.fotoSerieUri = it },
+                    codigoUri = viewModel.fotoActivoUri, onCodigo = { viewModel.fotoActivoUri = it },
                 )
-                OutlinedTextField(
-                    value = viewModel.salidaCodigoBarras, onValueChange = { viewModel.salidaCodigoBarras = it.filter(Char::isDigit).take(8) },
-                    label = { Text("CB del que sale (8 dígitos)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                    isError = viewModel.salidaCodigoBarras.isNotBlank() && viewModel.salidaCodigoBarras.length != 8,
-                    trailingIcon = { IconButton(onClick = { abrirCodigo("salida_codigo") }) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear código del que sale") } },
-                )
-                viewModel.lookupSalida?.let { lk ->
-                    val ok = lk.encontrado && lk.en_esta_tienda
-                    Text(
-                        if (ok) "Instalado aquí — se retirará a tu stock." else "El equipo que sale no está instalado en esta tienda.",
-                        color = if (ok) Color(0xFF198754) else Color(0xFFDC3545),
-                        style = MaterialTheme.typography.bodySmall,
+            }
+
+            // ── Sección del equipo que SALE (sólo en reemplazo) ───────────────
+            if (viewModel.modo == ModoMov.REEMPLAZO) {
+                SeccionEquipo(
+                    titulo = "Equipo que se RETIRA",
+                    subtitulo = "El viejo: sale de la tienda y pasa a tu stock.",
+                    acento = VERDE_RETIRO,
+                ) {
+                    if (viewModel.activosEnTiendaSalida.isNotEmpty()) {
+                        FiltroDropdown(
+                            etiqueta = "Elígelo de los que hay en la tienda", opciones = viewModel.activosEnTiendaSalida,
+                            seleccionId = null, idDe = { it.id },
+                            nombreDe = { listOfNotNull(it.dispositivo_nombre, it.marca_nombre, it.modelo_nombre, it.serie).joinToString(" · ") },
+                            onSeleccion = { id -> viewModel.activosEnTiendaSalida.find { it.id == id }?.let(viewModel::onSeleccionarSalida) },
+                            etiquetaNula = "Elige de la lista, o escanea abajo",
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            "Si no aparece en la lista, escanea su serie o su código abajo y se identifica solo.",
+                            style = MaterialTheme.typography.bodySmall, color = Color.Gray,
+                        )
+                    }
+                    OutlinedTextField(
+                        value = viewModel.salidaSerie, onValueChange = viewModel::onSalidaSerieChange,
+                        label = { Text("Serie del equipo que sale") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = { IconButton(onClick = { abrirSerie("salida_serie") }) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear serie del que sale") } },
                     )
-                    PlacaActivoFijo(lk.activo?.numActivo ?: viewModel.salidaNumActivo)
+                    OutlinedTextField(
+                        value = viewModel.salidaCodigoBarras, onValueChange = { viewModel.salidaCodigoBarras = it.filter(Char::isDigit).take(8) },
+                        label = { Text("Código de barras del que sale (8 dígitos)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        isError = viewModel.salidaCodigoBarras.isNotBlank() && viewModel.salidaCodigoBarras.length != 8,
+                        trailingIcon = { IconButton(onClick = { abrirCodigo("salida_codigo") }) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear código del que sale") } },
+                    )
+                    viewModel.lookupSalida?.let { lk ->
+                        val ok = lk.encontrado && lk.en_esta_tienda
+                        Text(
+                            if (ok) "Identificado — se retirará a tu stock." else "El equipo que sale no está instalado en esta tienda.",
+                            color = if (ok) VERDE_RETIRO else ROJO_AVISO,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        PlacaActivoFijo(lk.activo?.numActivo ?: viewModel.salidaNumActivo)
+                    }
+
+                    FotosDelEquipo(
+                        equipoUri = viewModel.fotoSalidaUri, onEquipo = { viewModel.fotoSalidaUri = it },
+                        serieUri = viewModel.fotoSalidaSerieUri, onSerie = { viewModel.fotoSalidaSerieUri = it },
+                        codigoUri = viewModel.fotoSalidaActivoUri, onCodigo = { viewModel.fotoSalidaActivoUri = it },
+                    )
                 }
             }
 
@@ -211,20 +245,6 @@ fun TiendaMovScreen(
                 onSeleccion = { viewModel.motivo = it },
                 modifier = Modifier.fillMaxWidth(),
             )
-
-            FotoActivoCampo(
-                etiqueta = if (viewModel.modo == ModoMov.REEMPLAZO) "Foto del equipo instalado" else "Foto del equipo",
-                urlActual = null,
-                uriSeleccionada = viewModel.fotoEquipoUri, onCambio = { viewModel.fotoEquipoUri = it },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (viewModel.modo == ModoMov.REEMPLAZO) {
-                FotoActivoCampo(
-                    etiqueta = "Foto del equipo retirado", urlActual = null,
-                    uriSeleccionada = viewModel.fotoSalidaUri, onCambio = { viewModel.fotoSalidaUri = it },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
 
             if (!online) {
                 Text("Sin conexión: la instalación de equipo nuevo se guarda y se envía al recuperar señal. El retiro y el reemplazo requieren conexión.",
@@ -241,33 +261,4 @@ fun TiendaMovScreen(
             }
         }
     }
-}
-
-/**
- * N° de activo (placa de activo fijo) en SOLO LECTURA. Se muestra para que el
- * técnico la coteje con la etiqueta del equipo; no se edita desde la app: la
- * asigna activo fijo y el servidor nunca deja cambiar una placa ya puesta.
- * No se dibuja nada si el equipo todavía no tiene placa.
- */
-@Composable
-private fun PlacaActivoFijo(numActivo: String?) {
-    val valor = numActivo?.trim().orEmpty()
-    if (valor.isEmpty()) return
-    OutlinedTextField(
-        value = valor,
-        onValueChange = { },
-        readOnly = true,
-        enabled = false,
-        label = { Text("N° de activo") },
-        supportingText = { Text("Asignado por activo fijo; no se edita aquí") },
-        leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(18.dp)) },
-        singleLine = true,
-        colors = OutlinedTextFieldDefaults.colors(
-            disabledTextColor = MaterialTheme.colorScheme.onSurface,
-            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            disabledSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-    )
 }
