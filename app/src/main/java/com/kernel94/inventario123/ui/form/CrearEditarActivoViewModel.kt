@@ -299,7 +299,22 @@ class CrearEditarActivoViewModel(
         return regex.matches(v.trim())
     }
 
-    fun guardar(context: Context, onExito: () -> Unit) {
+    /**
+     * El servidor detectó que el equipo ya estaba registrado y pide confirmación
+     * antes de moverlo. Mientras no sea null, la pantalla muestra el diálogo.
+     */
+    var conflictoYaExiste by mutableStateOf<com.kernel94.inventario123.data.model.ApiResultado?>(null)
+        private set
+
+    fun descartarConflicto() { conflictoYaExiste = null }
+
+    /** Confirma mover el equipo existente a la ubicación capturada. */
+    fun confirmarMoverExistente(context: Context, onExito: () -> Unit) {
+        conflictoYaExiste = null
+        guardar(context, onExito, moverExistente = true)
+    }
+
+    fun guardar(context: Context, onExito: () -> Unit, moverExistente: Boolean = false) {
         if (serie.isBlank()) {
             mensaje = "La serie es obligatoria."; esError = true; return
         }
@@ -333,20 +348,28 @@ class CrearEditarActivoViewModel(
                     salidaSerie = if (hayReemplazo) salidaSerie.trim().ifBlank { null } else null,
                     salidaCodigoBarras = if (hayReemplazo) salidaCodigoBarras.trim().ifBlank { null } else null,
                     proyectoRentecId = proyectoRentecId,
-                )
-                when (val r = pendientesRepository.registrar(context, campos, fotoEquipoUri, fotoSerieUri, fotoActivoUri)) {
+                ).let { if (moverExistente) it + ("mover_existente" to "1") else it }
+                when (val r = pendientesRepository.registrar(
+                    context, campos, fotoEquipoUri, fotoSerieUri, fotoActivoUri,
+                    onYaExiste = { conflicto -> conflictoYaExiste = conflicto },
+                )) {
                     is Resultado.Exito -> {
                         guardando = false; esError = false; mensaje = r.datos
-                        // Solo serie/código/fotos se limpian: el resto (incluida
-                        // procedencia) se conserva para agilizar altas en serie —
-                        // solo hace falta volver a llenar serie, código y foto.
-                        serie = ""; codigoBarras = ""
-                        reemplazaActivoId = null; salidaSerie = ""; salidaCodigoBarras = ""; reemplazoOtraCategoria = false
-                        // En un lote RENTEC el motivo se conserva: todas las altas del
-                        // mismo proyecto comparten "Renovación tecnológica".
-                        if (proyectoRentecId == null) motivo = ""
-                        fotoEquipoUri = null; fotoSerieUri = null; fotoActivoUri = null
-                        onExito()
+                        // Si el servidor pidió confirmación ("ya existe"), el alta
+                        // no se guardó: hay que dejar el formulario intacto para
+                        // poder reenviarlo con mover_existente al confirmar.
+                        if (conflictoYaExiste == null) {
+                            // Solo serie/código/fotos se limpian: el resto (incluida
+                            // procedencia) se conserva para agilizar altas en serie —
+                            // solo hace falta volver a llenar serie, código y foto.
+                            serie = ""; codigoBarras = ""
+                            reemplazaActivoId = null; salidaSerie = ""; salidaCodigoBarras = ""; reemplazoOtraCategoria = false
+                            // En un lote RENTEC el motivo se conserva: todas las altas del
+                            // mismo proyecto comparten "Renovación tecnológica".
+                            if (proyectoRentecId == null) motivo = ""
+                            fotoEquipoUri = null; fotoSerieUri = null; fotoActivoUri = null
+                            onExito()
+                        }
                     }
                     is Resultado.Error -> { guardando = false; esError = true; mensaje = r.mensaje }
                 }

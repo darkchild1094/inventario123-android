@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
@@ -421,6 +422,42 @@ fun CrearEditarActivoScreen(
             )
 
             val context = LocalContext.current
+
+            // El servidor avisó que este equipo ya está registrado en otro lugar.
+            // En vez de crear un segundo registro se ofrece moverlo, que es lo
+            // que de verdad pasó físicamente: alguien lo recogió y lo trajo.
+            viewModel.conflictoYaExiste?.let { conflicto ->
+                AlertDialog(
+                    onDismissRequest = { viewModel.descartarConflicto() },
+                    icon = { Icon(Icons.Filled.Inventory2, contentDescription = null) },
+                    title = { Text("Este equipo ya está registrado") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(conflicto.message ?: "Ya existe un activo con estos datos.")
+                            conflicto.activo?.let { a ->
+                                Text(
+                                    listOfNotNull(
+                                        a.dispositivo_nombre, a.marca_nombre, a.modelo_nombre,
+                                        a.serie?.takeIf { it.isNotBlank() }?.let { "Serie $it" },
+                                        a.numActivo?.let { "N° activo $it" },
+                                    ).joinToString(" · "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = androidx.compose.ui.graphics.Color.Gray,
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { viewModel.confirmarMoverExistente(context, onExito = {}) }) {
+                            Text("Mover aquí")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { viewModel.descartarConflicto() }) { Text("Cancelar") }
+                    },
+                )
+            }
+
             Spacer(Modifier.height(20.dp))
             Button(
                 onClick = { viewModel.guardar(context, onExito = {}) },

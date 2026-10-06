@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.kernel94.inventario123.data.local.PendientesStore
 import com.kernel94.inventario123.data.model.ActivoPendiente
+import com.kernel94.inventario123.data.model.ApiResultado
 import com.kernel94.inventario123.data.remote.ConnectivityObserver
 import com.kernel94.inventario123.data.remote.ImagenUtil
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +46,13 @@ class PendientesRepository(
         context: Context,
         campos: Map<String, String>,
         fotoEquipoUri: Uri?, fotoSerieUri: Uri?, fotoActivoUri: Uri?,
+        /**
+         * Lo llama el repositorio cuando el servidor avisa que el equipo YA
+         * estaba registrado (409). En ese caso el alta NO se encola: no es algo
+         * pendiente de enviar, es una decisión que toca al usuario — mover el
+         * equipo existente o cancelar. Reenviar con "mover_existente" a "1".
+         */
+        onYaExiste: ((ApiResultado) -> Unit)? = null,
     ): Resultado<String> {
         val local = ActivoPendiente(campos = campos)
 
@@ -68,7 +76,17 @@ class PendientesRepository(
                 )
                 if (r.success) {
                     borrarFotos(p)
-                    return Resultado.Exito("Activo registrado. ID en el servidor: ${r.id ?: "—"}.")
+                    return Resultado.Exito(
+                        if (r.movido) r.message ?: "El equipo ya existía: se movió a la nueva ubicación."
+                        else "Activo registrado. ID en el servidor: ${r.id ?: "—"}."
+                    )
+                }
+                // El equipo ya existe: no se encola (no hay nada pendiente de
+                // enviar, hay que decidir si se mueve) y se avisa a la UI.
+                if (r.ya_existe && onYaExiste != null) {
+                    borrarFotos(p)
+                    onYaExiste(r)
+                    return Resultado.Exito(r.message ?: "Este equipo ya está registrado.")
                 }
                 // el servidor respondió con error de validación: se guarda como 'error'
                 p = p.copy(estado = "error", error = r.message ?: "El servidor rechazó el alta.")

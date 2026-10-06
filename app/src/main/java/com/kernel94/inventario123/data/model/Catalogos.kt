@@ -263,6 +263,18 @@ data class ResolverSerieResponse(
     val coincidencias: List<ConsultaCoincidencia> = emptyList(),
 )
 
-data class ApiResultado(val success: Boolean = false, val message: String? = null, val id: Int? = null)
+data class ApiResultado(
+    val success: Boolean = false,
+    val message: String? = null,
+    val id: Int? = null,
+    // El servidor detectó que el equipo YA estaba registrado y NO lo duplicó.
+    // Responde 409 pidiendo confirmación: para mover el existente a la nueva
+    // ubicación hay que reenviar el alta con mover_existente = true.
+    val ya_existe: Boolean = false,
+    val movido: Boolean = false,
+    val coincidio_por: String? = null,
+    val ubicacion: String? = null,
+    val activo: Activo? = null,
+)
 data class LoginResponse(val success: Boolean = false, val message: String? = null, val usuario: Usuario? = null, val session_id: String? = null)
 data class LoginRequest(val email: String, val password: String)

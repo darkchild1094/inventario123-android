@@ -9,6 +9,7 @@ import com.kernel94.inventario123.data.model.ApiResultado
 import com.kernel94.inventario123.data.model.ListadoActivosResponse
 import com.kernel94.inventario123.data.remote.ApiService
 import com.kernel94.inventario123.data.remote.ImagenUtil
+import retrofit2.HttpException
 import java.io.File
 
 class ActivoRepository(private val api: ApiService, private val context: Context? = null) {
@@ -96,6 +97,8 @@ class ActivoRepository(private val api: ApiService, private val context: Context
         salidaSerie: String? = null, salidaCodigoBarras: String? = null, salidaNumActivo: String? = null,
         fotoEquipoUri: Uri? = null, fotoSerieUri: Uri? = null, fotoActivoUri: Uri? = null,
         fotoEquipoSalidaUri: Uri? = null, proyectoRentecId: Int? = null,
+        /** true = el equipo ya existía y el usuario confirmó moverlo en vez de duplicarlo. */
+        moverExistente: Boolean = false,
     ): Resultado<ApiResultado> = try {
         val datos = mapaDatos(
             serie = serie, codigoBarras = codigoBarras, numActivo = numActivo, modeloId = modeloId,
@@ -107,14 +110,20 @@ class ActivoRepository(private val api: ApiService, private val context: Context
             salidaSerie = salidaSerie, salidaCodigoBarras = salidaCodigoBarras, salidaNumActivo = salidaNumActivo,
             proyectoRentecId = proyectoRentecId,
         )
-        val r = api.guardarActivo(
-            datos,
-            ImagenUtil.parte(context, fotoEquipoUri, "foto_equipo"),
-            ImagenUtil.parte(context, fotoSerieUri, "foto_serie"),
-            ImagenUtil.parte(context, fotoActivoUri, "foto_activo"),
-            ImagenUtil.parte(context, fotoEquipoSalidaUri, "foto_equipo_salida"),
-        )
-        if (r.success) Resultado.Exito(r) else Resultado.Error(r.message ?: "No se pudo guardar el activo.")
+        val r = sinExcepcionPorConflicto {
+            api.guardarActivo(
+                if (moverExistente) datos + ("mover_existente" to ImagenUtil.texto("1")!!) else datos,
+                ImagenUtil.parte(context, fotoEquipoUri, "foto_equipo"),
+                ImagenUtil.parte(context, fotoSerieUri, "foto_serie"),
+                ImagenUtil.parte(context, fotoActivoUri, "foto_activo"),
+                ImagenUtil.parte(context, fotoEquipoSalidaUri, "foto_equipo_salida"),
+            )
+        }
+        // Un 409 "ya existe" viaja como Exito con success=false y ya_existe=true,
+        // para que quien llama pueda ofrecer el movimiento en vez de tratarlo
+        // como un error de red.
+        if (r.success || r.ya_existe) Resultado.Exito(r)
+        else Resultado.Error(r.message ?: "No se pudo guardar el activo.")
     } catch (e: Exception) {
         Resultado.Error("No se pudo conectar al servidor.")
     }
@@ -196,12 +205,34 @@ class ActivoRepository(private val api: ApiService, private val context: Context
     suspend fun enviarPendiente(
         campos: Map<String, String>,
         fotoEquipoBytes: ByteArray?, fotoSerieBytes: ByteArray?, fotoActivoBytes: ByteArray?,
-    ): ApiResultado = api.guardarActivo(
-        campos.mapNotNull { (k, v) -> ImagenUtil.texto(v)?.let { k to it } }.toMap(),
-        fotoEquipoBytes?.let { ImagenUtil.parteBytes(it, "foto_equipo", "foto_equipo.jpg", "image/jpeg") },
-        fotoSerieBytes?.let { ImagenUtil.parteBytes(it, "foto_serie", "foto_serie.jpg", "image/jpeg") },
-        fotoActivoBytes?.let { ImagenUtil.parteBytes(it, "foto_activo", "foto_activo.jpg", "image/jpeg") },
-    )
+    ): ApiResultado = sinExcepcionPorConflicto {
+        api.guardarActivo(
+            campos.mapNotNull { (k, v) -> ImagenUtil.texto(v)?.let { k to it } }.toMap(),
+            fotoEquipoBytes?.let { ImagenUtil.parteBytes(it, "foto_equipo", "foto_equipo.jpg", "image/jpeg") },
+            fotoSerieBytes?.let { ImagenUtil.parteBytes(it, "foto_serie", "foto_serie.jpg", "image/jpeg") },
+            fotoActivoBytes?.let { ImagenUtil.parteBytes(it, "foto_activo", "foto_activo.jpg", "image/jpeg") },
+        )
+    }
+
+    /**
+     * El 409 de "este equipo ya existe" no es un fallo de transporte: es una
+     * respuesta con información útil. Retrofit lanzaría HttpException y la cola
+     * de pendientes lo tomaría por un problema de red, reintentándolo para
+     * siempre. Aquí se traduce a un ApiResultado normal con ya_existe = true,
+     * para que la UI pueda preguntar si se mueve el equipo existente.
+     */
+    private suspend fun sinExcepcionPorConflicto(bloque: suspend () -> ApiResultado): ApiResultado = try {
+        bloque()
+    } catch (e: HttpException) {
+        if (e.code() != 409) throw e
+        val cuerpo = runCatching { e.response()?.errorBody()?.string() }.getOrNull()
+        runCatching { gson.fromJson(cuerpo, ApiResultado::class.java) }.getOrNull()
+            ?.takeIf { it.ya_existe || it.message != null }
+            ?: ApiResultado(
+                success = false, ya_existe = true,
+                message = "Este equipo ya está registrado en otra ubicación.",
+            )
+    }
 
     /** Arma el mapa de campos de texto para guardarActivo/actualizarActivo (multipart).
      *  Los null se omiten, igual que antes hacía Retrofit con @Field nullable. */
