@@ -206,6 +206,16 @@ data class ResumenDashboard(
     val tecnico: TecnicoResumen? = null,
 )
 
+/** Última versión de APK subida por un admin — sección "Actualizar app" del dashboard. */
+data class VersionApp(
+    val hay_version: Boolean = false,
+    val version_code: Int = 0,
+    val version_name: String? = null,
+    val notas: String? = null,
+    val creado_en: String? = null,
+    val url_descarga: String? = null,
+)
+
 // ── Navegación por módulos ──────────────────────────────────────────────────
 
 data class Modulo(

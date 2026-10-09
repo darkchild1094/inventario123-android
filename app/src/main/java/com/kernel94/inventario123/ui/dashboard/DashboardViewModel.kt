@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kernel94.inventario123.data.model.Perfil
 import com.kernel94.inventario123.data.model.ResumenDashboard
+import com.kernel94.inventario123.data.model.VersionApp
 import com.kernel94.inventario123.data.repository.ActivoRepository
 import com.kernel94.inventario123.data.repository.AuthRepository
 import com.kernel94.inventario123.data.repository.Resultado
@@ -21,6 +22,7 @@ class DashboardViewModel(
     var resumen by mutableStateOf<ResumenDashboard?>(null); private set
     var cargando by mutableStateOf(false); private set
     var error by mutableStateOf<String?>(null); private set
+    var versionApp by mutableStateOf<VersionApp?>(null); private set
 
     fun cargar() {
         cargando = true
@@ -33,5 +35,7 @@ class DashboardViewModel(
             }
             cargando = false
         }
+        // Aparte: si falla no debe tumbar el resto del dashboard.
+        viewModelScope.launch { versionApp = activoRepository.obtenerUltimaVersionApp() }
     }
 }

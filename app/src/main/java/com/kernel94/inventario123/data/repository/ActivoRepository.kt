@@ -87,6 +87,10 @@ class ActivoRepository(private val api: ApiService, private val context: Context
         Resultado.Error("No se pudo cargar el resumen.")
     }
 
+    /** Silencioso: si falla, la sección "Actualizar app" simplemente no aparece. */
+    suspend fun obtenerUltimaVersionApp(): com.kernel94.inventario123.data.model.VersionApp? =
+        runCatching { api.obtenerUltimaVersionApp() }.getOrNull()
+
     suspend fun crear(
         context: Context,
         serie: String, codigoBarras: String?, numActivo: String?, modeloId: Int?, status: String,

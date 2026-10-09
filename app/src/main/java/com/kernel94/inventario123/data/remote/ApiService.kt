@@ -36,6 +36,9 @@ interface ApiService {
     @GET("index.php?controller=api&action=resumenDashboard")
     suspend fun resumenDashboard(): ResumenDashboard
 
+    @GET("index.php?controller=api&action=obtenerUltimaVersionApp")
+    suspend fun obtenerUltimaVersionApp(): VersionApp
+
     @GET("index.php?controller=api&action=listarActivos")
     suspend fun listarActivos(
         @Query("modulo") modulo: String? = null,

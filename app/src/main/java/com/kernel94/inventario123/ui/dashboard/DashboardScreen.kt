@@ -1,5 +1,7 @@
 package com.kernel94.inventario123.ui.dashboard
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,9 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.kernel94.inventario123.BuildConfig
 import com.kernel94.inventario123.data.model.DashMovimiento
+import com.kernel94.inventario123.data.model.VersionApp
 import com.kernel94.inventario123.ui.shell.AppDrawerContent
 import com.kernel94.inventario123.ui.theme.BsDark
 import com.kernel94.inventario123.ui.theme.BsPrimary
@@ -210,6 +215,12 @@ fun DashboardScreen(
                         }
                     }
 
+                    // "Actualizar app": visible a TODOS los roles (subir el APK
+                    // sigue siendo solo de admin, desde el panel web — esto es
+                    // de solo lectura, para que cualquier técnico sepa si le
+                    // falta actualizar sin tener que preguntar).
+                    VersionAppCard(viewModel.versionApp)
+
                     // Sin botón "Ver inventario": era la única entrada al listado
                     // por `vista=` (la navegación vieja, con reglas de permiso
                     // distintas a las de `modulo=`). Las tarjetas de módulo de
@@ -224,6 +235,61 @@ fun DashboardScreen(
             }
         }
     }
+    }
+}
+
+/**
+ * Sección "Actualizar app": compara la versión instalada (BuildConfig)
+ * contra la última subida por un admin (ApiController::obtenerUltimaVersionApp).
+ * No se muestra nada mientras no haya respuesta o no exista ningún APK
+ * subido — nunca aparece a medias ni con un estado falso.
+ */
+@Composable
+private fun VersionAppCard(versionApp: VersionApp?) {
+    if (versionApp?.hay_version != true) return
+    val context = LocalContext.current
+    val hayNueva = versionApp.version_code > BuildConfig.VERSION_CODE
+
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = if (hayNueva) Color(0xFFD1E7DD) else Color.White),
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.PhoneAndroid, contentDescription = null,
+                    tint = if (hayNueva) Color(0xFF0F5132) else Color.Gray,
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Actualizar app", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        if (hayNueva) "Versión ${versionApp.version_name} disponible · tienes la ${BuildConfig.VERSION_NAME}"
+                        else "Estás en la última versión (${BuildConfig.VERSION_NAME})",
+                        style = MaterialTheme.typography.labelSmall, color = Color.Gray,
+                    )
+                }
+            }
+            if (hayNueva) {
+                if (!versionApp.notas.isNullOrBlank()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(versionApp.notas, style = MaterialTheme.typography.bodySmall, color = Color(0xFF0F5132), maxLines = 3)
+                }
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        val url = versionApp.url_descarga ?: return@Button
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    },
+                    modifier = Modifier.align(Alignment.End),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5132)),
+                ) {
+                    Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Descargar actualización")
+                }
+            }
+        }
     }
 }
 
