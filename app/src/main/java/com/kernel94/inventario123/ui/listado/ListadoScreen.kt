@@ -25,6 +25,7 @@ import androidx.core.content.FileProvider
 import com.kernel94.inventario123.data.repository.Resultado
 import com.kernel94.inventario123.ui.common.PlazaTabs
 import com.kernel94.inventario123.ui.listado.components.ActivoCard
+import com.kernel94.inventario123.ui.listado.components.ActivoListItem
 import com.kernel94.inventario123.ui.listado.components.FiltroDropdown
 import com.kernel94.inventario123.ui.theme.BsDark
 import com.kernel94.inventario123.ui.theme.BsPrimary
@@ -355,20 +356,28 @@ fun ListadoScreen(
                                         )
                                     }
                                     Box(Modifier.weight(1f)) {
-                                        ActivoCard(
-                                            activo = activo,
-                                            // En modo selección, tocar la tarjeta marca
-                                            // en vez de abrir el detalle.
-                                            onClick = {
-                                                if (viewModel.modoSeleccion) viewModel.alternarSeleccion(activo.id)
-                                                else onAbrirDetalle(activo.id)
-                                            },
-                                            onEditar = { onEditar(activo.id) },
-                                            onEliminar = { activoAEliminar = activo.id },
-                                            onMantenerPresionado = if (viewModel.puedeTransferirAqui) {
-                                                { viewModel.activarSeleccion(activo.id) }
-                                            } else null,
-                                        )
+                                        val abrir = {
+                                            if (viewModel.modoSeleccion) viewModel.alternarSeleccion(activo.id)
+                                            else onAbrirDetalle(activo.id)
+                                        }
+                                        if (viewModel.moduloEditable) {
+                                            ActivoCard(
+                                                activo = activo,
+                                                // En modo selección, tocar la tarjeta marca
+                                                // en vez de abrir el detalle.
+                                                onClick = abrir,
+                                                onEditar = { onEditar(activo.id) },
+                                                onEliminar = { activoAEliminar = activo.id },
+                                                onMantenerPresionado = if (viewModel.puedeTransferirAqui) {
+                                                    { viewModel.activarSeleccion(activo.id) }
+                                                } else null,
+                                            )
+                                        } else {
+                                            // Solo lectura (ej. el ATI viendo Bodega, o el
+                                            // stock de otro usuario): lista compacta, sin
+                                            // editar/eliminar, y tocar solo lleva al detalle.
+                                            ActivoListItem(activo = activo, onClick = abrir)
+                                        }
                                     }
                                 }
                             }
