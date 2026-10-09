@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kernel94.inventario123.data.model.Usuario
+import com.kernel94.inventario123.data.model.rolLabel
 import com.kernel94.inventario123.ui.theme.BsDark
 import com.kernel94.inventario123.ui.theme.BsPrimary
 
@@ -40,7 +41,7 @@ fun StockPfsListaScreen(
                 CircularProgressIndicator(color = BsPrimary)
             }
             viewModel.usuarios.isEmpty() -> Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Aún no hay ingenieros con activos registrados a su nombre.", color = Color.Gray)
+                Text("Aún no hay nadie con activos registrados a su nombre.", color = Color.Gray)
             }
             else -> LazyColumn(
                 Modifier.padding(padding).fillMaxSize().padding(horizontal = 12.dp),
@@ -66,8 +67,11 @@ private fun UsuarioStockCard(u: Usuario, onClick: () -> Unit) {
         ) {
             Column(Modifier.weight(1f)) {
                 Text(u.nombre, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                if (u.plaza_nombre != null) {
-                    Text(u.plaza_nombre, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                // La lista mezcla pfs, coordinador y admin — sin el rol no se
+                // distingue de quién es el stock que se está por abrir.
+                val sub = listOfNotNull(rolLabel(u.tipo), u.plaza_nombre).joinToString(" · ")
+                if (sub.isNotBlank()) {
+                    Text(sub, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                 }
             }
             AssistChip(
