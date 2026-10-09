@@ -2,12 +2,9 @@ package com.kernel94.inventario123.ui.scanner
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
-import android.graphics.Rect
-import android.graphics.YuvImage
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -40,7 +37,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import android.util.Size
-import java.io.ByteArrayOutputStream
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
@@ -66,6 +63,7 @@ import java.util.concurrent.TimeUnit
  * `codigoLongitud`/`codigoSoloDigitos` fijan la forma válida del código de barras
  * (por defecto 8 dígitos); vienen del hint del dispositivo, no están fijos en código.
  */
+@OptIn(ExperimentalGetImage::class)
 @Composable
 fun EscanerScreen(
     onCodigoDetectado: (String) -> Unit,
@@ -107,6 +105,50 @@ fun EscanerScreen(
         }.joinToString("") else c
     }
 
+    /**
+     * Extrae números de serie en formatos comunes de etiquetas (TC58B1, etc).
+     * Busca patrones como "EID:", "S/N:", "SN:", "SERIE:", "MAE ID:", etc.
+     */
+    fun extraerSerieFormatos(linea: String): String? {
+        val patrones = listOf(
+            // "S/N: 26170524200696"
+            Regex("(?i)s\\s*(?:/|\\|)\\s*n\\s*[:\\-]?\\s*([A-Za-z0-9]{6,20})"),
+            // "EID: 8904903200000100000002946488"
+            Regex("(?i)eid\\s*[:\\-]?\\s*([A-Za-z0-9]{6,30})"),
+            // "SERIE: ..."
+            Regex("(?i)serie\\s*[:\\-]?\\s*([A-Za-z0-9\\-./]{3,30})"),
+            // "MAE ID: ..."
+            Regex("(?i)mae\\s+id\\s*[:\\-]?\\s*([A-Za-z0-9]{6,20})"),
+            // Números secuenciales largos (19+ dígitos tipo IMEI/EID)
+            Regex("\\b([0-9]{19,30})\\b"),
+            // Números medianos (10-18 dígitos tipo S/N)
+            Regex("\\b([0-9]{10,18})\\b")
+        )
+        for (patron in patrones) {
+            patron.find(linea)?.groupValues?.get(1)?.let {
+                val limpio = limpiar(it).takeIf { s -> s.isNotBlank() }
+                if (limpio != null) return limpio
+            }
+        }
+        return null
+    }
+
+    /**
+     * "SN:" o "S/N:" seguido del valor, sin exigirle ninguna forma al número
+     * de serie en sí (ni longitud ni charset) — etiquetas como la del TC58B1
+     * traen varios números (EID, MAC, IMEI) y el prefijo "SN"/"S/N" es la
+     * única señal confiable de cuál es la serie; una vez que aparece ese
+     * prefijo, se confía en lo que sigue en vez de rechazarlo por su forma.
+     * Solo corta en el primer espacio para no arrastrar texto de más.
+     */
+    fun extraerPorPrefijoSN(linea: String): String? {
+        val regex = Regex("(?i)s\\s*/?\\s*n\\s*:\\s*(\\S+)")
+        return regex.find(linea)?.groupValues?.get(1)
+            ?.trimEnd('.', ',', ';')
+            ?.takeIf { it.isNotBlank() }
+            ?.let { limpiar(it) }
+    }
+
     var tienePermiso by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
     }
@@ -121,6 +163,13 @@ fun EscanerScreen(
     var linternaEncendida by remember { mutableStateOf(false) }
     var zoomActual by remember { mutableStateOf(if (zoomAlto) 0.45f else 0f) }
     var controlCamara by remember { mutableStateOf<androidx.camera.core.CameraControl?>(null) }
+
+    // Hilo propio para el análisis de cada frame: antes corría en el hilo
+    // principal (ContextCompat.getMainExecutor) y, junto con el recorte vía
+    // JPEG que había antes, saturaba la CPU y dejaba a ML Kit sin tiempo de
+    // devolver nada — eso era el "no escanea nada", no el reconocimiento en sí.
+    val executorAnalisis = remember { Executors.newSingleThreadExecutor() }
+    DisposableEffect(Unit) { onDispose { executorAnalisis.shutdown() } }
 
     // ── Confirmación por lecturas repetidas (todos los modos) ────────────
     var candidatoPrevio by remember { mutableStateOf<String?>(null) }
@@ -191,12 +240,15 @@ fun EscanerScreen(
                             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                             .build()
 
-                        analysis.setAnalyzer(ContextCompat.getMainExecutor(ctx)) { imageProxy ->
+                        analysis.setAnalyzer(executorAnalisis) { imageProxy ->
                             if (yaSeleccionado) { imageProxy.close(); return@setAnalyzer }
                             val rot = imageProxy.imageInfo.rotationDegrees
-                            val recortado = recortarAlCentro(imageProxy)
+                            val recorte = recortarNV21AlCentro(imageProxy)
                             val inputImage = when {
-                                recortado != null -> InputImage.fromBitmap(recortado, rot)
+                                recorte != null -> InputImage.fromByteArray(
+                                    recorte.datos, recorte.ancho, recorte.alto, rot,
+                                    InputImage.IMAGE_FORMAT_NV21
+                                )
                                 imageProxy.image != null -> InputImage.fromMediaImage(imageProxy.image!!, rot)
                                 else -> { imageProxy.close(); return@setAnalyzer }
                             }
@@ -205,17 +257,12 @@ fun EscanerScreen(
                                 textRecognizer.process(inputImage)
                                     .addOnSuccessListener { texto ->
                                         val lineas = texto.textBlocks.flatMap { it.lines }.map { it.text.trim() }
-                                        val regex = Regex(
-                                            """(?i)(?:serie|s\s*/\s*n)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\-./]{2,29})"""
-                                        )
-                                        fun extraer(linea: String): String? =
-                                            regex.find(linea)?.groupValues?.get(1)
-                                                ?.trim()?.trimEnd('.', ',', ';', ' ')
-                                                ?.takeIf { it.isNotBlank() }
-                                        var candidato = lineas.firstNotNullOfOrNull { extraer(it) }
+                                        // Intenta extraer del formato estándar "SERIE:", "S/N:", "EID:", etc.
+                                        var candidato = lineas.firstNotNullOfOrNull { extraerSerieFormatos(it) }
+                                        // Si no encontró, intenta combinaciones de dos líneas consecutivas
                                         if (candidato == null && lineas.size > 1) {
                                             candidato = lineas.zipWithNext { a, b -> "$a $b" }
-                                                .firstNotNullOfOrNull { extraer(it) }
+                                                .firstNotNullOfOrNull { extraerSerieFormatos(it) }
                                         }
                                         if (candidato != null && confirmarCandidato(candidato)) aceptar(candidato)
                                     }
@@ -243,8 +290,23 @@ fun EscanerScreen(
                                             filtroPrefijo == null -> {
                                                 textRecognizer.process(inputImage)
                                                     .addOnSuccessListener { texto ->
-                                                        val lineas = texto.textBlocks.flatMap { it.lines }
-                                                            .map { limpiar(it.text) }
+                                                        val lineasCrudas = texto.textBlocks.flatMap { it.lines }.map { it.text.trim() }
+
+                                                        // Serie (no código): si la etiqueta trae "SN:"/"S/N:", se toma
+                                                        // ese valor directo, sin pasarlo por cumpleForma() — es la
+                                                        // señal más confiable para distinguir la serie de los demás
+                                                        // números de la etiqueta (EID, MAC, IMEI...), y no hay que
+                                                        // rechazarla solo porque no calce con un formato esperado.
+                                                        val candidatoSN = if (!esCodigo) {
+                                                            lineasCrudas.firstNotNullOfOrNull { extraerPorPrefijoSN(it) }
+                                                        } else null
+
+                                                        if (candidatoSN != null && confirmarCandidato(candidatoSN)) {
+                                                            aceptar(candidatoSN)
+                                                            return@addOnSuccessListener
+                                                        }
+
+                                                        val lineas = lineasCrudas.map { limpiar(it) }
                                                             .filter { it.length in 4..40 }
                                                         if (lineas.isNotEmpty() && !yaSeleccionado) {
                                                             val conNormalizadas = lineas.flatMap { l ->
@@ -283,44 +345,88 @@ fun EscanerScreen(
                 }
             )
 
-            Row(
-                Modifier.fillMaxWidth().padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Bloque superior completo (controles + instrucción) en una sola
+            // Column: antes cada pieza se posicionaba con align+padding fijo
+            // de forma independiente, y al no coincidir las alturas reales
+            // una tapaba a la otra (se veía la instrucción mezclada con los
+            // botones). Apilado en una Column no hay forma de que se crucen.
+            // .statusBarsPadding() es lo que faltaba para Xiaomi/MIUI: en
+            // Android 15+ el sistema fuerza edge-to-edge y el contenido se
+            // dibuja DETRÁS de la barra de estado si la pantalla no le pone
+            // su propio padding (el statusBarColor fijo del tema ya no alcanza).
+            Column(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .fillMaxWidth()
             ) {
-                IconButton(
-                    onClick = {
-                        linternaEncendida = !linternaEncendida
-                        controlCamara?.enableTorch(linternaEncendida)
-                    }
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        if (linternaEncendida) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
-                        contentDescription = "Linterna",
-                        tint = Color.White
+                    IconButton(
+                        onClick = {
+                            linternaEncendida = !linternaEncendida
+                            controlCamara?.enableTorch(linternaEncendida)
+                        }
+                    ) {
+                        Icon(
+                            if (linternaEncendida) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                            contentDescription = "Linterna",
+                            tint = Color.White
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(
+                            onClick = {
+                                zoomActual = (zoomActual - 0.1f).coerceAtLeast(0f)
+                                controlCamara?.setLinearZoom(zoomActual)
+                            },
+                            modifier = Modifier.size(40.dp),
+                            contentPadding = PaddingValues(0.dp)
+                        ) { Text("-", color = Color.White, style = MaterialTheme.typography.headlineMedium) }
+                        Text("Zoom", color = Color.White, style = MaterialTheme.typography.labelSmall)
+                        TextButton(
+                            onClick = {
+                                zoomActual = (zoomActual + 0.1f).coerceAtMost(1f)
+                                controlCamara?.setLinearZoom(zoomActual)
+                            },
+                            modifier = Modifier.size(40.dp),
+                            contentPadding = PaddingValues(0.dp)
+                        ) { Text("+", color = Color.White, style = MaterialTheme.typography.headlineMedium) }
+                    }
+                    IconButton(onClick = onCerrar) {
+                        Icon(Icons.Filled.Close, contentDescription = "Cerrar", tint = Color.White)
+                    }
+                }
+
+                // Instrucción principal, debajo de los controles (nunca encima).
+                Text(
+                    instruccion,
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    maxLines = 2
+                )
+
+                if (zoomAlto) {
+                    Text(
+                        "Pellizca para zoom",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                     )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = {
-                        zoomActual = (zoomActual - 0.1f).coerceAtLeast(0f)
-                        controlCamara?.setLinearZoom(zoomActual)
-                    }) { Text("-", color = Color.White, style = MaterialTheme.typography.headlineMedium) }
-                    Text("Zoom", color = Color.White)
-                    TextButton(onClick = {
-                        zoomActual = (zoomActual + 0.1f).coerceAtMost(1f)
-                        controlCamara?.setLinearZoom(zoomActual)
-                    }) { Text("+", color = Color.White, style = MaterialTheme.typography.headlineMedium) }
-                }
-                IconButton(onClick = onCerrar) {
-                    Icon(Icons.Filled.Close, contentDescription = "Cerrar", tint = Color.White)
                 }
             }
 
+            // Marco guía al centro (adaptativo a pantalla)
             Box(
                 Modifier
                     .align(Alignment.Center)
-                    .fillMaxWidth(0.8f)
-                    .height(120.dp)
+                    .fillMaxWidth(0.85f)
+                    .aspectRatio(4f / 3f)
+                    .padding(horizontal = 16.dp)
             ) {
                 Card(
                     modifier = Modifier.fillMaxSize(),
@@ -329,34 +435,45 @@ fun EscanerScreen(
                 ) {}
             }
 
-            Text(
-                instruccion,
-                color = Color.White,
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 90.dp)
-            )
-
-            if (zoomAlto) {
-                Text(
-                    "Pellizca la pantalla para acercar el zoom",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 118.dp)
-                )
-            }
-
+            // Card con opciones detectadas (responsive, max altura en pantallas pequeñas)
             if (textosDetectados.isNotEmpty() && !yaSeleccionado) {
                 Card(
-                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .fillMaxWidth(0.95f)
+                        .padding(8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.Black.copy(alpha = 0.85f)
+                    )
                 ) {
-                    Column(Modifier.padding(12.dp)) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp)
+                    ) {
                         Text(
-                            if (esCodigo) "Toca el CÓDIGO correcto (dígitos):" else "Toca la línea que sea la SERIE:",
-                            style = MaterialTheme.typography.bodyMedium
+                            if (esCodigo) "Toca el CÓDIGO correcto:" else "Toca la SERIE correcta:",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White
                         )
-                        Spacer(Modifier.height(8.dp))
-                        textosDetectados.forEach { linea ->
-                            TextButton(onClick = { aceptar(linea) }) {
-                                Text(if (cumpleForma(linea)) "✓  $linea" else linea)
+                        Spacer(Modifier.height(6.dp))
+                        textosDetectados.forEachIndexed { idx, linea ->
+                            if (idx < 5) { // Máximo 5 opciones para no desbordar
+                                TextButton(
+                                    onClick = { aceptar(linea) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(32.dp),
+                                    contentPadding = PaddingValues(4.dp)
+                                ) {
+                                    Text(
+                                        text = if (cumpleForma(linea)) "✓ $linea" else linea,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (cumpleForma(linea)) Color(0xFF51CF66) else Color.White,
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }
@@ -372,11 +489,20 @@ fun EscanerScreen(
     }
 }
 
+/** Recorte NV21 listo para InputImage.fromByteArray: bytes + dimensiones reales. */
+private class RecorteNV21(val datos: ByteArray, val ancho: Int, val alto: Int)
+
 /**
  * Recorta el frame a la franja central (≈92 % ancho × ≈45 % alto) donde queda el
- * marco guía. Devuelve null si la conversión falla (se usa el frame completo).
+ * marco guía, trabajando directo sobre los bytes YUV — SIN pasar por
+ * comprimir a JPEG y volver a decodificar, que es lo que hacía la versión
+ * anterior (`YuvImage.compressToJpeg` + `BitmapFactory.decodeByteArray` en
+ * CADA frame de la cámara, ~15-20 veces por segundo). Ese round-trip por JPEG
+ * saturaba la CPU y era la causa real de "no escanea nada": ML Kit se
+ * quedaba sin tiempo de CPU para procesar el frame antes de que llegara el
+ * siguiente. Devuelve null si la conversión falla (se usa el frame completo).
  */
-private fun recortarAlCentro(imageProxy: ImageProxy): Bitmap? {
+private fun recortarNV21AlCentro(imageProxy: ImageProxy): RecorteNV21? {
     return try {
         val image = imageProxy.image ?: return null
         if (image.format != ImageFormat.YUV_420_888) return null
@@ -394,19 +520,33 @@ private fun recortarAlCentro(imageProxy: ImageProxy): Bitmap? {
 
         val w = image.width
         val h = image.height
-        val yuv = YuvImage(nv21, ImageFormat.NV21, w, h, null)
-        val out = ByteArrayOutputStream()
-        yuv.compressToJpeg(Rect(0, 0, w, h), 92, out)
-        val bytes = out.toByteArray()
-        val full = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
 
-        val cw = (w * 0.92f).toInt().coerceAtMost(w)
-        val ch = (h * 0.45f).toInt().coerceAtMost(h)
-        val cx = ((w - cw) / 2).coerceAtLeast(0)
-        val cy = ((h - ch) / 2).coerceAtLeast(0)
-        val crop = Bitmap.createBitmap(full, cx, cy, cw, ch)
-        if (crop != full) full.recycle()
-        crop
+        // Pares (no impares): el submuestreo de color 4:2:0 agrupa de 2 en 2,
+        // tanto el tamaño del recorte como su origen deben caer en esa rejilla.
+        var cw = (w * 0.92f).toInt().coerceAtMost(w)
+        var ch = (h * 0.45f).toInt().coerceAtMost(h)
+        cw -= cw % 2
+        ch -= ch % 2
+        if (cw <= 0 || ch <= 0) return null
+        var cx = ((w - cw) / 2).coerceAtLeast(0)
+        var cy = ((h - ch) / 2).coerceAtLeast(0)
+        cx -= cx % 2
+        cy -= cy % 2
+
+        val salida = ByteArray(cw * ch + cw * ch / 2)
+        var pos = 0
+        // Plano Y: una fila de cw bytes por cada fila del recorte.
+        for (fila in 0 until ch) {
+            System.arraycopy(nv21, (cy + fila) * w + cx, salida, pos, cw)
+            pos += cw
+        }
+        // Plano VU (submuestreado 2x2, intercalado V,U): misma lógica a la mitad de escala.
+        val inicioVU = w * h
+        for (fila in 0 until ch / 2) {
+            System.arraycopy(nv21, inicioVU + (cy / 2 + fila) * w + cx, salida, pos, cw)
+            pos += cw
+        }
+        RecorteNV21(salida, cw, ch)
     } catch (e: Exception) {
         null
     }
