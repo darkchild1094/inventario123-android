@@ -224,7 +224,24 @@ interface ApiService {
     @GET("index.php?controller=api&action=rentecDetalle")
     suspend fun rentecDetalle(@Query("id") id: Int): ProyectoRentec
 
-    // ── Transferencia de equipo entre personas ──────────────────────────────
+    // ── "Enviar" activos (Bodega↔Mi stock↔usuario) — INMEDIATO, sin
+    // aceptación del receptor. Reemplaza transferirActivo/SolicitudTraslado
+    // de abajo (se mantienen vivos solo por compatibilidad temporal).
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=enviarActivos")
+    suspend fun enviarActivos(@Body body: Map<String, @JvmSuppressWildcards Any?>): EnviarActivosResponse
+
+    @GET("index.php?controller=api&action=listarNotificaciones")
+    suspend fun listarNotificaciones(): List<Notificacion>
+
+    @GET("index.php?controller=api&action=contarNotificacionesNoLeidas")
+    suspend fun contarNotificacionesNoLeidas(): Map<String, Int>
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=marcarNotificacionLeida")
+    suspend fun marcarNotificacionLeida(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
+    // ── Transferencia de equipo entre personas (VIEJO — ver "Enviar" arriba) ─
     // Reemplaza las solicitudes con firma: se manda y el que recibe lo acepta.
     @Headers("Content-Type: application/json")
     @POST("index.php?controller=api&action=transferirActivo")

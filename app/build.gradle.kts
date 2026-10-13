@@ -4,6 +4,8 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.gms.google-services")
+    id("com.google.devtools.ksp")
 }
 
 // Firma de release. Solo se activa si existe keystore.properties en la raíz
@@ -108,6 +110,22 @@ dependencies {
     implementation("androidx.camera:camera-view:1.3.4")
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
     implementation("com.google.mlkit:text-recognition:16.0.1")
+
+    // Offline-first: Room es la fuente local; Firebase Realtime Database +
+    // Auth anónima son el canal de sincronización inmediata entre
+    // dispositivos (mismo patrón que POS123 — ver data/FirebaseModule.kt,
+    // data/local/db/, data/sync/). Backend PHP sigue siendo la base de
+    // datos autoritativa de negocio.
+    implementation(platform("com.google.firebase:firebase-bom:35.0.0"))
+    // Desde este BOM los módulos -ktx se fusionaron en los principales
+    // (ya traen las extensiones Kotlin integradas; POS123 usa un BOM
+    // anterior donde todavía iban separados).
+    implementation("com.google.firebase:firebase-database")
+    implementation("com.google.firebase:firebase-auth")
+
+    implementation("androidx.room:room-runtime:2.8.5")
+    implementation("androidx.room:room-ktx:2.8.5")
+    ksp("androidx.room:room-compiler:2.8.5")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")

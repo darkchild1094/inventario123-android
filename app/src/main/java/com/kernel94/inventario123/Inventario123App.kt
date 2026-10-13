@@ -1,7 +1,9 @@
 package com.kernel94.inventario123
 
 import android.app.Application
+import com.kernel94.inventario123.data.FirebaseModule
 import com.kernel94.inventario123.data.local.PendientesStore
+import com.kernel94.inventario123.data.local.db.AppDatabase
 import com.kernel94.inventario123.data.remote.ApiService
 import com.kernel94.inventario123.data.remote.ConnectivityObserver
 import com.kernel94.inventario123.data.remote.NetworkModule
@@ -13,12 +15,15 @@ import com.kernel94.inventario123.data.repository.CatalogoRepository
 import com.kernel94.inventario123.data.repository.ExportRepository
 import com.kernel94.inventario123.data.repository.ModeloRepository
 import com.kernel94.inventario123.data.repository.MovimientoRepository
+import com.kernel94.inventario123.data.repository.NotificacionRepository
 import com.kernel94.inventario123.data.repository.PendientesRepository
 import com.kernel94.inventario123.data.repository.RentecRepository
 import com.kernel94.inventario123.data.repository.SolicitudRepository
 import com.kernel94.inventario123.data.repository.TiendaRepository
 import com.kernel94.inventario123.data.repository.TransferenciaRepository
 import com.kernel94.inventario123.data.repository.UsuarioRepository
+import com.kernel94.inventario123.data.sync.SyncManager
+import com.kernel94.inventario123.data.sync.SyncWorker
 import com.kernel94.inventario123.data.work.SyncPendientesWorker
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -48,11 +53,18 @@ class Inventario123App : Application() {
     lateinit var transferenciaRepository: TransferenciaRepository private set
     lateinit var pendientesRepository: PendientesRepository private set
     lateinit var connectivityObserver: ConnectivityObserver private set
+    lateinit var notificacionRepository: NotificacionRepository private set
+    lateinit var syncManager: SyncManager private set
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
+        // Canal de sincronización inmediata entre dispositivos (Realtime
+        // Database) — ver data/FirebaseModule.kt. Antes que todo lo demás:
+        // el login anónimo es async y conviene que arranque lo antes posible.
+        FirebaseModule.init(this)
+
         sessionManager = SessionManager(this)
         apiService = NetworkModule.crearApiService(this, sessionManager)
         authRepository = AuthRepository(apiService, sessionManager)
@@ -70,6 +82,8 @@ class Inventario123App : Application() {
 
         connectivityObserver = ConnectivityObserver(this)
         pendientesRepository = PendientesRepository(PendientesStore(this), activoRepository, connectivityObserver)
+        notificacionRepository = NotificacionRepository(apiService, AppDatabase.get(this))
+        syncManager = SyncManager(notificacionRepository)
 
         // Borra las contraseñas que versiones anteriores guardaron en claro.
         // Quitar el código que las escribía no basta: las que ya están en el
@@ -93,6 +107,16 @@ class Inventario123App : Application() {
             .build()
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             SyncPendientesWorker.NOMBRE_UNICO, ExistingPeriodicWorkPolicy.KEEP, trabajo,
+        )
+
+        // Respaldo de la escucha en vivo de SyncManager (que arranca por
+        // sesión, no aquí — necesita saber el usuario_id, ver Dashboard):
+        // por si el listener de Firebase se perdió con la app en background.
+        val trabajoSync = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            SyncWorker.NOMBRE_UNICO, ExistingPeriodicWorkPolicy.KEEP, trabajoSync,
         )
     }
 }

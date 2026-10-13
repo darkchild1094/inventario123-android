@@ -334,3 +334,41 @@ data class ApiResultado(
 )
 data class LoginResponse(val success: Boolean = false, val message: String? = null, val usuario: Usuario? = null, val session_id: String? = null)
 data class LoginRequest(val email: String, val password: String)
+
+// ── Notificaciones + "Enviar" (reemplaza Transferencias/SolicitudTraslado) ──
+
+data class NotifActivo(
+    val id: Int = 0,
+    val serie: String? = null,
+    val codigo_barras: String? = null,
+    val num_activo: String? = null,
+    val modelo_nombre: String? = null,
+    val marca_nombre: String? = null,
+    val dispositivo_nombre: String? = null,
+)
+
+data class Notificacion(
+    val id: Int = 0,
+    val usuario_destino_id: Int = 0,
+    val de_usuario_id: Int = 0,
+    val de_nombre: String = "",
+    val direccion: String = "", // 'a_bodega' | 'a_stock'
+    val lugar: String = "",
+    val grupo_id: String = "",
+    val leida: Boolean = false,
+    val creado_en: String = "",
+    val activos: List<NotifActivo> = emptyList(),
+)
+
+/** Un aviso por destinatario — la app escribe este mismo nodo en Firebase tras un "Enviar" exitoso. */
+data class AvisoEnvio(
+    val usuario_destino_id: Int = 0,
+    val notificacion_id: Int = 0,
+    val datos: Map<String, @JvmSuppressWildcards Any?> = emptyMap(),
+)
+
+data class EnviarActivosResponse(
+    val success: Boolean = false,
+    val message: String? = null,
+    val avisos: List<AvisoEnvio> = emptyList(),
+)
