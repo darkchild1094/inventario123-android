@@ -20,6 +20,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.kernel94.inventario123.data.model.InventarioTiendaDetalle
 import com.kernel94.inventario123.ui.theme.BsDark
+import com.kernel94.inventario123.ui.theme.BsCanvas
 import com.kernel94.inventario123.ui.theme.BsPrimary
 import kotlinx.coroutines.launch
 
@@ -96,7 +97,7 @@ fun InventarioTiendaScreen(
             }
         }
     ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize().background(Color(0xFFF1F3F5))) {
+        Column(Modifier.padding(padding).fillMaxSize().background(BsCanvas)) {
             when {
                 viewModel.cargando && inv == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = BsPrimary) }
                 inv == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No se pudo abrir el inventario.", color = Color.Gray) }

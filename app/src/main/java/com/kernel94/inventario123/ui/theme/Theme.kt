@@ -26,6 +26,9 @@ private val LightColors = lightColorScheme(
     onBackground = BsDark,
     surfaceVariant = BsLight,
     outline = BsBorder,
+    // AlertDialog (confirmar eliminar, enviar, nota de "no encontrado"...) usa
+    // este token como fondo por defecto en M3 — handoff §1: "dialogs #ECE6F0".
+    surfaceContainerHigh = DialogBg,
 )
 
 val Inventario123Typography = Typography(

@@ -29,7 +29,7 @@ class ViewModelFactory(private val app: Inventario123App) : ViewModelProvider.Fa
             modelClass.isAssignableFrom(LoginViewModel::class.java) ->
                 LoginViewModel(app.authRepository) as T
             modelClass.isAssignableFrom(DashboardViewModel::class.java) ->
-                DashboardViewModel(app.activoRepository, app.authRepository, app.rentecRepository, app.notificacionRepository) as T
+                DashboardViewModel(app.activoRepository, app.authRepository, app.rentecRepository, app.tiendaRepository, app.notificacionRepository) as T
             modelClass.isAssignableFrom(ConsultaViewModel::class.java) ->
                 ConsultaViewModel(app.activoRepository) as T
             modelClass.isAssignableFrom(ListadoViewModel::class.java) ->
@@ -43,7 +43,7 @@ class ViewModelFactory(private val app: Inventario123App) : ViewModelProvider.Fa
             modelClass.isAssignableFrom(NotificacionesViewModel::class.java) ->
                 NotificacionesViewModel(app.notificacionRepository, app.authRepository) as T
             modelClass.isAssignableFrom(TiendasViewModel::class.java) ->
-                TiendasViewModel(app.tiendaRepository, app.catalogoRepository, app.authRepository) as T
+                TiendasViewModel(app.tiendaRepository, app.catalogoRepository, app.authRepository, app.exportRepository) as T
             modelClass.isAssignableFrom(com.kernel94.inventario123.ui.tiendas.InventarioTiendaViewModel::class.java) ->
                 com.kernel94.inventario123.ui.tiendas.InventarioTiendaViewModel(app.tiendaRepository, app.activoRepository) as T
             modelClass.isAssignableFrom(com.kernel94.inventario123.ui.movimientos.MovimientosViewModel::class.java) ->

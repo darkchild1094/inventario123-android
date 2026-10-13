@@ -26,6 +26,7 @@ class TiendasViewModel(
     private val tiendaRepository: TiendaRepository,
     private val catalogoRepository: CatalogoRepository,
     private val authRepository: AuthRepository,
+    private val exportRepository: com.kernel94.inventario123.data.repository.ExportRepository,
 ) : ViewModel() {
 
     var perfil by mutableStateOf<Perfil?>(null); private set
@@ -48,9 +49,9 @@ class TiendasViewModel(
                 is Resultado.Exito -> plazas = r.datos.plazas
                 is Resultado.Error -> {}
             }
-            // El backend ya devuelve solo las plazas del usuario; si es una sola, se
-            // preselecciona en vez de dejar "Todas mis plazas" (ambiguo cuando no lo es).
-            if (plazaId == null && plazas.size == 1) plazaId = plazas.first().id
+            // Pestañas por plaza (handoff): siempre una seleccionada, nunca
+            // "todas" — con miles de tiendas una lista sin acotar no tiene caso.
+            if (plazaId == null) plazaId = plazas.firstOrNull()?.id
             cargar()
         }
     }
@@ -169,6 +170,18 @@ class TiendasViewModel(
                 is Resultado.Exito -> { cargar(); onListo(true, r.datos) }
                 is Resultado.Error -> onListo(false, r.mensaje)
             }
+        }
+    }
+
+    // ── Excel ("exporta lo que se ve": la plaza activa, o todas si no hay filtro) ──
+    var exportando by mutableStateOf(false); private set
+
+    fun exportar(context: android.content.Context, onListo: (com.kernel94.inventario123.data.repository.Resultado<java.io.File>) -> Unit) {
+        exportando = true
+        viewModelScope.launch {
+            val r = exportRepository.exportarModulo(context, "tiendas", tiendaId = null, plazaId = plazaId)
+            exportando = false
+            onListo(r)
         }
     }
 

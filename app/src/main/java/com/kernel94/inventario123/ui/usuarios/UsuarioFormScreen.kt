@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.kernel94.inventario123.data.model.Usuario
 import com.kernel94.inventario123.data.model.rolLabel
 import com.kernel94.inventario123.ui.theme.BsDark
+import com.kernel94.inventario123.ui.theme.BsCanvas
 import com.kernel94.inventario123.ui.theme.BsPrimary
 
 private val TIPOS = listOf("admin", "coordinador", "ati", "pfs")
@@ -120,7 +121,7 @@ fun UsuarioFormScreen(
         }
     ) { padding ->
         Column(
-            Modifier.padding(padding).fillMaxSize().background(Color(0xFFF1F3F5))
+            Modifier.padding(padding).fillMaxSize().background(BsCanvas)
                 .verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {

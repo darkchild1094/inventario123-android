@@ -39,9 +39,9 @@ class ExportRepository(private val api: ApiService) {
     }
 
     /** Descarga el Excel de un módulo (Tiendas, Bodega, Mi Stock, Stock PFS, ATI). */
-    suspend fun exportarModulo(context: Context, modulo: String, tiendaId: Int? = null): Resultado<File> {
+    suspend fun exportarModulo(context: Context, modulo: String, tiendaId: Int? = null, plazaId: Int? = null): Resultado<File> {
         return try {
-            val response = api.exportarModulo(modulo, tiendaId)
+            val response = api.exportarModulo(modulo, tiendaId, plazaId)
             if (!response.isSuccessful || response.body() == null) {
                 return Resultado.Error(
                     if (response.code() == 403) "No tienes permiso para exportar."

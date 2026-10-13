@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kernel94.inventario123.ui.listado.components.FiltroDropdown
 import com.kernel94.inventario123.ui.theme.BsDark
+import com.kernel94.inventario123.ui.theme.BsCanvas
 import com.kernel94.inventario123.ui.theme.BsPrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,7 +90,7 @@ fun TiendaMovScreen(
             return@Scaffold
         }
         Column(
-            Modifier.padding(padding).fillMaxSize().background(Color(0xFFF1F3F5))
+            Modifier.padding(padding).fillMaxSize().background(BsCanvas)
                 .verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

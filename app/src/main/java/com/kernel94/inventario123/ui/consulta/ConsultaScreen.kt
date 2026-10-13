@@ -22,6 +22,7 @@ import com.kernel94.inventario123.data.model.ConsultaCoincidencia
 import com.kernel94.inventario123.data.model.ConsultaResponse
 import com.kernel94.inventario123.data.model.Movimiento
 import com.kernel94.inventario123.ui.theme.BsDark
+import com.kernel94.inventario123.ui.theme.BsCanvas
 import com.kernel94.inventario123.ui.theme.BsPrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,7 +57,7 @@ fun ConsultaScreen(
         }
     ) { padding ->
         Column(
-            Modifier.padding(padding).fillMaxSize().background(Color(0xFFF1F3F5))
+            Modifier.padding(padding).fillMaxSize().background(BsCanvas)
                 .verticalScroll(rememberScrollState()).padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

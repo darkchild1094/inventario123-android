@@ -1,20 +1,25 @@
 package com.kernel94.inventario123.ui.tiendas
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.kernel94.inventario123.ui.listado.components.FiltroDropdown
+import androidx.core.content.FileProvider
+import com.kernel94.inventario123.data.repository.Resultado
 import com.kernel94.inventario123.ui.theme.BsPrimary
 import kotlinx.coroutines.launch
 
@@ -29,11 +34,30 @@ fun TiendasScreen(
     LaunchedEffect(Unit) { viewModel.iniciar() }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var confirmarEliminar by remember { mutableStateOf(false) }
     LaunchedEffect(viewModel.mensaje) {
         viewModel.mensaje?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.limpiarMensaje()
+        }
+    }
+
+    fun exportarYCompartir() {
+        viewModel.exportar(context) { resultado ->
+            when (resultado) {
+                is Resultado.Exito -> {
+                    val archivo = resultado.datos
+                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", archivo)
+                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(android.content.Intent.createChooser(intent, "Compartir tiendas"))
+                }
+                is Resultado.Error -> scope.launch { snackbarHostState.showSnackbar(resultado.mensaje) }
+            }
         }
     }
 
@@ -56,6 +80,12 @@ fun TiendasScreen(
                             Icon(Icons.Filled.Delete, contentDescription = "Eliminar", tint = Color.White)
                         }
                     }
+                    if (!viewModel.modoSeleccion && viewModel.perfil?.permisos?.puedeExportar == true) {
+                        IconButton(onClick = { if (!viewModel.exportando) exportarYCompartir() }) {
+                            if (viewModel.exportando) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
+                            else Icon(Icons.Filled.FileDownload, contentDescription = "Exportar", tint = Color.White)
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BsPrimary, titleContentColor = Color.White),
             )
@@ -68,28 +98,40 @@ fun TiendasScreen(
             }
         }
     ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
-            Text(
-                "Entra a una tienda para ver y administrar sus activos." +
-                    if (viewModel.puedeAsignarAti) " Puedes asignar el ATI responsable de cada tienda." else "",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-            )
-            FiltroDropdown(
-                etiqueta = "Plaza", opciones = viewModel.plazas,
-                seleccionId = viewModel.plazaId, idDe = { it.id }, nombreDe = { it.nombre },
-                onSeleccion = { viewModel.onPlazaChange(it) },
-                etiquetaNula = "Todas mis plazas",
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
-            )
-            OutlinedTextField(
-                value = viewModel.busqueda,
-                onValueChange = { viewModel.onBusquedaChange(it) },
-                label = { Text("Nombre o CR de tienda") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
-            )
+        Column(Modifier.padding(padding).fillMaxSize().background(com.kernel94.inventario123.ui.theme.BsCanvas)) {
+            if (viewModel.plazas.size > 1) {
+                com.kernel94.inventario123.ui.common.PlazaTabs(
+                    opciones = viewModel.plazas,
+                    seleccionId = viewModel.plazaId,
+                    onSeleccion = { viewModel.onPlazaChange(it) },
+                    modifier = Modifier.fillMaxWidth().background(Color.White),
+                )
+            }
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                color = Color(0xFFECE6F0),
+                shape = RoundedCornerShape(50),
+            ) {
+                OutlinedTextField(
+                    value = viewModel.busqueda,
+                    onValueChange = { viewModel.onBusquedaChange(it) },
+                    placeholder = { Text("Buscar por nombre o CR") },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color(0xFF49454F)) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(50),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent,
+                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            if (!viewModel.cargando) {
+                Text(
+                    "${viewModel.tiendas.size} tienda(s)", style = MaterialTheme.typography.labelMedium, color = Color.Gray,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
 
             when {
                 viewModel.cargando -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = BsPrimary) }
@@ -109,42 +151,35 @@ fun TiendasScreen(
                             colors = CardDefaults.cardColors(containerColor = if (marcada) Color(0xFFDCE9FF) else Color.White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                         ) {
-                            Column(Modifier.padding(12.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (viewModel.modoSeleccion) {
-                                        Checkbox(checked = marcada, onCheckedChange = { viewModel.alternarSeleccion(t.id) })
+                            Row(Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                if (viewModel.modoSeleccion) {
+                                    Checkbox(checked = marcada, onCheckedChange = { viewModel.alternarSeleccion(t.id) })
+                                } else {
+                                    Box(
+                                        Modifier.size(44.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                                            .background(Color(0xFFDCE9FF)),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(Icons.Filled.Storefront, contentDescription = null, tint = BsPrimary)
                                     }
-                                    Column(Modifier.weight(1f)) {
-                                        Text(t.nombre, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                        Text(
-                                            listOfNotNull(
-                                                t.cr_tienda?.let { "CR $it" },
-                                                t.plaza_nombre,
-                                            ).joinToString(" · "),
-                                            style = MaterialTheme.typography.labelSmall, color = Color.Gray,
-                                        )
-                                        if (t.ultimo_inv_fecha != null) {
-                                            Text(
-                                                "Último inventario: ${t.ultimo_inv_fecha} · ${t.ultimo_inv_encontrados ?: 0} encontrados" +
-                                                    (t.ultimo_inv_no_encontrados?.takeIf { it > 0 }?.let { " · $it no encontrados" } ?: ""),
-                                                style = MaterialTheme.typography.labelSmall, color = Color(0xFF6C757D),
-                                            )
-                                        } else {
-                                            Text("Sin inventario registrado", style = MaterialTheme.typography.labelSmall, color = Color(0xFFB08800))
-                                        }
-                                    }
-                                    AssistChip(onClick = { onAbrirTienda(t.id) }, label = { Text("${t.activos_count} activos") })
-                                    Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color.Gray)
+                                    Spacer(Modifier.width(12.dp))
                                 }
-                                if (viewModel.puedeAsignarAti && !viewModel.modoSeleccion) {
-                                    Spacer(Modifier.height(6.dp))
-                                    FiltroDropdown(
-                                        etiqueta = "ATI responsable", opciones = viewModel.atis,
-                                        seleccionId = t.ati_usuario_id, idDe = { it.id }, nombreDe = { it.nombre },
-                                        onSeleccion = { viewModel.asignarAti(t.id, it) },
-                                        etiquetaNula = "— Sin asignar —",
-                                        modifier = Modifier.fillMaxWidth()
+                                Column(Modifier.weight(1f)) {
+                                    Text(t.nombre, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                    Text(
+                                        listOfNotNull(t.cr_tienda?.let { "CR $it" }, t.plaza_nombre).joinToString(" · "),
+                                        style = MaterialTheme.typography.labelSmall, color = Color.Gray,
                                     )
+                                    Text(
+                                        "ATI: ${t.ati_nombre ?: "sin asignar"} · ${t.activos_count} activos",
+                                        style = MaterialTheme.typography.labelSmall, color = Color.Gray,
+                                    )
+                                    if (t.ultimo_inv_fecha == null) {
+                                        Text("Sin inventario registrado", style = MaterialTheme.typography.labelSmall, color = com.kernel94.inventario123.ui.theme.BsWarning)
+                                    }
+                                }
+                                if (!viewModel.modoSeleccion) {
+                                    Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color.Gray)
                                 }
                             }
                         }

@@ -250,7 +250,8 @@ class ListadoViewModel(
         exportando = true
         viewModelScope.launch {
             val m = modulo
-            val r = if (m != null) exportRepository.exportarModulo(context, m, tiendaId)
+            // "Exporta lo que se ve": si hay pestañas por plaza, solo la activa.
+            val r = if (m != null) exportRepository.exportarModulo(context, m, tiendaId, plazaId.takeIf { mostrarPestanasPlaza })
                     else exportRepository.exportarInventario(context)
             exportando = false
             onListo(r)

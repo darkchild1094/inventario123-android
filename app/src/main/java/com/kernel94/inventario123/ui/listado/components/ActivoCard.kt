@@ -53,7 +53,7 @@ fun ActivoCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(160.dp)
-                    .background(Color(0xFFF1F3F5)),
+                    .background(BsCanvas),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

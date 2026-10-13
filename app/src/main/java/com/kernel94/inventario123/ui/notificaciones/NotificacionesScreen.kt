@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kernel94.inventario123.data.model.Notificacion
 import com.kernel94.inventario123.ui.theme.BsDark
+import com.kernel94.inventario123.ui.theme.BsCanvas
 import com.kernel94.inventario123.ui.theme.BsPrimary
 
 /**
@@ -64,7 +65,7 @@ fun NotificacionesScreen(
             )
         },
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize().background(Color(0xFFF1F3F5))) {
+        Box(Modifier.padding(padding).fillMaxSize().background(BsCanvas)) {
             if (notifs.isEmpty()) {
                 Text(
                     "Sin notificaciones.", color = Color.Gray,

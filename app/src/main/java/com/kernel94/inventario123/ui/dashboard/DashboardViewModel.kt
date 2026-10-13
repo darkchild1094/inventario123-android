@@ -8,12 +8,14 @@ import androidx.lifecycle.viewModelScope
 import com.kernel94.inventario123.data.model.Perfil
 import com.kernel94.inventario123.data.model.ProyectoRentec
 import com.kernel94.inventario123.data.model.ResumenDashboard
+import com.kernel94.inventario123.data.model.TiendaConteo
 import com.kernel94.inventario123.data.model.VersionApp
 import com.kernel94.inventario123.data.repository.ActivoRepository
 import com.kernel94.inventario123.data.repository.AuthRepository
 import com.kernel94.inventario123.data.repository.NotificacionRepository
 import com.kernel94.inventario123.data.repository.RentecRepository
 import com.kernel94.inventario123.data.repository.Resultado
+import com.kernel94.inventario123.data.repository.TiendaRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -22,6 +24,7 @@ class DashboardViewModel(
     private val activoRepository: ActivoRepository,
     private val authRepository: AuthRepository,
     private val rentecRepository: RentecRepository,
+    private val tiendaRepository: TiendaRepository,
     notificacionRepository: NotificacionRepository,
 ) : ViewModel() {
 
@@ -31,6 +34,8 @@ class DashboardViewModel(
     var error by mutableStateOf<String?>(null); private set
     var versionApp by mutableStateOf<VersionApp?>(null); private set
     var proyectosRentec by mutableStateOf<List<ProyectoRentec>>(emptyList()); private set
+    /** Primeras tiendas sin inventario registrado (para la tarjeta del dashboard; la lista completa vive en Tiendas). */
+    var tiendasPendientes by mutableStateOf<List<TiendaConteo>>(emptyList()); private set
 
     val notificacionesNoLeidas = notificacionRepository.observarNoLeidas()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
@@ -56,6 +61,12 @@ class DashboardViewModel(
             if (perfil?.modulos.orEmpty().any { it.clave == "rentec" }) {
                 when (val r = rentecRepository.listar()) {
                     is Resultado.Exito -> proyectosRentec = r.datos
+                    is Resultado.Error -> {}
+                }
+            }
+            if (perfil?.modulos.orEmpty().any { it.clave == "tiendas" }) {
+                when (val r = tiendaRepository.listar()) {
+                    is Resultado.Exito -> tiendasPendientes = r.datos.tiendas.filter { it.ultimo_inv_fecha == null }.take(5)
                     is Resultado.Error -> {}
                 }
             }

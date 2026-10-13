@@ -26,6 +26,7 @@ import com.kernel94.inventario123.ui.listado.components.ActivoCard
 import com.kernel94.inventario123.ui.listado.components.ActivoListItem
 import com.kernel94.inventario123.ui.listado.components.FiltroDropdown
 import com.kernel94.inventario123.ui.theme.BsDark
+import com.kernel94.inventario123.ui.theme.BsCanvas
 import com.kernel94.inventario123.ui.theme.BsPrimary
 import kotlinx.coroutines.launch
 
@@ -189,7 +190,7 @@ fun ListadoScreen(
                 }
             }
         ) { padding ->
-            Column(Modifier.padding(padding).fillMaxSize().background(Color(0xFFF1F3F5))) {
+            Column(Modifier.padding(padding).fillMaxSize().background(BsCanvas)) {
 
                 // Una pestaña por plaza en los módulos acotados por plaza. Sin
                 // esto un coordinador con dos plazas veía las dos bodegas
