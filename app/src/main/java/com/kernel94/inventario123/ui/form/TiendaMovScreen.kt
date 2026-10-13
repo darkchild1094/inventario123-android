@@ -266,6 +266,9 @@ fun TiendaMovScreen(
                 seleccion = viewModel.motivo,
                 onSeleccion = { viewModel.motivo = it },
                 modifier = Modifier.fillMaxWidth(),
+                opciones = if (viewModel.modo == ModoMov.RETIRO)
+                    com.kernel94.inventario123.data.model.MOTIVOS_RETIRO_TIENDA
+                else com.kernel94.inventario123.data.model.MOTIVOS_MOVIMIENTO,
             )
 
             if (!online) {

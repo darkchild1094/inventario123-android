@@ -1,7 +1,9 @@
 package com.kernel94.inventario123.ui.listado
 
 import android.content.Intent
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,7 +29,7 @@ import com.kernel94.inventario123.ui.theme.BsDark
 import com.kernel94.inventario123.ui.theme.BsPrimary
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ListadoScreen(
     viewModel: ListadoViewModel,
@@ -56,6 +58,7 @@ fun ListadoScreen(
     LaunchedEffect(modulo, tiendaId, usuarioId) { viewModel.iniciar(modulo, tiendaId, usuarioId) }
     var mostrarFiltros by remember { mutableStateOf(false) }
     var activoAEliminar by remember { mutableStateOf<Int?>(null) }
+    var mostrarEnviar by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -106,19 +109,35 @@ fun ListadoScreen(
             topBar = {
                 TopAppBar(
                     navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Filled.Menu, contentDescription = "Menú", tint = Color.White)
+                        if (viewModel.modoSeleccion) {
+                            IconButton(onClick = { viewModel.salirDeSeleccion() }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Salir de selección", tint = Color.White)
+                            }
+                        } else {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                Icon(Icons.Filled.Menu, contentDescription = "Menú", tint = Color.White)
+                            }
                         }
                     },
                     title = {
-                        val m = viewModel.modulo
-                        Text(
-                            m?.replaceFirstChar { it.uppercase() }
-                                ?: (viewModel.perfil?.usuario?.plaza_nombre ?: "Inventario123"),
-                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White,
-                        )
+                        if (viewModel.modoSeleccion) {
+                            Text("${viewModel.seleccion.size} seleccionado(s)", color = Color.White, fontWeight = FontWeight.Bold)
+                        } else {
+                            val m = viewModel.modulo
+                            Text(
+                                m?.replaceFirstChar { it.uppercase() }
+                                    ?: (viewModel.perfil?.usuario?.plaza_nombre ?: "Inventario123"),
+                                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White,
+                            )
+                        }
                     },
                     actions = {
+                        if (viewModel.modoSeleccion) {
+                            IconButton(onClick = { viewModel.seleccionarTodos() }) {
+                                Icon(Icons.Filled.SelectAll, contentDescription = "Seleccionar todos", tint = Color.White)
+                            }
+                            return@TopAppBar
+                        }
                         if (onEditarTienda != null) {
                             IconButton(onClick = onEditarTienda) {
                                 Icon(Icons.Filled.Edit, contentDescription = "Editar tienda", tint = Color.White)
@@ -149,11 +168,23 @@ fun ListadoScreen(
                 )
             },
             floatingActionButton = {
-                val puedeCrearAqui = permisos?.puedeCrearActivo == true &&
-                    (viewModel.modulo == null || viewModel.moduloEditable)
-                if (puedeCrearAqui) {
-                    FloatingActionButton(onClick = onCrearNuevo, containerColor = BsPrimary) {
-                        Icon(Icons.Filled.Add, contentDescription = "Nuevo", tint = Color.White)
+                if (viewModel.modoSeleccion) {
+                    ExtendedFloatingActionButton(
+                        onClick = { mostrarEnviar = true },
+                        containerColor = BsPrimary,
+                        contentColor = Color.White,
+                    ) {
+                        Icon(Icons.Filled.SwapHoriz, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Enviar ${viewModel.seleccion.size}")
+                    }
+                } else {
+                    val puedeCrearAqui = permisos?.puedeCrearActivo == true &&
+                        (viewModel.modulo == null || viewModel.moduloEditable)
+                    if (puedeCrearAqui) {
+                        FloatingActionButton(onClick = onCrearNuevo, containerColor = BsPrimary) {
+                            Icon(Icons.Filled.Add, contentDescription = "Nuevo", tint = Color.White)
+                        }
                     }
                 }
             }
@@ -291,19 +322,33 @@ fun ListadoScreen(
                             contentPadding = PaddingValues(bottom = 80.dp)
                         ) {
                             items(viewModel.activos, key = { it.id }) { activo ->
-                                val abrir = { onAbrirDetalle(activo.id) }
-                                if (viewModel.moduloEditable) {
-                                    ActivoCard(
-                                        activo = activo,
-                                        onClick = abrir,
-                                        onEditar = { onEditar(activo.id) },
-                                        onEliminar = { activoAEliminar = activo.id },
-                                    )
-                                } else {
-                                    // Solo lectura (ej. el ATI viendo Bodega, o el
-                                    // stock de otro usuario): lista compacta, sin
-                                    // editar/eliminar, y tocar solo lleva al detalle.
-                                    ActivoListItem(activo = activo, onClick = abrir)
+                                val marcado = activo.id in viewModel.seleccion
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (viewModel.modoSeleccion) {
+                                        Checkbox(checked = marcado, onCheckedChange = { viewModel.alternarSeleccion(activo.id) })
+                                    }
+                                    Box(Modifier.weight(1f)) {
+                                        val abrir = {
+                                            if (viewModel.modoSeleccion) viewModel.alternarSeleccion(activo.id)
+                                            else onAbrirDetalle(activo.id)
+                                        }
+                                        if (viewModel.moduloEditable) {
+                                            ActivoCard(
+                                                activo = activo,
+                                                onClick = abrir,
+                                                onEditar = { onEditar(activo.id) },
+                                                onEliminar = { activoAEliminar = activo.id },
+                                                onMantenerPresionado = if (viewModel.puedeEnviarAqui) {
+                                                    { viewModel.activarSeleccion(activo.id) }
+                                                } else null,
+                                            )
+                                        } else {
+                                            // Solo lectura (ej. el ATI viendo Bodega, o el
+                                            // stock de otro usuario): lista compacta, sin
+                                            // editar/eliminar, y tocar solo lleva al detalle.
+                                            ActivoListItem(activo = activo, onClick = abrir)
+                                        }
+                                    }
                                 }
                             }
 
@@ -332,6 +377,71 @@ fun ListadoScreen(
                         }
                     }
                 }
+            }
+
+            // "Enviar" inmediato: a bodega (de otra plaza) o a una persona de
+            // la plaza. No hay aceptación: el equipo cambia de manos ya, y el
+            // receptor solo recibe un aviso (ver Notificaciones).
+            if (mostrarEnviar) {
+                var aBodega by remember { mutableStateOf(viewModel.modulo == "bodega" || viewModel.modulo == "mi_stock") }
+                var destinoPlaza by remember { mutableStateOf<Int?>(null) }
+                var destinoUsuario by remember { mutableStateOf<Int?>(null) }
+                AlertDialog(
+                    onDismissRequest = { mostrarEnviar = false },
+                    icon = { Icon(Icons.Filled.SwapHoriz, contentDescription = null) },
+                    title = { Text("Enviar ${viewModel.seleccion.size} equipo(s)") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                "El equipo cambia de lugar de inmediato; la otra persona solo recibe un aviso.",
+                                style = MaterialTheme.typography.bodySmall, color = Color.Gray,
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(selected = aBodega, onClick = { aBodega = true })
+                                Text("A bodega", modifier = Modifier.clickable { aBodega = true })
+                                Spacer(Modifier.width(16.dp))
+                                RadioButton(selected = !aBodega, onClick = { aBodega = false })
+                                Text("Al usuario", modifier = Modifier.clickable { aBodega = false })
+                            }
+                            if (aBodega) {
+                                FiltroDropdown(
+                                    etiqueta = "Bodega destino (plaza) *",
+                                    opciones = viewModel.plazasDestino,
+                                    seleccionId = destinoPlaza, idDe = { it.id }, nombreDe = { it.nombre },
+                                    onSeleccion = { destinoPlaza = it },
+                                    etiquetaNula = "Elige la plaza...",
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            } else {
+                                FiltroDropdown(
+                                    etiqueta = "¿A quién se lo entregas? *",
+                                    opciones = viewModel.destinatarios,
+                                    seleccionId = destinoUsuario, idDe = { it.id },
+                                    nombreDe = { "${it.nombre} · ${com.kernel94.inventario123.data.model.rolLabel(it.tipo)}" },
+                                    onSeleccion = { destinoUsuario = it },
+                                    etiquetaNula = "Elige a la persona...",
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            enabled = (if (aBodega) destinoPlaza != null else destinoUsuario != null) && !viewModel.enviando,
+                            onClick = {
+                                mostrarEnviar = false
+                                viewModel.enviar(
+                                    if (aBodega) "bodega" else "usuario",
+                                    if (aBodega) destinoPlaza else null,
+                                    if (aBodega) null else destinoUsuario,
+                                ) { _, msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+                            },
+                        ) { Text("Enviar") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { mostrarEnviar = false }) { Text("Cancelar") }
+                    },
+                )
             }
 
             if (activoAEliminar != null) {

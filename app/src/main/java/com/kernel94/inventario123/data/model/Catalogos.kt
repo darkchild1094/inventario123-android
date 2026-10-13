@@ -210,6 +210,11 @@ val MOTIVOS_MOVIMIENTO = listOf(
     "Renovación tecnológica", "Daño", "Garantía", "Alta", "Baja", "Traspaso",
 )
 
+/** Motivos del modo Retiro en Tiendas (handoff del rediseño, §4 Tiendas). */
+val MOTIVOS_RETIRO_TIENDA = listOf(
+    "Falla", "Obsolescencia", "Fin de contrato", "Cierre de tienda", "Otro",
+)
+
 data class ResolverSerieResponse(
     val encontrado: Boolean = false,
     val activo: Activo? = null,

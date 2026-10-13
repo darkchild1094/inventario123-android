@@ -13,6 +13,7 @@ import com.kernel94.inventario123.data.repository.ActivoRepository
 import com.kernel94.inventario123.data.repository.AuthRepository
 import com.kernel94.inventario123.data.repository.CatalogoRepository
 import com.kernel94.inventario123.data.repository.ExportRepository
+import com.kernel94.inventario123.data.repository.NotificacionRepository
 import com.kernel94.inventario123.data.repository.Resultado
 import com.kernel94.inventario123.data.repository.TiendaRepository
 import kotlinx.coroutines.Job
@@ -26,6 +27,7 @@ class ListadoViewModel(
     private val authRepository: AuthRepository,
     private val exportRepository: ExportRepository,
     private val tiendaRepository: TiendaRepository,
+    private val notificacionRepository: NotificacionRepository,
 ) : ViewModel() {
 
     /**
@@ -67,6 +69,57 @@ class ListadoViewModel(
 
     /** ¿Queda al menos una página más por traer? */
     val puedeCargarMas: Boolean get() = paginaActual < totalPaginas
+
+    // ── Selección múltiple para "Enviar" (Bodega↔Mi stock↔usuario) ──────────
+    // Inmediato, sin aceptación (ver EnvioService/NotificacionRepository). Solo
+    // tiene sentido donde el equipo tiene un dueño que lo puede entregar: Mi
+    // Stock (lo mío) y Bodega si la tengo editable (coordinador/admin).
+    var seleccion by mutableStateOf<Set<Int>>(emptySet()); private set
+    var modoSeleccion by mutableStateOf(false); private set
+    var enviando by mutableStateOf(false); private set
+
+    val puedeEnviarAqui: Boolean
+        get() = perfil?.permisos?.puedeEnviar == true &&
+            (modulo == "mi_stock" || (modulo == "bodega" && moduloEditable))
+
+    fun activarSeleccion(id: Int) {
+        if (!puedeEnviarAqui) return
+        modoSeleccion = true
+        seleccion = seleccion + id
+    }
+
+    fun alternarSeleccion(id: Int) {
+        seleccion = if (id in seleccion) seleccion - id else seleccion + id
+        if (seleccion.isEmpty()) modoSeleccion = false
+    }
+
+    fun salirDeSeleccion() { seleccion = emptySet(); modoSeleccion = false }
+    fun seleccionarTodos() { seleccion = activos.map { it.id }.toSet() }
+
+    /** Plazas a las que se puede enviar: todas menos la actual si se envía desde Bodega. */
+    val plazasDestino: List<com.kernel94.inventario123.data.model.Plaza>
+        get() = if (modulo == "bodega") catalogos.plazas.filter { it.id != plazaId } else catalogos.plazas
+
+    /** Personas de la plaza a las que se les puede entregar (menos uno mismo). */
+    val destinatarios: List<com.kernel94.inventario123.data.model.Usuario>
+        get() {
+            val yo = perfil?.usuario?.id
+            val plaza = plazaId ?: perfil?.permisos?.plazaId
+            return catalogos.usuarios.filter { it.id != yo && (plaza == null || it.plaza_id == null || it.plaza_id == plaza) }
+        }
+
+    fun enviar(tipo: String, plazaDestinoId: Int?, usuarioDestinoId: Int?, onListo: (Boolean, String) -> Unit) {
+        if (seleccion.isEmpty() || enviando) return
+        enviando = true
+        viewModelScope.launch {
+            val r = notificacionRepository.enviar(seleccion.toList(), tipo, plazaDestinoId, usuarioDestinoId)
+            enviando = false
+            when (r) {
+                is Resultado.Exito -> { salirDeSeleccion(); cargar(); onListo(true, r.datos) }
+                is Resultado.Error -> onListo(false, r.mensaje)
+            }
+        }
+    }
 
     private var debounceJob: Job? = null
     private var cargaJob: Job? = null

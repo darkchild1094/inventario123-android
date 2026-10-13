@@ -14,6 +14,7 @@ fun MotivoDropdown(
     onSeleccion: (String) -> Unit,
     modifier: Modifier = Modifier,
     etiqueta: String = "Motivo",
+    opciones: List<String> = MOTIVOS_MOVIMIENTO,
 ) {
     var abierto by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = abierto, onExpandedChange = { abierto = it }, modifier = modifier) {
@@ -26,7 +27,7 @@ fun MotivoDropdown(
             modifier = Modifier.menuAnchor().fillMaxWidth(),
         )
         ExposedDropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
-            MOTIVOS_MOVIMIENTO.forEach { m ->
+            opciones.forEach { m ->
                 DropdownMenuItem(text = { Text(m) }, onClick = { onSeleccion(m); abierto = false })
             }
         }

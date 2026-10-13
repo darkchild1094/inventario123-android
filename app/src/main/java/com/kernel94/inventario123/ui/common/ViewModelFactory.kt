@@ -33,7 +33,7 @@ class ViewModelFactory(private val app: Inventario123App) : ViewModelProvider.Fa
             modelClass.isAssignableFrom(ConsultaViewModel::class.java) ->
                 ConsultaViewModel(app.activoRepository) as T
             modelClass.isAssignableFrom(ListadoViewModel::class.java) ->
-                ListadoViewModel(app.activoRepository, app.catalogoRepository, app.authRepository, app.exportRepository, app.tiendaRepository) as T
+                ListadoViewModel(app.activoRepository, app.catalogoRepository, app.authRepository, app.exportRepository, app.tiendaRepository, app.notificacionRepository) as T
             modelClass.isAssignableFrom(DetalleViewModel::class.java) ->
                 DetalleViewModel(app.activoRepository, app.movimientoRepository) as T
             modelClass.isAssignableFrom(CrearEditarActivoViewModel::class.java) ->
