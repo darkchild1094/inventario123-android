@@ -127,6 +127,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onAbrirModelos = { navController.navigate(Screen.Modelos.route) },
                 onAbrirUsuarios = { navController.navigate(Screen.Usuarios.route) },
                 onAbrirMovimientos = { navController.navigate(Screen.Movimientos.route) },
+                onAbrirRentecDetalle = { id -> navController.navigate(Screen.RentecDetalle.crear(id)) },
             )
         }
 

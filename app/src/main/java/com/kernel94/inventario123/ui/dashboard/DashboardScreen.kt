@@ -3,6 +3,7 @@ package com.kernel94.inventario123.ui.dashboard
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kernel94.inventario123.BuildConfig
 import com.kernel94.inventario123.data.model.DashMovimiento
+import com.kernel94.inventario123.data.model.DashPorNombre
 import com.kernel94.inventario123.data.model.VersionApp
 import com.kernel94.inventario123.ui.shell.AppDrawerContent
 import com.kernel94.inventario123.ui.theme.BsDark
@@ -43,6 +45,7 @@ fun DashboardScreen(
     onAbrirModelos: () -> Unit = {},
     onAbrirUsuarios: () -> Unit = {},
     onAbrirMovimientos: () -> Unit = {},
+    onAbrirRentecDetalle: (Int) -> Unit = {},
 ) {
     LaunchedEffect(Unit) { viewModel.cargar() }
     val r = viewModel.resumen
@@ -105,30 +108,34 @@ fun DashboardScreen(
                 viewModel.cargando && r == null -> Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 viewModel.error != null && r == null -> Text(viewModel.error!!, color = Color.Gray)
                 r != null -> {
-                    // Módulos del rol (fuente: perfil.modulos)
-                    val modulos = p?.modulos.orEmpty().filter { it.clave != "dashboard" }
-                    if (modulos.isNotEmpty()) {
+                    val claves = p?.modulos.orEmpty().map { it.clave }.toSet()
+
+                    // 4 tarjetas navegables (handoff §4 Dashboard) — solo las
+                    // que el rol realmente tiene (ej. pfs no ve Bodega).
+                    data class Tarjeta(val etiqueta: String, val valor: String, val onClick: () -> Unit)
+                    val tarjetas = buildList {
+                        if ("mi_stock" in claves) add(Tarjeta("Mi stock", "${r.por_modulo["mi_stock"] ?: 0} activos") { onAbrirModulo("mi_stock") })
+                        if ("bodega" in claves) add(Tarjeta("Bodega", "${r.por_modulo["bodega"] ?: 0} activos") { onAbrirModulo("bodega") })
+                        if ("tiendas" in claves) add(Tarjeta("Tiendas", "${r.por_modulo["tiendas"] ?: 0} instalados") { onAbrirModulo("tiendas") })
+                        if ("rentec" in claves) {
+                            val abiertos = viewModel.proyectosRentec.count { it.abierto }
+                            val finalizados = viewModel.proyectosRentec.size - abiertos
+                            add(Tarjeta("RENTEC", "$abiertos abiertos · $finalizados finalizados") { onAbrirModulo("rentec") })
+                        }
+                    }
+                    if (tarjetas.isNotEmpty()) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            modulos.chunked(2).forEach { fila ->
+                            tarjetas.chunked(2).forEach { fila ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    fila.forEach { m ->
-                                        val cnt = r.por_modulo[m.clave]
+                                    fila.forEach { t ->
                                         Card(
-                                            onClick = {
-                                                when (m.clave) {
-                                                    "consulta" -> onAbrirConsulta()
-                                                    else       -> onAbrirModulo(m.clave)
-                                                }
-                                            },
+                                            onClick = t.onClick,
                                             modifier = Modifier.weight(1f),
                                             colors = CardDefaults.cardColors(containerColor = Color.White),
                                         ) {
                                             Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-                                                Text(m.etiqueta, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                                Text(
-                                                    cnt?.let { "$it activos" } ?: if (!m.editable) "Consultar" else "",
-                                                    style = MaterialTheme.typography.labelSmall, color = Color.Gray,
-                                                )
+                                                Text(t.etiqueta, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                                Text(t.valor, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                                             }
                                         }
                                     }
@@ -138,7 +145,7 @@ fun DashboardScreen(
                         }
                     }
 
-                    // KPIs
+                    // KPIs por estatus (de todo lo visible para el rol)
                     val kpis = listOf(
                         Triple("Total", r.total, Color(0xFF212529)),
                         Triple("En uso", r.por_status["en_uso"] ?: 0, Color(0xFF6C757D)),
@@ -166,6 +173,58 @@ fun DashboardScreen(
                         }
                     }
 
+                    // Avance RENTEC: % global de los proyectos abiertos + barra
+                    // por proyecto (toca → detalle).
+                    if ("rentec" in claves && viewModel.proyectosRentec.any { it.abierto }) {
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                            Column(Modifier.padding(12.dp)) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Avance RENTEC", fontWeight = FontWeight.Bold)
+                                    Text("${viewModel.avanceRentecGlobal}%", fontWeight = FontWeight.Bold, color = BsPrimary)
+                                }
+                                BarraProgreso(viewModel.avanceRentecGlobal)
+                                Spacer(Modifier.height(10.dp))
+                                viewModel.proyectosRentec.filter { it.abierto }.forEach { proy ->
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                            .clickable { onAbrirRentecDetalle(proy.id) },
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(
+                                                "${proy.folio} · ${proy.nombre}",
+                                                style = MaterialTheme.typography.labelMedium, maxLines = 1,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                            BarraProgreso(proy.avancePct, alto = 4)
+                                        }
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("${proy.avancePct}%", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Inventario de tiendas: N de M tiendas con un checklist registrado.
+                    if ("tiendas" in claves && r.tiendas_total > 0) {
+                        Card(
+                            onClick = { onAbrirModulo("tiendas") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text("Inventario de tiendas", fontWeight = FontWeight.Bold)
+                                Text(
+                                    "${r.tiendas_con_inventario} de ${r.tiendas_total} tiendas con inventario registrado",
+                                    style = MaterialTheme.typography.bodySmall, color = Color.Gray,
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                BarraProgreso(if (r.tiendas_total > 0) r.tiendas_con_inventario * 100 / r.tiendas_total else 0)
+                            }
+                        }
+                    }
+
                     if (noLeidas > 0) {
                         Card(
                             onClick = onAbrirNotificaciones,
@@ -185,17 +244,28 @@ fun DashboardScreen(
                         Column(Modifier.padding(12.dp)) {
                             Text("Por tipo de equipo", fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(8.dp))
-                            val max = (r.por_dispositivo.maxOfOrNull { it.n } ?: 1).coerceAtLeast(1)
-                            r.por_dispositivo.forEach { d ->
-                                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(d.nombre, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, maxLines = 1)
-                                    Text("${d.n}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                                }
-                                Box(
-                                    Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFFE9ECEF))
-                                ) {
-                                    Box(Modifier.fillMaxWidth(d.n.toFloat() / max).fillMaxHeight().background(BsPrimary))
-                                }
+                            BarrasPorNombre(r.por_dispositivo)
+                        }
+                    }
+
+                    // Bodega por plaza (barras) — solo si el rol ve Bodega y hay más de una plaza.
+                    if (r.bodega_por_plaza.size > 1) {
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text("Bodega por plaza", fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.height(8.dp))
+                                BarrasPorNombre(r.bodega_por_plaza)
+                            }
+                        }
+                    }
+
+                    // Mi stock por tipo (barras) — lo propio, siempre que tenga algo.
+                    if ("mi_stock" in claves && r.mi_stock_por_tipo.isNotEmpty()) {
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text("Mi stock por tipo", fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.height(8.dp))
+                                BarrasPorNombre(r.mi_stock_por_tipo)
                             }
                         }
                     }
@@ -282,6 +352,27 @@ private fun VersionAppCard(versionApp: VersionApp?) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BarrasPorNombre(datos: List<DashPorNombre>) {
+    val max = (datos.maxOfOrNull { it.n } ?: 1).coerceAtLeast(1)
+    datos.forEach { d ->
+        Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(d.nombre, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, maxLines = 1)
+            Text("${d.n}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+        }
+        Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFFE9ECEF))) {
+            Box(Modifier.fillMaxWidth(d.n.toFloat() / max).fillMaxHeight().background(BsPrimary))
+        }
+    }
+}
+
+@Composable
+private fun BarraProgreso(pct: Int, alto: Int = 6) {
+    Box(Modifier.fillMaxWidth().height(alto.dp).clip(RoundedCornerShape((alto / 2).dp)).background(Color(0xFFE9ECEF))) {
+        Box(Modifier.fillMaxWidth((pct / 100f).coerceIn(0f, 1f)).fillMaxHeight().background(BsPrimary))
     }
 }
 

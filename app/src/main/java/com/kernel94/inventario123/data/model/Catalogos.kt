@@ -103,7 +103,11 @@ data class ResumenDashboard(
     val por_dispositivo: List<DashPorNombre> = emptyList(),
     val por_plaza: List<DashPorNombre> = emptyList(),
     val por_modulo: Map<String, Int> = emptyMap(),
-    val traslados_pendientes: Int = 0,
+    val bodega_por_plaza: List<DashPorNombre> = emptyList(),
+    val mi_stock_por_tipo: List<DashPorNombre> = emptyList(),
+    val tiendas_con_inventario: Int = 0,
+    val tiendas_total: Int = 0,
+    val notificaciones_no_leidas: Int = 0,
     val movimientos: List<DashMovimiento> = emptyList(),
     val tecnico: TecnicoResumen? = null,
 )
