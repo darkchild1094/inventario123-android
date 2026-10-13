@@ -64,6 +64,8 @@ sealed class Screen(val route: String) {
     // Reusa InventarioBodegaDetalle para la pantalla de escaneo (es genérica).
     object InventarioStock : Screen("inventario_stock")
     // RENTEC: proyectos de Renovación Tecnológica (migración 028).
+    // Línea de tiempo con pestañas Bodega/Usuario/Tienda (net-new del rediseño).
+    object Movimientos : Screen("movimientos")
     object Rentec : Screen("rentec")
     object RentecDetalle : Screen("rentec/{id}") { fun crear(id: Int) = "rentec/$id" }
 }

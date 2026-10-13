@@ -18,6 +18,8 @@ import com.kernel94.inventario123.ui.form.CrearEditarActivoScreen
 import com.kernel94.inventario123.ui.form.CrearEditarActivoViewModel
 import com.kernel94.inventario123.ui.listado.ListadoScreen
 import com.kernel94.inventario123.ui.listado.ListadoViewModel
+import com.kernel94.inventario123.ui.movimientos.MovimientosScreen
+import com.kernel94.inventario123.ui.movimientos.MovimientosViewModel
 import com.kernel94.inventario123.ui.scanner.EscanerScreen
 import com.kernel94.inventario123.ui.tiendas.InventarioTiendaScreen
 import com.kernel94.inventario123.ui.tiendas.TiendaFormScreen
@@ -100,6 +102,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 "consulta"  -> Screen.Consulta.route
                 "rentec"    -> Screen.Rentec.route
                 "stock_pfs" -> Screen.StockPfsLista.route
+                "movimientos" -> Screen.Movimientos.route
                 else        -> Screen.Modulo.crear(clave)
             }
             navController.navigate(destino) {
@@ -123,6 +126,7 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 onAbrirConsulta = { navController.navigate(Screen.Consulta.route) },
                 onAbrirModelos = { navController.navigate(Screen.Modelos.route) },
                 onAbrirUsuarios = { navController.navigate(Screen.Usuarios.route) },
+                onAbrirMovimientos = { navController.navigate(Screen.Movimientos.route) },
             )
         }
 
@@ -506,6 +510,11 @@ fun Inventario123NavGraph(app: Inventario123App, sesionActivaInicial: Boolean) {
                 codigoEscaneado = codigo,
                 onCodigoConsumido = consumirCodigo,
             )
+        }
+
+        composable(Screen.Movimientos.route) {
+            val vm: MovimientosViewModel = viewModel(factory = factory)
+            MovimientosScreen(viewModel = vm, onVolver = { navController.popBackStack() })
         }
 
         composable(Screen.Rentec.route) {

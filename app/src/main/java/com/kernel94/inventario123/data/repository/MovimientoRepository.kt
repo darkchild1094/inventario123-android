@@ -10,13 +10,13 @@ class MovimientoRepository(private val api: ApiService) {
     suspend fun listar(
         activoId: Int? = null, serie: String? = null, evento: String? = null,
         tiendaId: Int? = null, usuarioId: Int? = null, desde: String? = null,
-        hasta: String? = null, pagina: Int = 1, porPagina: Int = 30,
+        hasta: String? = null, lugarTipo: String? = null, pagina: Int = 1, porPagina: Int = 30,
     ): Resultado<ListadoMovimientosResponse> = try {
         Resultado.Exito(
             api.listarHistorial(
                 activoId, serie?.ifBlank { null }, evento?.ifBlank { null },
                 tiendaId, usuarioId, desde?.ifBlank { null }, hasta?.ifBlank { null },
-                pagina, porPagina,
+                lugarTipo, pagina, porPagina,
             )
         )
     } catch (e: Exception) {

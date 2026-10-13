@@ -42,6 +42,7 @@ fun DashboardScreen(
     onAbrirConsulta: () -> Unit = {},
     onAbrirModelos: () -> Unit = {},
     onAbrirUsuarios: () -> Unit = {},
+    onAbrirMovimientos: () -> Unit = {},
 ) {
     LaunchedEffect(Unit) { viewModel.cargar() }
     val r = viewModel.resumen
@@ -199,12 +200,12 @@ fun DashboardScreen(
                         }
                     }
 
-                    // Movimientos recientes. Sin botón "Ver todo": el módulo
-                    // "Movimientos" (timeline completo) llega en una fase
-                    // posterior del rediseño (ver plan §4 fase 4).
                     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                         Column(Modifier.padding(12.dp)) {
-                            Text("Movimientos recientes", fontWeight = FontWeight.Bold)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Movimientos recientes", fontWeight = FontWeight.Bold)
+                                TextButton(onClick = onAbrirMovimientos) { Text("Ver todo") }
+                            }
                             if (r.movimientos.isEmpty()) {
                                 Text("Sin movimientos.", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
                             } else r.movimientos.forEach { MovRow(it) }

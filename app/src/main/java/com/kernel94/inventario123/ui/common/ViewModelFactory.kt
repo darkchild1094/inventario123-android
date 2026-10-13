@@ -46,6 +46,8 @@ class ViewModelFactory(private val app: Inventario123App) : ViewModelProvider.Fa
                 TiendasViewModel(app.tiendaRepository, app.catalogoRepository, app.authRepository) as T
             modelClass.isAssignableFrom(com.kernel94.inventario123.ui.tiendas.InventarioTiendaViewModel::class.java) ->
                 com.kernel94.inventario123.ui.tiendas.InventarioTiendaViewModel(app.tiendaRepository, app.activoRepository) as T
+            modelClass.isAssignableFrom(com.kernel94.inventario123.ui.movimientos.MovimientosViewModel::class.java) ->
+                com.kernel94.inventario123.ui.movimientos.MovimientosViewModel(app.movimientoRepository) as T
             modelClass.isAssignableFrom(UsuariosViewModel::class.java) ->
                 UsuariosViewModel(app.usuarioRepository, app.catalogoRepository) as T
             modelClass.isAssignableFrom(ModelosViewModel::class.java) ->

@@ -144,6 +144,7 @@ interface ApiService {
         @Query("usuario_id") usuarioId: Int? = null,
         @Query("desde") desde: String? = null,
         @Query("hasta") hasta: String? = null,
+        @Query("lugar_tipo") lugarTipo: String? = null,
         @Query("pagina") pagina: Int = 1,
         @Query("por_pagina") porPagina: Int = 30,
     ): ListadoMovimientosResponse
