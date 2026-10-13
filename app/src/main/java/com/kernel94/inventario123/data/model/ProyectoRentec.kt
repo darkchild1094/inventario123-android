@@ -13,6 +13,10 @@ data class ProyectoRentec(
     val estado: String = "abierto",
     val usuario_id: Int = 0,
     val usuario_nombre: String? = null,
+    val plaza_id: Int? = null,
+    val plaza_nombre: String? = null,
+    val fecha_inicio: String? = null,
+    val fecha_fin: String? = null,
     val creado_en: String? = null,
     val cerrado_en: String? = null,
     val recibidos: Int = 0,
@@ -21,6 +25,13 @@ data class ProyectoRentec(
     val detalle_instalados: List<RentecInstalado> = emptyList(),
 ) {
     val abierto: Boolean get() = estado == "abierto"
+
+    /** % de avance sobre el total que ha pasado por el proyecto (recibidos aún
+     *  pendientes + ya instalados). 0 si todavía no hay nada. */
+    val avancePct: Int get() {
+        val total = recibidos + instalados
+        return if (total <= 0) 0 else (instalados * 100 / total)
+    }
 }
 
 /** Equipo ya recibido en bodega bajo el proyecto, pendiente de instalar. */

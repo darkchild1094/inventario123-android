@@ -145,7 +145,10 @@ class TiendaMovViewModel(
         proyectoRentecId = proyectoRentecContexto
         proyectoRentecFolio = proyectoRentecFolioContexto
         if (proyectoRentecContexto != null) {
-            modo = ModoMov.REEMPLAZO
+            // Retiro opcional (handoff §4 RENTEC): por defecto solo instala;
+            // si también hay que retirar equipo, el usuario cambia a Reemplazo
+            // (mismo segmented control, ya trae su propia sección de retiro).
+            modo = ModoMov.INSTALACION
             motivo = "Renovación tecnológica"
         }
         viewModelScope.launch {

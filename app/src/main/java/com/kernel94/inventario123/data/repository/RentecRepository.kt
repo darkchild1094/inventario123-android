@@ -15,8 +15,13 @@ class RentecRepository(private val api: ApiService) {
         Resultado.Error("No se pudieron cargar los proyectos RENTEC.")
     }
 
-    suspend fun crear(nombre: String): Resultado<ProyectoRentec> = try {
-        val r = api.rentecCrear(mapOf("nombre" to nombre))
+    suspend fun crear(nombre: String, plazaId: Int?, fechaInicio: String?, fechaFin: String?): Resultado<ProyectoRentec> = try {
+        val r = api.rentecCrear(buildMap {
+            put("nombre", nombre)
+            if (plazaId != null) put("plaza_id", plazaId)
+            if (fechaInicio != null) put("fecha_inicio", fechaInicio)
+            if (fechaFin != null) put("fecha_fin", fechaFin)
+        })
         if (r.success && r.id != null) {
             // Pide el registro real (usuario_nombre, creado_en, etc.) en vez de
             // fabricarlo localmente con datos a medias.
