@@ -51,6 +51,9 @@ data class Tienda(
     val cr_tienda: String? = null, val coordenadas: String? = null,
     val ati_usuario_id: Int? = null, val ati_nombre: String? = null,
     val plaza_nombre: String? = null,
+    val ultimo_inv_fecha: String? = null,
+    val ultimo_inv_encontrados: Int? = null,
+    val ultimo_inv_no_encontrados: Int? = null,
 )
 data class Bodega(val id: Int = 0, val nombre: String = "", val usuario_id: Int? = null, val plazas_ids: String? = null)
 data class StatusOpcion(val value: String = "", val label: String = "")
@@ -72,115 +75,14 @@ data class Permisos(
     val puedeFiltrarPorPlaza: Boolean = false, val puedeCrearActivo: Boolean = false,
     val puedeEditarActivo: Boolean = false, val puedeGestionarUsuarios: Boolean = false,
     val puedeExportar: Boolean = false, val puedeVerBodega: Boolean = false,
-    val puedeVerHistorial: Boolean = false, val puedeGestionarTiendas: Boolean = false,
+    val puedeGestionarTiendas: Boolean = false,
     val puedeGestionarModelos: Boolean = false,
     // Recibir equipo nuevo bajo un folio RENTEC: solo coordinador y admin.
     // Instalar lo ya recibido lo hace cualquier rol del modulo.
     val puedeRecibirRentec: Boolean = false,
-    // Entregar equipo a otra persona (de mi stock, o de bodega si la tengo
-    // editable). El que recibe lo acepta: ahí cambia de manos.
-    val puedeTransferir: Boolean = false,
-    val puedeCrearSolicitudTraslado: Boolean = false,
-    val puedeAprobarTraslados: Boolean = false,
-    val puedeVerTraslados: Boolean = false,
+    // Enviar equipo (Bodega↔Mi stock↔usuario) — inmediato, sin aceptación.
+    val puedeEnviar: Boolean = false,
     val plazaId: Int = 0, val plazasIds: List<Int> = emptyList(),
-)
-
-// ── Solicitudes de traslado a bodega (doble firma) ───────────────────────────
-
-data class SolicitudActivo(
-    val id: Int = 0,
-    val serie: String? = null,
-    val codigo_barras: String? = null,
-    val num_activo: String? = null,
-    val status: String? = null,
-    val modelo_nombre: String? = null,
-    val marca_nombre: String? = null,
-    val dispositivo_nombre: String? = null,
-)
-
-data class SolicitudTraslado(
-    val id: Int = 0,
-    val estado: String = "pendiente",
-    val destino: String = "en_bodega",           // asignado | en_bodega | baja | garantia
-    val plaza_id: Int = 0,
-    val plaza_nombre: String? = null,
-    val bodega_nombre: String? = null,
-    val origen_nombre: String? = null,
-    val origen_tienda_nombre: String? = null,
-    val origen_bodega_nombre: String? = null,
-    val destino_usuario_nombre: String? = null,
-    val solicitante_nombre: String? = null,
-    val aprobador_nombre: String? = null,
-    val aprobador2_nombre: String? = null,
-    val firma_solicitante: String? = null,
-    val firma_aprobador: String? = null,
-    val firma_aprobador2: String? = null,
-    val nota: String? = null,
-    val motivo_rechazo: String? = null,
-    val grupo_id: String? = null,
-    val creado_en: String? = null,
-    val resuelto_en: String? = null,
-    val activos_count: Int = 0,
-    val activos: List<SolicitudActivo> = emptyList(),
-    val puedeFirmar: Boolean = false,
-    val puedeCancelar: Boolean = false,
-    val porFirmar: Boolean = false,
-) {
-    val destinoLabel: String get() = when (destino) {
-        "asignado"  -> "Traspaso a otro ingeniero"
-        "en_bodega" -> "Devolución a bodega"
-        "baja"      -> "Baja"
-        "garantia"  -> "Garantía"
-        else        -> destino
-    }
-    val dobleFirma: Boolean get() = destino == "garantia"
-    val origenLabel: String get() = origen_nombre
-        ?: origen_tienda_nombre?.let { "Tienda $it" }
-        ?: origen_bodega_nombre?.let { "Bodega $it" }
-        ?: "—"
-}
-
-data class ListaSolicitudesResponse(
-    val solicitudes: List<SolicitudTraslado> = emptyList(),
-    val pendientes: Int = 0,
-    val puedeAprobar: Boolean = false,
-    val puedeCrear: Boolean = false,
-)
-
-data class ConteoPendientes(val pendientes: Int = 0)
-
-// ── Transferencia de equipo entre personas ───────────────────────────────────
-// Reusa la forma de SolicitudTraslado porque el servidor se apoya en la misma
-// tabla; lo que cambia es que no hay firmas y que la acepta quien recibe.
-
-data class Transferencia(
-    val id: Int = 0,
-    val estado: String = "pendiente",       // pendiente | aprobada | rechazada | cancelada
-    val plaza_nombre: String? = null,
-    val origen_nombre: String? = null,
-    val origen_bodega_nombre: String? = null,
-    val destino_usuario_nombre: String? = null,
-    val solicitante_nombre: String? = null,
-    val nota: String? = null,
-    val motivo_rechazo: String? = null,
-    val creado_en: String? = null,
-    val resuelto_en: String? = null,
-    val activos: List<SolicitudActivo> = emptyList(),
-    val puedeAceptar: Boolean = false,
-    val puedeCancelar: Boolean = false,
-) {
-    /** De dónde salió: el stock de una persona o una bodega. */
-    val desdeLabel: String get() = origen_nombre
-        ?: origen_bodega_nombre?.let { "Bodega $it" }
-        ?: solicitante_nombre
-        ?: "—"
-}
-
-data class ListaTransferencias(
-    val por_aceptar: List<Transferencia> = emptyList(),
-    val enviadas: List<Transferencia> = emptyList(),
-    val pendientes: Int = 0,
 )
 
 // ── Dashboard ───────────────────────────────────────────────────────────────
@@ -228,7 +130,6 @@ data class Modulo(
 data class Perfil(
     val usuario: Usuario? = null, val permisos: Permisos = Permisos(),
     val modulos: List<Modulo> = emptyList(),
-    val vistasDisponibles: List<String> = emptyList(),
 )
 
 // ── Consulta (módulo global de identificación de un equipo) ─────────────────
@@ -279,6 +180,9 @@ data class TiendaConteo(
     val ati_usuario_id: Int? = null,
     val ati_nombre: String? = null,
     val activos_count: Int = 0,
+    val ultimo_inv_fecha: String? = null,
+    val ultimo_inv_encontrados: Int? = null,
+    val ultimo_inv_no_encontrados: Int? = null,
 )
 data class ListaTiendasResponse(
     val tiendas: List<TiendaConteo> = emptyList(),
@@ -372,3 +276,54 @@ data class EnviarActivosResponse(
     val message: String? = null,
     val avisos: List<AvisoEnvio> = emptyList(),
 )
+
+// ── Inventario (checklist) de tienda — migración 036 ────────────────────────
+// 3 estados visuales a partir de 2 campos: sin tocar (escaneado_en null) =
+// pendiente/gris; encontrado=1 = verde; encontrado=0 con escaneado_en = rojo.
+
+data class InventarioTiendaDetalle(
+    val detalle_id: Int = 0,
+    val activo_id: Int = 0,
+    val encontrado: Int = 0,
+    val escaneado_en: String? = null,
+    val nota: String? = null,
+    val serie: String? = null,
+    val codigo_barras: String? = null,
+    val num_activo: String? = null,
+    val modelo_nombre: String? = null,
+    val marca_nombre: String? = null,
+    val dispositivo_nombre: String? = null,
+) {
+    val revisado: Boolean get() = escaneado_en != null
+    val encontradoBool: Boolean get() = encontrado != 0
+}
+
+data class InventarioTiendaResponse(
+    val id: Int = 0,
+    val tienda_id: Int = 0,
+    val estado: String = "abierto",
+    val usuario_id: Int = 0,
+    val total_esperado: Int = 0,
+    val total_encontrado: Int = 0,
+    val creado_en: String? = null,
+    val cerrado_en: String? = null,
+    val detalle: List<InventarioTiendaDetalle> = emptyList(),
+) {
+    val abierto: Boolean get() = estado == "abierto"
+    val pendientes: Int get() = detalle.count { !it.revisado }
+}
+
+data class CerrarInventarioTiendaResponse(
+    val success: Boolean = false,
+    val resumen: ResumenInventarioTienda? = null,
+)
+data class ResumenInventarioTienda(val encontrados: Int = 0, val no_encontrados: Int = 0)
+
+data class InventarioTiendaAbierto(
+    val id: Int = 0, val tienda_id: Int = 0, val estado: String = "abierto",
+    val usuario_id: Int = 0, val total_esperado: Int = 0, val total_encontrado: Int = 0,
+    val creado_en: String? = null, val cerrado_en: String? = null,
+)
+data class InventarioTiendaAbiertoResponse(val abierto: InventarioTiendaAbierto? = null)
+data class InventarioTiendaIniciarResponse(val success: Boolean = false, val inventario: InventarioTiendaResponse? = null)
+data class InventarioTiendaEscanearResponse(val success: Boolean = false, val message: String? = null, val activo_id: Int? = null)

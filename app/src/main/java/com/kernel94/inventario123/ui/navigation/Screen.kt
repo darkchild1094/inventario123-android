@@ -45,15 +45,18 @@ sealed class Screen(val route: String) {
     // Alta/edicion de usuario en pantalla completa (antes era un dialogo
     // donde el contenido no cabia). id=0 -> alta nueva.
     object UsuarioForm : Screen("usuario_form/{id}") { fun crear(id: Int?) = "usuario_form/${id ?: 0}" }
-    object Historial : Screen("historial")
     object Tiendas : Screen("tiendas")
+    // Alta/edición de tienda. id=0 -> alta nueva.
+    object TiendaForm : Screen("tienda_form/{id}") { fun crear(id: Int?) = "tienda_form/${id ?: 0}" }
+    // Checklist de inventario POR TIENDA (migración 036) — no confundir con
+    // InventarioBodega/InventarioStock (auditoría mensual, otro mecanismo).
+    object InventarioTienda : Screen("inventario_tienda/{tiendaId}?nombre={nombre}") {
+        fun crear(tiendaId: Int, nombre: String) = "inventario_tienda/$tiendaId?nombre=${java.net.URLEncoder.encode(nombre, "UTF-8")}"
+    }
     object Modelos : Screen("modelos")
-    object Pendientes : Screen("pendientes")
-    object Solicitudes : Screen("solicitudes")
-    // Equipo que alguien te mando y espera que lo aceptes (reemplaza Traslados).
-    object Transferencias : Screen("transferencias")
-    object CrearSolicitud : Screen("crear_solicitud")
-    object SolicitudDetalle : Screen("solicitud/{id}") { fun crear(id: Int) = "solicitud/$id" }
+    // Notificaciones de "Enviar" (reemplaza Historial/Transferencias/
+    // SolicitudTraslado/Altas pendientes de envío — ver rediseño).
+    object Notificaciones : Screen("notificaciones")
     // Inventario físico de bodega (auditoría por escaneo, migración 027).
     object InventarioBodega : Screen("inventario_bodega")
     object InventarioBodegaDetalle : Screen("inventario_bodega/{id}") { fun crear(id: Int) = "inventario_bodega/$id" }

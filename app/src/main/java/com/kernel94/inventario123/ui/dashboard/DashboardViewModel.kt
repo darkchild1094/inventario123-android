@@ -10,12 +10,16 @@ import com.kernel94.inventario123.data.model.ResumenDashboard
 import com.kernel94.inventario123.data.model.VersionApp
 import com.kernel94.inventario123.data.repository.ActivoRepository
 import com.kernel94.inventario123.data.repository.AuthRepository
+import com.kernel94.inventario123.data.repository.NotificacionRepository
 import com.kernel94.inventario123.data.repository.Resultado
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class DashboardViewModel(
     private val activoRepository: ActivoRepository,
     private val authRepository: AuthRepository,
+    notificacionRepository: NotificacionRepository,
 ) : ViewModel() {
 
     var perfil by mutableStateOf<Perfil?>(null); private set
@@ -23,6 +27,9 @@ class DashboardViewModel(
     var cargando by mutableStateOf(false); private set
     var error by mutableStateOf<String?>(null); private set
     var versionApp by mutableStateOf<VersionApp?>(null); private set
+
+    val notificacionesNoLeidas = notificacionRepository.observarNoLeidas()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     fun cargar() {
         cargando = true

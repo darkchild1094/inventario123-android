@@ -18,9 +18,7 @@ import com.kernel94.inventario123.data.repository.MovimientoRepository
 import com.kernel94.inventario123.data.repository.NotificacionRepository
 import com.kernel94.inventario123.data.repository.PendientesRepository
 import com.kernel94.inventario123.data.repository.RentecRepository
-import com.kernel94.inventario123.data.repository.SolicitudRepository
 import com.kernel94.inventario123.data.repository.TiendaRepository
-import com.kernel94.inventario123.data.repository.TransferenciaRepository
 import com.kernel94.inventario123.data.repository.UsuarioRepository
 import com.kernel94.inventario123.data.sync.SyncManager
 import com.kernel94.inventario123.data.sync.SyncWorker
@@ -47,10 +45,8 @@ class Inventario123App : Application() {
     lateinit var movimientoRepository: MovimientoRepository private set
     lateinit var tiendaRepository: TiendaRepository private set
     lateinit var modeloRepository: ModeloRepository private set
-    lateinit var solicitudRepository: SolicitudRepository private set
     lateinit var bodegaRepository: BodegaRepository private set
     lateinit var rentecRepository: RentecRepository private set
-    lateinit var transferenciaRepository: TransferenciaRepository private set
     lateinit var pendientesRepository: PendientesRepository private set
     lateinit var connectivityObserver: ConnectivityObserver private set
     lateinit var notificacionRepository: NotificacionRepository private set
@@ -75,10 +71,8 @@ class Inventario123App : Application() {
         movimientoRepository = MovimientoRepository(apiService)
         tiendaRepository = TiendaRepository(apiService)
         modeloRepository = ModeloRepository(apiService)
-        solicitudRepository = SolicitudRepository(apiService)
         bodegaRepository = BodegaRepository(apiService)
         rentecRepository = RentecRepository(apiService)
-        transferenciaRepository = TransferenciaRepository(apiService)
 
         connectivityObserver = ConnectivityObserver(this)
         pendientesRepository = PendientesRepository(PendientesStore(this), activoRepository, connectivityObserver)

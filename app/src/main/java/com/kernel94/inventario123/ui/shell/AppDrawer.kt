@@ -50,13 +50,11 @@ fun iconoModulo(clave: String): ImageVector = when (clave) {
 fun AppDrawerContent(
     perfil: Perfil?,
     moduloActivo: String,
-    solicitudesPendientes: Int = 0,
+    notificacionesNoLeidas: Int = 0,
     onModulo: (String) -> Unit,
     onDashboard: () -> Unit,
     onConsulta: () -> Unit,
-    onHistorial: () -> Unit,
-    onTraslados: () -> Unit,
-    onPendientes: () -> Unit,
+    onNotificaciones: () -> Unit,
     onModelos: () -> Unit,
     onUsuarios: () -> Unit,
     onCerrarSesion: () -> Unit,
@@ -103,25 +101,11 @@ fun AppDrawerContent(
                 }
                 HorizontalDivider(Modifier.padding(vertical = 6.dp))
 
-                if (permisos?.puedeVerHistorial == true) {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Filled.History, contentDescription = null) },
-                        label = { Text("Historial") }, selected = false,
-                        onClick = onHistorial, modifier = Modifier.padding(horizontal = 12.dp),
-                    )
-                }
-                if (permisos?.puedeTransferir == true) {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Filled.SwapHoriz, contentDescription = null) },
-                        label = { Text("Transferencias") },
-                        badge = { if (solicitudesPendientes > 0) Text(solicitudesPendientes.toString(), fontWeight = FontWeight.Bold, color = BsPrimary) },
-                        selected = false, onClick = onTraslados, modifier = Modifier.padding(horizontal = 12.dp),
-                    )
-                }
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Filled.CloudUpload, contentDescription = null) },
-                    label = { Text("Altas pendientes de envío") }, selected = false,
-                    onClick = onPendientes, modifier = Modifier.padding(horizontal = 12.dp),
+                    icon = { Icon(Icons.Filled.Notifications, contentDescription = null) },
+                    label = { Text("Notificaciones") },
+                    badge = { if (notificacionesNoLeidas > 0) Text(notificacionesNoLeidas.toString(), fontWeight = FontWeight.Bold, color = BsPrimary) },
+                    selected = false, onClick = onNotificaciones, modifier = Modifier.padding(horizontal = 12.dp),
                 )
                 if (permisos?.puedeGestionarModelos == true) {
                     NavigationDrawerItem(

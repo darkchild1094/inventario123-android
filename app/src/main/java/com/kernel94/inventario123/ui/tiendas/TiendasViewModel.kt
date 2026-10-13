@@ -100,5 +100,77 @@ class TiendasViewModel(
         }
     }
 
+    // ── Selección múltiple + eliminar tiendas ────────────────────────────
+    var seleccion by mutableStateOf<Set<Int>>(emptySet()); private set
+    var modoSeleccion by mutableStateOf(false); private set
+
+    fun activarSeleccion(id: Int) { modoSeleccion = true; seleccion = seleccion + id }
+    fun alternarSeleccion(id: Int) {
+        seleccion = if (id in seleccion) seleccion - id else seleccion + id
+        if (seleccion.isEmpty()) modoSeleccion = false
+    }
+    fun salirDeSeleccion() { seleccion = emptySet(); modoSeleccion = false }
+
+    fun eliminarSeleccion(onListo: (Int, Int) -> Unit) {
+        val ids = seleccion.toList()
+        viewModelScope.launch {
+            var ok = 0
+            for (id in ids) {
+                if (tiendaRepository.eliminar(id) is Resultado.Exito) ok++
+            }
+            salirDeSeleccion()
+            cargar()
+            onListo(ok, ids.size)
+        }
+    }
+
+    // ── Alta/edición de tienda (TiendaFormScreen) ────────────────────────
+    var tiendaEnEdicion by mutableStateOf<com.kernel94.inventario123.data.model.Tienda?>(null); private set
+    var cargandoForm by mutableStateOf(false); private set
+    var atisForm by mutableStateOf<List<Usuario>>(emptyList()); private set
+
+    /** ATIs de la plaza elegida en el formulario — independiente del filtro de la lista. */
+    fun cargarAtisForm(plazaId: Int) {
+        viewModelScope.launch { atisForm = tiendaRepository.atisPorPlaza(plazaId) }
+    }
+
+    fun cargarParaEditar(id: Int) {
+        tiendaEnEdicion = null
+        cargandoForm = true
+        viewModelScope.launch {
+            when (val r = tiendaRepository.obtener(id)) {
+                is Resultado.Exito -> tiendaEnEdicion = r.datos
+                is Resultado.Error -> mensaje = r.mensaje
+            }
+            cargandoForm = false
+        }
+    }
+
+    fun guardarTienda(id: Int?, cr: String, nombre: String, plazaId: Int, atiUsuarioId: Int?, onListo: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val r = if (id == null) {
+                when (val rc = tiendaRepository.crear(cr, nombre, plazaId, atiUsuarioId)) {
+                    is Resultado.Exito -> Resultado.Exito("Tienda creada.")
+                    is Resultado.Error -> rc
+                }
+            } else {
+                tiendaRepository.actualizar(id, cr, nombre, plazaId, atiUsuarioId)
+            }
+            when (r) {
+                is Resultado.Exito -> { cargar(); onListo(true, r.datos) }
+                is Resultado.Error -> onListo(false, r.mensaje)
+            }
+        }
+    }
+
+    fun eliminarTienda(id: Int, onListo: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            when (val r = tiendaRepository.eliminar(id)) {
+                is Resultado.Exito -> { cargar(); onListo(true, r.datos) }
+                is Resultado.Error -> onListo(false, r.mensaje)
+            }
+        }
+    }
+
     fun limpiarMensaje() { mensaje = null }
 }

@@ -36,9 +36,7 @@ private val EVENTOS = mapOf(
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
-    onAbrirHistorial: () -> Unit,
-    onAbrirTraslados: () -> Unit,
-    onAbrirPendientes: () -> Unit,
+    onAbrirNotificaciones: () -> Unit,
     onCerrarSesion: () -> Unit,
     onAbrirModulo: (String) -> Unit = {},
     onAbrirConsulta: () -> Unit = {},
@@ -48,6 +46,7 @@ fun DashboardScreen(
     LaunchedEffect(Unit) { viewModel.cargar() }
     val r = viewModel.resumen
     val p = viewModel.perfil
+    val noLeidas by viewModel.notificacionesNoLeidas.collectAsState()
     val nombre = p?.usuario?.nombre?.split(" ")?.firstOrNull() ?: "Usuario"
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -59,13 +58,11 @@ fun DashboardScreen(
             AppDrawerContent(
                 perfil = p,
                 moduloActivo = "dashboard",
-                solicitudesPendientes = r?.traslados_pendientes ?: 0,
+                notificacionesNoLeidas = noLeidas,
                 onModulo = { m -> cerrarYHacer { onAbrirModulo(m) } },
                 onDashboard = { scope.launch { drawerState.close() } },
                 onConsulta = { cerrarYHacer(onAbrirConsulta) },
-                onHistorial = { cerrarYHacer(onAbrirHistorial) },
-                onTraslados = { cerrarYHacer(onAbrirTraslados) },
-                onPendientes = { cerrarYHacer(onAbrirPendientes) },
+                onNotificaciones = { cerrarYHacer(onAbrirNotificaciones) },
                 onModelos = { cerrarYHacer(onAbrirModelos) },
                 onUsuarios = { cerrarYHacer(onAbrirUsuarios) },
                 onCerrarSesion = { cerrarYHacer(onCerrarSesion) },
@@ -168,16 +165,16 @@ fun DashboardScreen(
                         }
                     }
 
-                    if (r.traslados_pendientes > 0) {
+                    if (noLeidas > 0) {
                         Card(
-                            onClick = onAbrirTraslados,
+                            onClick = onAbrirNotificaciones,
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3CD)),
                         ) {
                             Row(Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.SwapHoriz, contentDescription = null, tint = Color(0xFF664D03))
+                                Icon(Icons.Filled.Notifications, contentDescription = null, tint = Color(0xFF664D03))
                                 Spacer(Modifier.width(10.dp))
-                                Text("${r.traslados_pendientes} solicitud(es) por firmar", color = Color(0xFF664D03), fontWeight = FontWeight.SemiBold)
+                                Text("$noLeidas notificación(es) sin leer", color = Color(0xFF664D03), fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -202,13 +199,12 @@ fun DashboardScreen(
                         }
                     }
 
-                    // Movimientos recientes
+                    // Movimientos recientes. Sin botón "Ver todo": el módulo
+                    // "Movimientos" (timeline completo) llega en una fase
+                    // posterior del rediseño (ver plan §4 fase 4).
                     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                         Column(Modifier.padding(12.dp)) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Movimientos recientes", fontWeight = FontWeight.Bold)
-                                TextButton(onClick = onAbrirHistorial) { Text("Ver todo") }
-                            }
+                            Text("Movimientos recientes", fontWeight = FontWeight.Bold)
                             if (r.movimientos.isEmpty()) {
                                 Text("Sin movimientos.", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
                             } else r.movimientos.forEach { MovRow(it) }
@@ -225,11 +221,6 @@ fun DashboardScreen(
                     // por `vista=` (la navegación vieja, con reglas de permiso
                     // distintas a las de `modulo=`). Las tarjetas de módulo de
                     // arriba dan el mismo acceso con el alcance correcto.
-                    OutlinedButton(onClick = onAbrirPendientes, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.CloudUpload, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Altas pendientes de envío")
-                    }
                     Spacer(Modifier.height(8.dp))
                 }
             }

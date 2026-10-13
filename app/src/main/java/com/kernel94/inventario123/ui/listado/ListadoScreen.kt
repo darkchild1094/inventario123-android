@@ -9,16 +9,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
-import coil.compose.AsyncImage
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
@@ -42,11 +38,9 @@ fun ListadoScreen(
     modulo: String? = null,
     tiendaId: Int? = null,
     usuarioId: Int? = null,
-    onAbrirHistorial: () -> Unit = {},
     onAbrirTiendas: () -> Unit = {},
     onAbrirModelos: () -> Unit = {},
-    onAbrirSolicitudes: () -> Unit = {},
-    onAbrirPendientes: () -> Unit = {},
+    onAbrirNotificaciones: () -> Unit = {},
     onAbrirModulo: (String) -> Unit = {},
     onAbrirConsulta: () -> Unit = {},
     onAbrirDashboard: () -> Unit = {},
@@ -54,13 +48,14 @@ fun ListadoScreen(
     // Botón de auditoría física (escaneo). Bodega: solo si moduloEditable
     // (coordinador/admin). Mi Stock / Stock PFS: siempre visible — el
     // backend decide a quién puede auditar cada quien (uno mismo siempre).
+    // Tiendas: siempre visible (ver InventarioTienda, otro mecanismo).
     onAbrirInventario: (() -> Unit)? = null,
+    // Sólo modulo=="tiendas": editar esta tienda.
+    onEditarTienda: (() -> Unit)? = null,
 ) {
     LaunchedEffect(modulo, tiendaId, usuarioId) { viewModel.iniciar(modulo, tiendaId, usuarioId) }
     var mostrarFiltros by remember { mutableStateOf(false) }
     var activoAEliminar by remember { mutableStateOf<Int?>(null) }
-    var mostrarTransferir by remember { mutableStateOf(false) }
-    val vistasDisponibles = viewModel.perfil?.vistasDisponibles ?: listOf("todos")
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -96,13 +91,10 @@ fun ListadoScreen(
             com.kernel94.inventario123.ui.shell.AppDrawerContent(
                 perfil = viewModel.perfil,
                 moduloActivo = viewModel.modulo ?: "",
-                solicitudesPendientes = viewModel.solicitudesPendientes,
                 onModulo = { m -> cerrarYHacer { onAbrirModulo(m) } },
                 onDashboard = { cerrarYHacer(onAbrirDashboard) },
                 onConsulta = { cerrarYHacer(onAbrirConsulta) },
-                onHistorial = { cerrarYHacer(onAbrirHistorial) },
-                onTraslados = { cerrarYHacer(onAbrirSolicitudes) },
-                onPendientes = { cerrarYHacer(onAbrirPendientes) },
+                onNotificaciones = { cerrarYHacer(onAbrirNotificaciones) },
                 onModelos = { cerrarYHacer(onAbrirModelos) },
                 onUsuarios = { cerrarYHacer(onAbrirUsuarios) },
                 onCerrarSesion = { cerrarYHacer(onCerrarSesion) },
@@ -121,26 +113,20 @@ fun ListadoScreen(
                     title = {
                         val m = viewModel.modulo
                         Text(
-                            if (viewModel.modoSeleccion) "${viewModel.seleccion.size} seleccionado(s)"
-                            else m?.replaceFirstChar { it.uppercase() }
+                            m?.replaceFirstChar { it.uppercase() }
                                 ?: (viewModel.perfil?.usuario?.plaza_nombre ?: "Inventario123"),
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White,
                         )
                     },
                     actions = {
-                        // En modo selección sólo tienen sentido estas dos.
-                        if (viewModel.modoSeleccion) {
-                            IconButton(onClick = { viewModel.seleccionarTodos() }) {
-                                Icon(Icons.Filled.SelectAll, contentDescription = "Seleccionar todos", tint = Color.White)
+                        if (onEditarTienda != null) {
+                            IconButton(onClick = onEditarTienda) {
+                                Icon(Icons.Filled.Edit, contentDescription = "Editar tienda", tint = Color.White)
                             }
-                            IconButton(onClick = { viewModel.salirDeSeleccion() }) {
-                                Icon(Icons.Filled.Close, contentDescription = "Salir de selección", tint = Color.White)
-                            }
-                            return@TopAppBar
                         }
                         val puedeVerInventario = onAbrirInventario != null && when (viewModel.modulo) {
                             "bodega" -> viewModel.moduloEditable
-                            "mi_stock", "stock_pfs" -> true
+                            "mi_stock", "stock_pfs", "tiendas" -> true
                             else -> false
                         }
                         if (puedeVerInventario) {
@@ -163,25 +149,11 @@ fun ListadoScreen(
                 )
             },
             floatingActionButton = {
-                // En modo selección el FAB de "nuevo" estorba: lo que toca es
-                // entregar lo marcado.
-                if (viewModel.modoSeleccion) {
-                    ExtendedFloatingActionButton(
-                        onClick = { mostrarTransferir = true },
-                        containerColor = BsPrimary,
-                        contentColor = Color.White,
-                    ) {
-                        Icon(Icons.Filled.SwapHoriz, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Transferir ${viewModel.seleccion.size}")
-                    }
-                } else {
-                    val puedeCrearAqui = permisos?.puedeCrearActivo == true &&
-                        (viewModel.modulo == null || viewModel.moduloEditable)
-                    if (puedeCrearAqui) {
-                        FloatingActionButton(onClick = onCrearNuevo, containerColor = BsPrimary) {
-                            Icon(Icons.Filled.Add, contentDescription = "Nuevo", tint = Color.White)
-                        }
+                val puedeCrearAqui = permisos?.puedeCrearActivo == true &&
+                    (viewModel.modulo == null || viewModel.moduloEditable)
+                if (puedeCrearAqui) {
+                    FloatingActionButton(onClick = onCrearNuevo, containerColor = BsPrimary) {
+                        Icon(Icons.Filled.Add, contentDescription = "Nuevo", tint = Color.White)
                     }
                 }
             }
@@ -196,7 +168,6 @@ fun ListadoScreen(
                         opciones = viewModel.misPlazas,
                         seleccionId = viewModel.plazaId,
                         onSeleccion = {
-                            viewModel.salirDeSeleccion()
                             viewModel.plazaId = it
                             viewModel.onFiltroChange()
                         },
@@ -204,47 +175,22 @@ fun ListadoScreen(
                     )
                 }
 
-                if (viewModel.modulo == null && vistasDisponibles.size > 1) {
-                    TabRow(
-                        selectedTabIndex = vistasDisponibles.indexOf(viewModel.vistaActual).coerceAtLeast(0),
-                        containerColor = BsDark,
-                        contentColor = Color.White,
-                        indicator = { tabPositions ->
-                            val index = vistasDisponibles.indexOf(viewModel.vistaActual).coerceAtLeast(0)
-                            TabRowDefaults.SecondaryIndicator(
-                                Modifier.tabIndicatorOffset(tabPositions[index]),
-                                color = BsPrimary
-                            )
-                        }
+                viewModel.tiendaActual?.let { t ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
                     ) {
-                        vistasDisponibles.forEach { vista ->
-                            val conteo = viewModel.conteosVistas[vista]
-                            Tab(
-                                selected = viewModel.vistaActual == vista,
-                                onClick = { viewModel.cambiarVista(vista) },
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(etiquetaVista(vista), color = Color.White)
-                                        if (conteo != null) {
-                                            Spacer(Modifier.width(6.dp))
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(20.dp)
-                                                    .clip(RoundedCornerShape(50))
-                                                    .background(if (viewModel.vistaActual == vista) BsPrimary else Color.White.copy(alpha = 0.2f)),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(
-                                                    text = conteo.toString(),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color.White,
-                                                    fontSize = 10.sp
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
+                        Column(Modifier.padding(10.dp)) {
+                            Text(
+                                listOfNotNull(t.cr_tienda?.let { cr -> "CR $cr" }, t.plaza_nombre).joinToString(" · "),
+                                style = MaterialTheme.typography.labelSmall, color = Color.Gray,
+                            )
+                            Text(
+                                if (t.ultimo_inv_fecha != null)
+                                    "Último inventario: ${t.ultimo_inv_fecha} · ${t.ultimo_inv_encontrados ?: 0} encontrados" +
+                                        (t.ultimo_inv_no_encontrados?.takeIf { it > 0 }?.let { " · $it no encontrados" } ?: "")
+                                else "Sin inventario registrado",
+                                style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold,
                             )
                         }
                     }
@@ -295,18 +241,16 @@ fun ListadoScreen(
                                 }
                             }
 
-                            if (viewModel.vistaActual == "todos") {
-                                Spacer(Modifier.height(8.dp))
-                                FiltroDropdown(
-                                    etiqueta = "Técnico / Usuario",
-                                    opciones = viewModel.catalogos.usuarios,
-                                    seleccionId = viewModel.usuarioId,
-                                    idDe = { it.id },
-                                    nombreDe = { it.nombre },
-                                    onSeleccion = { viewModel.usuarioId = it; viewModel.onFiltroChange() },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
+                            Spacer(Modifier.height(8.dp))
+                            FiltroDropdown(
+                                etiqueta = "Técnico / Usuario",
+                                opciones = viewModel.catalogos.usuarios,
+                                seleccionId = viewModel.usuarioId,
+                                idDe = { it.id },
+                                nombreDe = { it.nombre },
+                                onSeleccion = { viewModel.usuarioId = it; viewModel.onFiltroChange() },
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
                             TextButton(
                                 onClick = { viewModel.limpiarFiltros() },
@@ -347,38 +291,19 @@ fun ListadoScreen(
                             contentPadding = PaddingValues(bottom = 80.dp)
                         ) {
                             items(viewModel.activos, key = { it.id }) { activo ->
-                                val marcado = activo.id in viewModel.seleccion
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (viewModel.modoSeleccion) {
-                                        Checkbox(
-                                            checked = marcado,
-                                            onCheckedChange = { viewModel.alternarSeleccion(activo.id) },
-                                        )
-                                    }
-                                    Box(Modifier.weight(1f)) {
-                                        val abrir = {
-                                            if (viewModel.modoSeleccion) viewModel.alternarSeleccion(activo.id)
-                                            else onAbrirDetalle(activo.id)
-                                        }
-                                        if (viewModel.moduloEditable) {
-                                            ActivoCard(
-                                                activo = activo,
-                                                // En modo selección, tocar la tarjeta marca
-                                                // en vez de abrir el detalle.
-                                                onClick = abrir,
-                                                onEditar = { onEditar(activo.id) },
-                                                onEliminar = { activoAEliminar = activo.id },
-                                                onMantenerPresionado = if (viewModel.puedeTransferirAqui) {
-                                                    { viewModel.activarSeleccion(activo.id) }
-                                                } else null,
-                                            )
-                                        } else {
-                                            // Solo lectura (ej. el ATI viendo Bodega, o el
-                                            // stock de otro usuario): lista compacta, sin
-                                            // editar/eliminar, y tocar solo lleva al detalle.
-                                            ActivoListItem(activo = activo, onClick = abrir)
-                                        }
-                                    }
+                                val abrir = { onAbrirDetalle(activo.id) }
+                                if (viewModel.moduloEditable) {
+                                    ActivoCard(
+                                        activo = activo,
+                                        onClick = abrir,
+                                        onEditar = { onEditar(activo.id) },
+                                        onEliminar = { activoAEliminar = activo.id },
+                                    )
+                                } else {
+                                    // Solo lectura (ej. el ATI viendo Bodega, o el
+                                    // stock de otro usuario): lista compacta, sin
+                                    // editar/eliminar, y tocar solo lleva al detalle.
+                                    ActivoListItem(activo = activo, onClick = abrir)
                                 }
                             }
 
@@ -409,56 +334,6 @@ fun ListadoScreen(
                 }
             }
 
-            // Entregar lo seleccionado a otra persona de la plaza. El equipo no
-            // cambia de manos aquí: queda pendiente hasta que el otro acepta.
-            if (mostrarTransferir) {
-                var destino by remember { mutableStateOf<Int?>(null) }
-                var nota by remember { mutableStateOf("") }
-                AlertDialog(
-                    onDismissRequest = { mostrarTransferir = false },
-                    icon = { Icon(Icons.Filled.SwapHoriz, contentDescription = null) },
-                    title = { Text("Transferir ${viewModel.seleccion.size} equipo(s)") },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(
-                                "El equipo cambia de manos cuando la otra persona acepte la transferencia. " +
-                                "Mientras tanto sigue siendo tu responsabilidad.",
-                                style = MaterialTheme.typography.bodySmall, color = Color.Gray,
-                            )
-                            FiltroDropdown(
-                                etiqueta = "¿A quién se lo entregas? *",
-                                opciones = viewModel.destinatarios,
-                                seleccionId = destino, idDe = { it.id },
-                                nombreDe = { "${it.nombre} · ${com.kernel94.inventario123.data.model.rolLabel(it.tipo)}" },
-                                onSeleccion = { destino = it },
-                                etiquetaNula = "Elige a la persona...",
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            OutlinedTextField(
-                                value = nota, onValueChange = { nota = it },
-                                label = { Text("Motivo (opcional)") },
-                                singleLine = true, modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(
-                            enabled = destino != null && !viewModel.transfiriendo,
-                            onClick = {
-                                val d = destino ?: return@TextButton
-                                mostrarTransferir = false
-                                viewModel.transferir(d, nota) { _, msg ->
-                                    scope.launch { snackbarHostState.showSnackbar(msg) }
-                                }
-                            },
-                        ) { Text("Enviar") }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { mostrarTransferir = false }) { Text("Cancelar") }
-                    },
-                )
-            }
-
             if (activoAEliminar != null) {
                 AlertDialog(
                     onDismissRequest = { activoAEliminar = null },
@@ -487,8 +362,4 @@ fun ListadoScreen(
             }
         }
     }
-}
-
-private fun etiquetaVista(vista: String): String = when (vista) {
-    "bodega" -> "Bodega"; "mi_stock" -> "Mi Stock"; "todos" -> "Todos"; else -> vista.replaceFirstChar { it.uppercase() }
 }

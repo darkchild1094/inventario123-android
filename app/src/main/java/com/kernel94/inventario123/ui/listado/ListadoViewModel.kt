@@ -14,8 +14,7 @@ import com.kernel94.inventario123.data.repository.AuthRepository
 import com.kernel94.inventario123.data.repository.CatalogoRepository
 import com.kernel94.inventario123.data.repository.ExportRepository
 import com.kernel94.inventario123.data.repository.Resultado
-import com.kernel94.inventario123.data.repository.SolicitudRepository
-import com.kernel94.inventario123.data.repository.TransferenciaRepository
+import com.kernel94.inventario123.data.repository.TiendaRepository
 import kotlinx.coroutines.Job
 import java.io.File
 import kotlinx.coroutines.delay
@@ -26,8 +25,7 @@ class ListadoViewModel(
     private val catalogoRepository: CatalogoRepository,
     private val authRepository: AuthRepository,
     private val exportRepository: ExportRepository,
-    private val solicitudRepository: SolicitudRepository,
-    private val transferenciaRepository: TransferenciaRepository,
+    private val tiendaRepository: TiendaRepository,
 ) : ViewModel() {
 
     /**
@@ -41,13 +39,11 @@ class ListadoViewModel(
     val mostrarPestanasPlaza: Boolean
         get() = misPlazas.size > 1 && modulo in listOf("bodega", "tiendas", "stock_pfs", "ati")
 
-    var solicitudesPendientes by mutableStateOf(0); private set
-
     var perfil by mutableStateOf<Perfil?>(null); private set
     var catalogos by mutableStateOf(Catalogos()); private set
 
-    var vistaActual by mutableStateOf("todos")
-    // Navegación por módulos: si != null, manda sobre "vista".
+    // Todo listado es de un módulo (Bodega, Mi stock, Stock PFS, ATI, Tiendas…):
+    // la navegación vieja por `vista=` ya no existe.
     var modulo by mutableStateOf<String?>(null)
     var tiendaId by mutableStateOf<Int?>(null)
     var moduloEditable by mutableStateOf(false); private set
@@ -58,8 +54,10 @@ class ListadoViewModel(
     var status by mutableStateOf<String?>(null)
     var busqueda by mutableStateOf("")
 
+    /** Sólo cuando modulo=="tiendas" && tiendaId!=null: nombre, CR y último inventario. */
+    var tiendaActual by mutableStateOf<com.kernel94.inventario123.data.model.Tienda?>(null); private set
+
     var activos by mutableStateOf<List<Activo>>(emptyList()); private set
-    var conteosVistas by mutableStateOf<Map<String, Int>>(emptyMap()); private set
     var paginaActual by mutableStateOf(1); private set
     var totalPaginas by mutableStateOf(1); private set
     var totalResultados by mutableStateOf(0); private set
@@ -69,70 +67,6 @@ class ListadoViewModel(
 
     /** ¿Queda al menos una página más por traer? */
     val puedeCargarMas: Boolean get() = paginaActual < totalPaginas
-
-    // ── Selección múltiple para transferir ───────────────────────────────────
-    // Sólo tiene sentido donde el equipo tiene un dueño que lo puede entregar:
-    // Mi Stock (lo mío) y Bodega (lo que reparte el coordinador). En Tiendas no:
-    // ahí el equipo está instalado y se mueve con el formulario de la tienda.
-    var seleccion by mutableStateOf<Set<Int>>(emptySet()); private set
-    var modoSeleccion by mutableStateOf(false); private set
-    var transfiriendo by mutableStateOf(false); private set
-
-    val puedeTransferirAqui: Boolean
-        get() = perfil?.permisos?.puedeTransferir == true &&
-            (modulo == "mi_stock" || (modulo == "bodega" && moduloEditable))
-
-    fun activarSeleccion(id: Int) {
-        if (!puedeTransferirAqui) return
-        modoSeleccion = true
-        seleccion = seleccion + id
-    }
-
-    fun alternarSeleccion(id: Int) {
-        seleccion = if (id in seleccion) seleccion - id else seleccion + id
-        if (seleccion.isEmpty()) modoSeleccion = false
-    }
-
-    fun salirDeSeleccion() { seleccion = emptySet(); modoSeleccion = false }
-
-    fun seleccionarTodos() { seleccion = activos.map { it.id }.toSet() }
-
-    /** Personas de la plaza a las que se les puede entregar (menos uno mismo). */
-    val destinatarios: List<com.kernel94.inventario123.data.model.Usuario>
-        get() {
-            val yo = perfil?.usuario?.id
-            val plaza = plazaId ?: perfil?.permisos?.plazaId
-            return catalogos.usuarios.filter { it.id != yo && (plaza == null || it.plaza_id == null || it.plaza_id == plaza) }
-        }
-
-    /**
-     * Entrega lo seleccionado. En Bodega hace falta saber de qué bodega sale, y
-     * se deduce del propio activo (todos los seleccionados comparten bodega
-     * porque la lista ya viene acotada a una plaza).
-     */
-    fun transferir(destinoUsuarioId: Int, nota: String, onListo: (Boolean, String) -> Unit) {
-        if (seleccion.isEmpty() || transfiriendo) return
-        val esBodega = modulo == "bodega"
-        val bodegaId = if (esBodega) activos.firstOrNull { it.id in seleccion }?.bodega_stock_id else null
-        if (esBodega && bodegaId == null) {
-            onListo(false, "No se pudo determinar la bodega de origen."); return
-        }
-        transfiriendo = true
-        viewModelScope.launch {
-            val r = transferenciaRepository.transferir(
-                activos = seleccion.toList(),
-                destinoUsuarioId = destinoUsuarioId,
-                nota = nota.ifBlank { null },
-                origen = if (esBodega) "bodega" else "mi_stock",
-                bodegaId = bodegaId,
-            )
-            transfiriendo = false
-            when (r) {
-                is Resultado.Exito -> { salirDeSeleccion(); cargar(); onListo(true, r.datos) }
-                is Resultado.Error -> onListo(false, r.mensaje)
-            }
-        }
-    }
 
     private var debounceJob: Job? = null
     private var cargaJob: Job? = null
@@ -147,7 +81,7 @@ class ListadoViewModel(
         const val POR_PAGINA = 50
     }
 
-    /** @param moduloArg si viene, la pantalla lista ese módulo; @param tiendaArg acota a
+    /** @param moduloArg módulo a listar; @param tiendaArg acota a
      *  una tienda; @param usuarioArg acota a un usuario (p. ej. desde la lista de Stock PFS). */
     fun iniciar(moduloArg: String? = null, tiendaArg: Int? = null, usuarioArg: Int? = null) {
         modulo = moduloArg?.takeIf { it.isNotBlank() }
@@ -155,10 +89,6 @@ class ListadoViewModel(
         usuarioId = usuarioArg?.takeIf { it > 0 }
         viewModelScope.launch {
             perfil = authRepository.obtenerPerfil()
-            val vistas = perfil?.vistasDisponibles ?: emptyList()
-            if (modulo == null) {
-                vistaActual = if ("todos" in vistas) "todos" else vistas.firstOrNull() ?: "todos"
-            }
             when (val r = catalogoRepository.obtenerCatalogos()) {
                 is Resultado.Exito -> catalogos = r.datos
                 is Resultado.Error -> {}
@@ -169,32 +99,21 @@ class ListadoViewModel(
             if (mostrarPestanasPlaza && plazaId == null) {
                 plazaId = perfil?.permisos?.plazaId?.takeIf { it > 0 } ?: misPlazas.firstOrNull()?.id
             }
-            // Badge del menú: equipo que alguien me mandó y espera respuesta.
-            // Antes contaba solicitudes por firmar, que ya no existen.
-            if (perfil?.permisos?.puedeTransferir == true) {
-                solicitudesPendientes = transferenciaRepository.contarPendientes()
-            }
+            cargarTiendaActual()
             cargar()
-
-            // Sólo en modo "vista" (legado): conteos de las demás pestañas.
-            if (modulo == null) {
-                vistas.forEach { vista ->
-                    if (vista != vistaActual) {
-                        launch {
-                            val res = activoRepository.listar(vista = vista, porPagina = 1)
-                            if (res is Resultado.Exito) {
-                                conteosVistas = conteosVistas + (vista to res.datos.paginacion.total_resultados)
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 
-    fun cambiarVista(v: String) {
-        vistaActual = v
-        cargar()
+    /** Refresca el nombre/CR/último-inventario de la tienda actual (tras editar o cerrar un checklist). */
+    fun cargarTiendaActual() {
+        val id = tiendaId
+        if (modulo != "tiendas" || id == null) { tiendaActual = null; return }
+        viewModelScope.launch {
+            when (val r = tiendaRepository.obtener(id)) {
+                is Resultado.Exito -> tiendaActual = r.datos
+                is Resultado.Error -> {}
+            }
+        }
     }
 
     fun onFiltroChange() {
@@ -259,7 +178,6 @@ class ListadoViewModel(
 
     private suspend fun pedirPagina(pagina: Int) = activoRepository.listar(
         modulo = modulo,
-        vista = if (modulo == null) vistaActual else null,
         negocioId = negocioId, regionId = regionId,
         plazaId = plazaId, tiendaId = tiendaId, usuarioId = usuarioId, status = status,
         busqueda = busqueda.ifBlank { null }, pagina = pagina,
@@ -271,7 +189,6 @@ class ListadoViewModel(
         totalPaginas = datos.paginacion.total_paginas
         totalResultados = datos.paginacion.total_resultados
         moduloEditable = datos.moduloEditable
-        conteosVistas = conteosVistas + ((modulo ?: vistaActual) to datos.paginacion.total_resultados)
     }
 
     var exportando by mutableStateOf(false); private set

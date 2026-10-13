@@ -33,11 +33,11 @@ class ActivoRepository(private val api: ApiService, private val context: Context
 
     suspend fun listar(
         modulo: String? = null,
-        vista: String? = null, negocioId: Int? = null, regionId: Int? = null,
+        negocioId: Int? = null, regionId: Int? = null,
         plazaId: Int? = null, tiendaId: Int? = null, usuarioId: Int? = null, status: String? = null,
         busqueda: String? = null, pagina: Int = 1, porPagina: Int = 5000,
     ): Resultado<ListadoActivosResponse> = try {
-        Resultado.Exito(api.listarActivos(modulo, vista, negocioId, regionId, plazaId, tiendaId, usuarioId, status, busqueda, pagina, porPagina))
+        Resultado.Exito(api.listarActivos(modulo, negocioId, regionId, plazaId, tiendaId, usuarioId, status, busqueda, pagina, porPagina))
     } catch (e: Exception) {
         Resultado.Error("No se pudo cargar el listado.")
     }

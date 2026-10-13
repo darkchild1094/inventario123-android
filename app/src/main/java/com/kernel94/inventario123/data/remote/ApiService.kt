@@ -42,7 +42,6 @@ interface ApiService {
     @GET("index.php?controller=api&action=listarActivos")
     suspend fun listarActivos(
         @Query("modulo") modulo: String? = null,
-        @Query("vista") vista: String? = null,
         @Query("negocio_id") negocioId: Int? = null,
         @Query("region_id") regionId: Int? = null,
         @Query("plaza_id") plazaId: Int? = null,
@@ -160,6 +159,63 @@ interface ApiService {
         @Field("ati_usuario_id") atiUsuarioId: Int?,
     ): ApiResultado
 
+    // ── CRUD de tiendas (rediseño) ───────────────────────────────────────
+    @GET("index.php?controller=api&action=obtenerTienda")
+    suspend fun obtenerTienda(@Query("id") id: Int): Tienda
+
+    @FormUrlEncoded
+    @POST("index.php?controller=api&action=tiendaCrear")
+    suspend fun tiendaCrear(
+        @Field("cr_tienda") cr: String, @Field("nombre") nombre: String,
+        @Field("plaza_id") plazaId: Int, @Field("ati_usuario_id") atiUsuarioId: Int?,
+    ): ApiResultado
+
+    @FormUrlEncoded
+    @POST("index.php?controller=api&action=tiendaActualizar")
+    suspend fun tiendaActualizar(
+        @Field("id") id: Int, @Field("cr_tienda") cr: String, @Field("nombre") nombre: String,
+        @Field("plaza_id") plazaId: Int, @Field("ati_usuario_id") atiUsuarioId: Int?,
+    ): ApiResultado
+
+    @FormUrlEncoded
+    @POST("index.php?controller=api&action=tiendaEliminar")
+    suspend fun tiendaEliminar(@Field("id") id: Int): ApiResultado
+
+    // ── Inventario (checklist) de tienda — migración 036 ─────────────────
+    @GET("index.php?controller=api&action=inventarioTiendaAbierto")
+    suspend fun inventarioTiendaAbierto(@Query("tienda_id") tiendaId: Int): InventarioTiendaAbiertoResponse
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=inventarioTiendaIniciar")
+    suspend fun inventarioTiendaIniciar(@Body body: Map<String, @JvmSuppressWildcards Any?>): InventarioTiendaIniciarResponse
+
+    @GET("index.php?controller=api&action=inventarioTiendaDetalle")
+    suspend fun inventarioTiendaDetalle(@Query("id") id: Int): InventarioTiendaResponse
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=inventarioTiendaEscanear")
+    suspend fun inventarioTiendaEscanear(@Body body: Map<String, @JvmSuppressWildcards Any?>): InventarioTiendaEscanearResponse
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=inventarioTiendaMarcar")
+    suspend fun inventarioTiendaMarcar(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=inventarioTiendaNota")
+    suspend fun inventarioTiendaNota(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=inventarioTiendaAgregarNuevo")
+    suspend fun inventarioTiendaAgregarNuevo(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=inventarioTiendaCerrar")
+    suspend fun inventarioTiendaCerrar(@Body body: Map<String, @JvmSuppressWildcards Any?>): CerrarInventarioTiendaResponse
+
+    @Headers("Content-Type: application/json")
+    @POST("index.php?controller=api&action=inventarioTiendaCancelar")
+    suspend fun inventarioTiendaCancelar(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
+
     // Alimenta el selector "¿Reemplaza a?" del alta de un activo "en uso".
     // dispositivoId null → todas las categorías (reemplazo entre categorías).
     @GET("index.php?controller=api&action=obtenerActivosEnTiendaPorDispositivo")
@@ -225,8 +281,8 @@ interface ApiService {
     suspend fun rentecDetalle(@Query("id") id: Int): ProyectoRentec
 
     // ── "Enviar" activos (Bodega↔Mi stock↔usuario) — INMEDIATO, sin
-    // aceptación del receptor. Reemplaza transferirActivo/SolicitudTraslado
-    // de abajo (se mantienen vivos solo por compatibilidad temporal).
+    // aceptación del receptor. Reemplaza las viejas transferirActivo/
+    // SolicitudTraslado con firma (ambas borradas).
     @Headers("Content-Type: application/json")
     @POST("index.php?controller=api&action=enviarActivos")
     suspend fun enviarActivos(@Body body: Map<String, @JvmSuppressWildcards Any?>): EnviarActivosResponse
@@ -240,30 +296,6 @@ interface ApiService {
     @Headers("Content-Type: application/json")
     @POST("index.php?controller=api&action=marcarNotificacionLeida")
     suspend fun marcarNotificacionLeida(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
-
-    // ── Transferencia de equipo entre personas (VIEJO — ver "Enviar" arriba) ─
-    // Reemplaza las solicitudes con firma: se manda y el que recibe lo acepta.
-    @Headers("Content-Type: application/json")
-    @POST("index.php?controller=api&action=transferirActivo")
-    suspend fun transferirActivo(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
-
-    @GET("index.php?controller=api&action=listarTransferencias")
-    suspend fun listarTransferencias(): ListaTransferencias
-
-    @GET("index.php?controller=api&action=contarTransferenciasPendientes")
-    suspend fun contarTransferenciasPendientes(): ConteoPendientes
-
-    @Headers("Content-Type: application/json")
-    @POST("index.php?controller=api&action=aceptarTransferencia")
-    suspend fun aceptarTransferencia(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
-
-    @Headers("Content-Type: application/json")
-    @POST("index.php?controller=api&action=rechazarTransferencia")
-    suspend fun rechazarTransferencia(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
-
-    @Headers("Content-Type: application/json")
-    @POST("index.php?controller=api&action=cancelarTransferencia")
-    suspend fun cancelarTransferencia(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
 
     // Borra un folio RENTEC. Sólo folios sin huella: si ya tiene activos o
     // movimientos el servidor responde 409 y sugiere cerrarlo en vez de borrarlo.
@@ -297,45 +329,6 @@ interface ApiService {
     @Headers("Content-Type: application/json")
     @POST("index.php?controller=api&action=eliminarModelo")
     suspend fun eliminarModelo(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
-
-    // ── Solicitudes de traslado a bodega (doble firma) ──────────────────
-    @GET("index.php?controller=api&action=listarSolicitudes")
-    suspend fun listarSolicitudes(@Query("estado") estado: String? = null): ListaSolicitudesResponse
-
-    @GET("index.php?controller=api&action=obtenerSolicitud")
-    suspend fun obtenerSolicitud(@Query("id") id: Int): SolicitudTraslado
-
-    @GET("index.php?controller=api&action=contarSolicitudesPendientes")
-    suspend fun contarSolicitudesPendientes(): ConteoPendientes
-
-    @Multipart
-    @POST("index.php?controller=api&action=crearSolicitud")
-    suspend fun crearSolicitud(
-        @Part("destino") destino: RequestBody,
-        @Part("origen_tipo") origenTipo: RequestBody,
-        @Part("nota") nota: RequestBody?,
-        @Part("origen_tienda_id") origenTiendaId: RequestBody?,
-        @Part("origen_bodega_id") origenBodegaId: RequestBody?,
-        @Part("destino_bodega_id") destinoBodegaId: RequestBody?,
-        @Part("destino_usuario_id") destinoUsuarioId: RequestBody?,
-        @Part("activos[]") activos: List<@JvmSuppressWildcards RequestBody>,
-        @Part firma: MultipartBody.Part,
-    ): ApiResultado
-
-    @Multipart
-    @POST("index.php?controller=api&action=aprobarSolicitud")
-    suspend fun aprobarSolicitud(
-        @Part("id") id: RequestBody,
-        @Part firma: MultipartBody.Part,
-    ): ApiResultado
-
-    @Headers("Content-Type: application/json")
-    @POST("index.php?controller=api&action=rechazarSolicitud")
-    suspend fun rechazarSolicitud(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
-
-    @Headers("Content-Type: application/json")
-    @POST("index.php?controller=api&action=cancelarSolicitud")
-    suspend fun cancelarSolicitud(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiResultado
 
     @GET("index.php?controller=api&action=listarUsuarios")
     suspend fun listarUsuarios(): List<Usuario>
